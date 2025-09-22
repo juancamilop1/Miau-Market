@@ -10,5 +10,4 @@ Se encarga de procesar las solicitudes del frontend, gestionar usuarios, pedidos
 - Gestión de pedidos y carrito de compras.  
 - Autenticación y autorización de usuarios.  
 - API REST para integración con Angular.  
-# Miau Market 
 
