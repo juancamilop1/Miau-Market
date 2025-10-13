@@ -1,0 +1,124 @@
+UNINPAHU 
+
+FACULTAD DE INGENIERÍA 
+
+PROGRAMA DE INGENIERÍA DE SOFTWARE 
+
+ 
+
+MIAU MARKET 
+
+ 
+
+Presentado por: 
+
+David Humberto Mahecha Cardozo 
+
+Edilson Mirllan Suarez Gutirrez 
+
+Juan Camilo Barragan Potes 
+
+Angely Liced Herrera Roldan 
+
+ 
+
+Docente: 
+
+Carlos Fábregas 
+
+ 
+
+Fecha: 07 de octubre de 2025 
+
+Bogotá D.C. 
+
+ 
+
+Introducción 
+
+Las páginas web surgieron a inicios de la década de 1990 con el desarrollo de la World Wide Web (WWW), creada por Tim Berners-Lee en 1989 en el CERN, con el propósito de facilitar el intercambio de información entre científicos (Wikipedia, 2021; TELEFONIA, 2022). Con el tiempo, se extendieron al público general, permitiendo que empresas y personas crearan sus propios sitios web. A mediados de esa década, surgió el comercio electrónico (e-commerce), una nueva forma de comprar y vender en línea. Aunque Internet se popularizó en los 90, la primera empresa de e-commerce, Boston Computer Exchange, fue fundada en 1982 por Alexander Randall y Cameron Hall como un mercado para vender computadoras usadas (Mary Gabrielyan, 2023). Más tarde, plataformas como Amazon y eBay impulsaron el comercio digital, transformando la forma en que los consumidores acceden a bienes y servicios, convirtiendo al e-commerce en un pilar clave de la economía global (Sarrah Shah, 2023). 
+
+Planteamiento del Problema: 
+
+Hicimos una ligera investigación en la cual nos dimos cuenta de que existen muchos comercios electrónicos (e-commerce) muy bien elaborados, como por ejemplo Laika (Laika Mascotas, 2018). Sin embargo, notamos que ninguna de las tiendas que analizamos ofrece una herramienta que ayude al usuario a saber qué productos son recomendados según su mascota, su edad o sus alergias. Por ejemplo, si quiero comprar algo nuevo o mejor para mi mascota, no sé cuál sería la opción más adecuada. Teniendo en cuenta esto, se nos ocurrió la idea de crear un comercio electrónico (e-commerce) de mascotas domesticas con inteligencia artificial (IA) que recomiende los productos más acertados según la mascota, su edad, alergias y los gustos del usuario. 
+
+Pregunta problema 
+
+¿Cómo diseñar e implementar una tienda virtual con un sistema de recomendación personalizado para mascotas utilizando la API Gemini 2?0 ? 
+
+Resumen del proyecto 
+
+El proyecto consiste en el desarrollo de una tienda virtual inteligente para mascotas que utiliza inteligencia artificial (IA) mediante la API Gemini 2.0, con el fin de ofrecer recomendaciones personalizadas de productos. A través de una breve conversación con el usuario, la IA recopila información sobre la mascota como tipo, edad, tamaño, raza y posibles alergias para sugerir los artículos más adecuados, incluyendo alimentos, juguetes, accesorios y suplementos. 
+ 
+El sistema busca mejorar la experiencia de compra al brindar un servicio interactivo, rápido y adaptado a las necesidades de cada usuario y su mascota, fomentando la confianza y la satisfacción del cliente. Además, el proyecto combina tecnología de recomendación inteligente con comercio electrónico. 
+
+Objetivo general 
+
+Desarrollar una tienda virtual inteligente para mascotas que utilice inteligencia artificial mediante la API Gemini 2.0, con el propósito de ofrecer recomendaciones personalizadas de productos según las preguntas, gustos y necesidades del usuario y su mascota. 
+
+Objetivos específicos 
+
+Diseñar la interfaz y estructura de la tienda virtual para ofrecer una navegación sencilla, agradable y atractiva al usuario. 
+
+Implementar la API Gemini 2.0 para integrar un sistema de inteligencia artificial capaz de interactuar con el usuario mediante preguntas. 
+
+Desarrollar un módulo de recomendaciones que analice las respuestas del usuario y sugiera productos personalizados según su tipo de mascota. 
+
+Clasificar los productos por categorías (alimentos, juguetes, accesorios y suplementos) para mejorar la experiencia de búsqueda. 
+
+Evaluar la precisión y eficacia del sistema de recomendaciones mediante pruebas con distintas mascotas. 
+
+Tecnologías a utilizar 
+
+Para el desarrollo del proyecto se emplearán diversas herramientas y tecnologías que permitirán garantizar un funcionamiento eficiente y seguro: 
+
+Angular: Framework frontend para construir una interfaz moderna, dinámica e intuitiva, ofreciendo una experiencia fluida. 
+
+Django: Framework backend encargado de la lógica del servidor, rutas, autenticación y conexión con la base de datos. 
+
+MySQL Server: Sistema de gestión de bases de datos para almacenar información de usuarios, productos, mascotas y recomendaciones. 
+
+API Gemini 2.0 (IA): Componente de inteligencia artificial conversacional que permitirá realizar preguntas al usuario y ofrecer recomendaciones personalizadas basadas en sus respuestas. 
+
+Marco Teórico 
+
+
+El comercio electrónico (e-commerce) ha evolucionado significativamente desde la creación de la World Wide Web en la década de 1990.​(TELEFONIA, 2022)​ Plataformas como Amazon y eBay  marcaron el inicio de una nueva era en la economía digital, transformando la forma en que los consumidores adquieren productos y servicios a nivel global ​(Unisabaneta, 2024)​. 
+
+En los últimos años, la inteligencia artificial (IA) ha comenzado a integrarse en los sistemas de comercio electrónico, permitiendo ofrecer experiencias personalizadas. Empresas como Shopify y Alibaba utilizan algoritmos de recomendación basados en el comportamiento de los usuarios, lo que ha incrementado las tasas de conversión y la satisfacción del cliente (For the Record, 2023). 
+
+Dentro del sector de mascotas, se observa una buena elaboración sobre una tienda virtual de me mascotas como Laika o Petco . Por tanto, nuestra idea de integración una IA conversacional como Gemini 2.0 representa una innovación que podría mejorar la interacción con el usuario y la personalización del servicio. 
+
+Marco Referencial 
+
+El desarrollo de una tienda virtual inteligente para mascotas se sustenta en las tendencias actuales del comercio digital inteligente, más del 50% de los compradores en línea prefieren plataformas que ofrezcan recomendaciones personalizadas. La aplicación de IA conversacional permite una comunicación más natural entre usuario y sistema, lo cual incrementa la confianza y la experiencia de compra . 
+
+Además, la incorporación de tecnologías como Angular, Django y MySQL Server respalda un enfoque moderno de arquitectura web, caracterizado por la seguridad, escalabilidad y eficiencia en la gestión de datos ​(TalvaSoft, 2023)​. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+Referencias 
+
+Mary Gabrielyan. (2023). Historia del comercio electrónico. https://virtocommerce.com/blog/ecommerce-history 
+Sarrah Shah. (2023). E-commerce y su impacto global.  https://www.investopedia.com/articles/markets/062315/fundamental-analysis-amazon-and-ebay.asp?utm_source=chatgpt.com  
+TELEFONIA. (2022). Origen de las páginas web. https://www.telefonica.com/es/sala-comunicacion/blog/el-primer-sitio-web-de-la-historia-un-hito-que-cambio-vidas/ 
+Wikipedia. (2021). World Wide Web. https://es.wikipedia.org/wiki/World_Wide_Web Laika Mascotas. (2018) Tienda virtual que usamos como ejemplo. https://laika.com.co/ Unisabaneta. (2024) Historia de Amazon. https://unisabaneta.edu.co/2024/06/12/historia-de-amazon-de-libreria-online-a-gigante-tecnologico/  
+For the Record. (2023) Lansamiento del IA para la mezcla de canciones. https://newsroom.spotify.com/2023-02-22/spotify-debuts-a-new-ai-dj-right-in-your-pocket/  
+INPAGUE. (2025) Búsqueda de porcentaje de personas conformes. https://instapage.com/blog/personalization-statistics/?utm_source=chatgpt.com  
+TalvaSoft. (2023) Ventajas y desventajas de Angular. https://www.tatvasoft.com/outsourcing/2022/08/angular-pros-and-cons.html  
+
+ 
