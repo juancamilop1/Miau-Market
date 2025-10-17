@@ -1,0 +1,18 @@
+<header class="app-header">
+  <a class="brand" routerLink="/login">
+    <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
+  </a>
+  <nav class="nav">
+    <a routerLink="/login" routerLinkActive="active">Iniciar sesión</a>
+    <a routerLink="/register" routerLinkActive="active">Registrarse</a>
+    <button class="btn btn-ghost theme-toggle" type="button" (click)="toggleTheme()" title="Cambiar tema" style="margin-left:12px">
+      🌓 <span class="sr-only">Alternar modo oscuro</span>
+    </button>
+  </nav>
+  <!-- Reemplaza el SVG por tu icono en public/logo.svg o favicon -->
+</header>
+
+<main class="app-main">
+  <router-outlet />
+  <!-- El contenido de login/register aparece aquí -->
+</main>

@@ -1,0 +1,22 @@
+<section class="auth-card">
+	<div class="auth-header">
+		<img src="/miauMarket.png" alt="Logo MiauMarket" class="logo-slot" data-brand="logo" />
+		<h2 class="auth-title">Iniciar sesión</h2>
+	</div>
+
+	<form class="form" (submit)="$event.preventDefault()">
+		<div class="field">
+			<label for="email">Correo electrónico</label>
+			<input id="email" type="email" class="input" placeholder="" required />
+		</div>
+		<div class="field">
+			<label for="password">Contraseña</label>
+			<input id="password" type="password" class="input" placeholder="••••••••" required />
+		</div>
+
+		<div class="actions">
+			<a routerLink="/register" class="link">Crear cuenta</a>
+			<button type="submit" class="btn btn-primary">Entrar</button>
+		</div>
+	</form>
+</section>
