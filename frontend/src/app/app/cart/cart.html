@@ -1,0 +1,22 @@
+<section class="cart-hero">
+  <h1>Tu carrito</h1>
+  <p>Este es un apartado de carrito estático — aquí se mostrarán los productos añadidos.</p>
+</section>
+
+<section class="cart-list">
+  <div *ngIf="cart().length === 0">
+    <p class="muted">Tu carrito está vacío.</p>
+  </div>
+  <div *ngFor="let p of cart()" class="cart-item">
+    <div>
+      <strong>{{p.name}}</strong>
+      <div class="muted">$ {{p.price.toFixed(2)}}</div>
+    </div>
+    <div>
+      <button class="btn btn-ghost" (click)="remove(p.id)">Eliminar</button>
+    </div>
+  </div>
+  <div *ngIf="cart().length > 0" style="margin-top:12px;">
+    <button class="btn" (click)="clear()">Vaciar carrito</button>
+  </div>
+</section>

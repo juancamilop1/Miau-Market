@@ -5,7 +5,7 @@
 	</div>
 	<p class="auth-subtitle">Únete a MiauMarket. ¡Es rápido y gratis!</p>
 
-	<form class="form" (submit)="$event.preventDefault()">
+	<form class="form" (submit)="submit($event)">
 		<div class="field">
 			<label for="name">Nombre</label>
 			<input id="name" type="text" class="input" placeholder="Tu nombre" required />

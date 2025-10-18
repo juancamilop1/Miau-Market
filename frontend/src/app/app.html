@@ -1,18 +1,47 @@
 <header class="app-header">
-  <a class="brand" routerLink="/login">
-    <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
-  </a>
-  <nav class="nav">
-    <a routerLink="/login" routerLinkActive="active">Iniciar sesión</a>
-    <a routerLink="/register" routerLinkActive="active">Registrarse</a>
-    <button class="btn btn-ghost theme-toggle" type="button" (click)="toggleTheme()" title="Cambiar tema" style="margin-left:12px">
+  <div class="header-left">
+    <a class="brand" routerLink="/login">
+      <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
+    </a>
+
+    <!-- Usuario y cerrar sesión a la izquierda cuando está logueado -->
+    <ng-container *ngIf="auth.isLogged()">
+      <span class="user-name">{{ auth.user()?.name }}</span>
+      <button class="btn btn-ghost" (click)="auth.logout()">Cerrar sesión</button>
+    </ng-container>
+    
+    <!-- Navegación cuando NO está logueado -->
+    <ng-container *ngIf="!auth.isLogged()">
+      <a class="nav-link" routerLink="/login" routerLinkActive="active">Iniciar sesión</a>
+      <a class="nav-link" routerLink="/register" routerLinkActive="active">Registrarse</a>
+    </ng-container>
+  </div>
+
+  <div class="header-center">
+    <div class="header-search" *ngIf="auth.isLogged()">
+      <input class="input" placeholder="Buscar productos..." [value]="auth.search()" (input)="auth.search.set($any($event.target).value)" />
+    </div>
+  </div>
+
+  <div class="header-right">
+    <!-- Tienda y Carrito a la derecha cuando está logueado -->
+    <ng-container *ngIf="auth.isLogged()">
+      <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
+      <a class="nav-link" routerLink="/cart" routerLinkActive="active">Carrito</a>
+    </ng-container>
+    
+    <!-- Botón de tema siempre visible -->
+    <button class="btn btn-ghost theme-toggle" type="button" (click)="toggleTheme()" title="Cambiar tema">
       🌓 <span class="sr-only">Alternar modo oscuro</span>
     </button>
-  </nav>
-  <!-- Reemplaza el SVG por tu icono en public/logo.svg o favicon -->
+  </div>
+
 </header>
 
 <main class="app-main">
   <router-outlet />
   <!-- El contenido de login/register aparece aquí -->
 </main>
+
+<!-- Chatbot flotante global -->
+<mm-chatbot *ngIf="auth.isLogged()"></mm-chatbot>

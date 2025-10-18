@@ -1,0 +1,22 @@
+<section class="shop-hero">
+  <div class="shop-intro">
+    <h1>Bienvenido a MiauMarket</h1>
+    <p>Encuentra todo para consentir a tu gato: juguetes, comida, accesorios y más.</p>
+  </div>
+</section>
+
+<section class="products">
+  <h2>Productos destacados</h2>
+  <!-- Search moved to header; results filtered by auth.search() -->
+  <div class="product-grid">
+    <div class="product-card" *ngFor="let p of filtered(); let idx = index">
+      <div class="product-media"></div>
+      <div class="product-body">
+        <h3>{{p.name}}</h3>
+        <p class="muted">{{p.description}}</p>
+        <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+        <button class="btn btn-primary" (click)="add(idx + 1); $event?.preventDefault()">Agregar al carrito</button>
+      </div>
+    </div>
+  </div>
+</section>

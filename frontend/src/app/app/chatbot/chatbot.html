@@ -1,0 +1,20 @@
+<div class="chat-wrapper" [class.open]="open">
+	<button class="chat-button" (click)="toggle()">
+		<img src="/miauMarket.png" alt="Chat" />
+	</button>
+
+	<div class="chat-panel" *ngIf="open">
+		<header class="chat-header">
+			<strong>MiauBot</strong>
+			<button class="btn btn-ghost" (click)="toggle()">✕</button>
+		</header>
+		<div class="chat-body">
+			<p class="muted">Aquí se mostrará el chat del bot. (Simulación)</p>
+		</div>
+		<footer class="chat-footer">
+			<input class="input" placeholder="Escribe un mensaje..." />
+			<button class="btn btn-primary">Enviar</button>
+		</footer>
+	</div>
+</div>
+
