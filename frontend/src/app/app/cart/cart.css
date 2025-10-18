@@ -1,0 +1,3 @@
+/* Estilos para carrito (placeholder) */
+.cart-hero { padding: 18px; background: var(--mm-white); border-radius: 12px; box-shadow: var(--shadow-2); }
+.cart-list { margin-top: 12px; }
