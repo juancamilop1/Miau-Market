@@ -7,10 +7,16 @@ export interface Product {
   description?: string;
 }
 
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  // Simulación de sesión
-  private _user = signal<null | { id: string; name: string }>(null);
+  // Sesión del usuario autenticado
+  private _user = signal<null | User>(null);
   user = this._user;
   isLogged = computed(() => !!this._user());
 
@@ -21,9 +27,9 @@ export class AuthService {
   // Buscador compartido entre header y tienda
   search = signal('');
 
-  login(name = 'Usuario') {
-    // Simulación de autenticación
-    this._user.set({ id: 'u_1', name });
+  // Método actualizado para recibir datos del backend
+  login(userData: User) {
+    this._user.set(userData);
   }
 
   logout() {
