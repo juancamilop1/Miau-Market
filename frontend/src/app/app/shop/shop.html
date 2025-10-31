@@ -15,7 +15,7 @@
         <h3>{{p.name}}</h3>
         <p class="muted">{{p.description}}</p>
         <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-        <button class="btn btn-primary" (click)="add(idx + 1); $event?.preventDefault()">Agregar al carrito</button>
+        <button class="btn btn-primary" (click)="add(idx + 1); $event.preventDefault()">Agregar al carrito</button>
       </div>
     </div>
   </div>
