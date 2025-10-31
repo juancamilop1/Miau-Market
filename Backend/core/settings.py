@@ -147,6 +147,9 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Gemini API Configuration
+GEMINI_API_KEY = 'AIzaSyAx4J7jhdOLut_2RrGuVmkx-jnH2acUQsQ'
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -158,13 +161,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',  # Token authentication
     'usuarios',        # Nuestra app
 ]
-
-# Configuración de Rest Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-    ],
-}
  
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
