@@ -7,17 +7,8 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 def get_product_recommendations(dog_type, age, size, health_conditions=None, budget=None):
     """
     Obtiene recomendaciones de productos basadas en las características del perro.
-    
-    Args:
-        dog_type (str): Raza o tipo de perro
-        age (int): Edad del perro en años
-        size (str): Tamaño del perro (pequeño, mediano, grande, extra grande)
-        health_conditions (str): Condiciones de salud especiales (opcional)
-        budget (str): Rango de presupuesto (bajo, medio, alto) (opcional)
-    
-    Returns:
-        dict: Recomendaciones y explicaciones
     """
+    print(f"   🔍 get_product_recommendations llamado con: dog_type={dog_type}, age={age}, size={size}")
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -41,12 +32,13 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
     Formatea la respuesta de manera clara y estructurada."""
     
     try:
+        print(f"   ⏳ Llamando API de Gemini...")
         # Configuración de generación
         generation_config = {
-            'temperature': 0.7,           # Creatividad (0.0 - 1.0)
-            'max_output_tokens': 150,     # Respuestas MÁS CORTAS
-            'top_p': 0.8,                 # Control de diversidad
-            'top_k': 40                   # Límite de opciones
+            'temperature': 0.7,
+            'max_output_tokens': 1000,  # Aumentado para evitar truncamiento
+            'top_p': 0.8,
+            'top_k': 40
         }
         
         response = model.generate_content(
@@ -54,20 +46,43 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
             generation_config=generation_config
         )
         
-        # Validar que la respuesta sea válida
-        if response.candidates and response.candidates[0].content.parts:
-            return {
-                'success': True,
-                'recommendations': response.text,
-                'status': 'Recomendaciones generadas exitosamente'
-            }
-        else:
-            return {
-                'success': False,
-                'error': 'La respuesta fue cortada por límites de tokens',
-                'status': 'Error: respuesta incompleta'
-            }
+        print(f"   ✅ Respuesta recibida de Gemini")
+        
+        # Obtener el texto de la respuesta
+        if hasattr(response, 'text') and response.text:
+            text = response.text.strip()
+            print(f"   📝 Texto: {text[:100]}...")
+            if text:  # Si hay contenido, devolverlo
+                return {
+                    'success': True,
+                    'recommendations': text,
+                    'status': 'Recomendaciones generadas exitosamente'
+                }
+        
+        # Si no hay texto, intentar obtener del contenido
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                text_parts = [part.text for part in candidate.content.parts if hasattr(part, 'text')]
+                full_text = ''.join(text_parts).strip()
+                if full_text:
+                    print(f"   📝 Texto (de parts): {full_text[:100]}...")
+                    return {
+                        'success': True,
+                        'recommendations': full_text,
+                        'status': 'Recomendaciones generadas exitosamente'
+                    }
+        
+        print(f"   ⚠️ Respuesta vacía")
+        return {
+            'success': False,
+            'error': 'La API de Gemini no pudo generar recomendaciones. Intenta de nuevo.',
+            'status': 'Error: respuesta vacía'
+        }
     except Exception as e:
+        print(f"   ❌ ERROR en get_product_recommendations: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             'success': False,
             'error': str(e),
@@ -78,17 +93,8 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
 def chatbot_response(message, context=None):
     """
     Genera una respuesta conversacional del chatbot sobre cuidado de perros y productos.
-    
-    Args:
-        message (str): Pregunta o mensaje del usuario
-        context (dict): Contexto opcional con información del perro
-            - dog_type (str): Raza del perro
-            - age (int): Edad del perro
-            - size (str): Tamaño del perro
-    
-    Returns:
-        dict: Respuesta conversacional
     """
+    print(f"   🔍 chatbot_response llamado con message='{message[:50]}...'")
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -102,19 +108,20 @@ CONTEXTO DEL PERRO DEL USUARIO:
 - Tamaño: {context.get('size', 'No especificado')}
 """
     
-    prompt = f"""Eres un experto en cuidado de perros. Responde de forma BREVE y útil.
+    prompt = f"""Eres un experto en cuidado de perros. Responde de forma útil y amigable.
     
     {context_text}
     
     PREGUNTA: {message}
     
-    Respuesta (máximo 3 oraciones):"""
+    Respuesta:"""
     
     try:
+        print(f"   ⏳ Llamando API de Gemini para respuesta conversacional...")
         # Configuración de generación para chatbot
         generation_config = {
-            'temperature': 0.8,           # Más creativo para conversación
-            'max_output_tokens': 400,     # Aumentar tokens para evitar cortes
+            'temperature': 0.7,
+            'max_output_tokens': 1000,  # Aumentado para evitar truncamiento
             'top_p': 0.9,
             'top_k': 40
         }
@@ -124,23 +131,46 @@ CONTEXTO DEL PERRO DEL USUARIO:
             generation_config=generation_config
         )
         
-        # Validar que la respuesta sea válida
-        if response.candidates and response.candidates[0].content.parts:
-            return {
-                'success': True,
-                'response': response.text,
-                'status': 'Respuesta generada exitosamente'
-            }
-        else:
-            return {
-                'success': False,
-                'error': 'La respuesta fue demasiado corta o cortada por límites de tokens',
-                'status': 'Error: respuesta incompleta'
-            }
-    except Exception as e:
+        print(f"   ✅ Respuesta recibida de Gemini")
+        
+        # Obtener el texto de la respuesta
+        if hasattr(response, 'text') and response.text:
+            text = response.text.strip()
+            print(f"   📝 Texto: {text[:100]}...")
+            if text:  # Si hay contenido, devolverlo
+                return {
+                    'success': True,
+                    'response': text,
+                    'status': 'Respuesta generada exitosamente'
+                }
+        
+        # Si no hay texto, intentar obtener del contenido
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                text_parts = [part.text for part in candidate.content.parts if hasattr(part, 'text')]
+                full_text = ''.join(text_parts).strip()
+                if full_text:
+                    print(f"   📝 Texto (de parts): {full_text[:100]}...")
+                    return {
+                        'success': True,
+                        'response': full_text,
+                        'status': 'Respuesta generada exitosamente'
+                    }
+        
+        print(f"   ⚠️ Respuesta vacía")
         return {
             'success': False,
-            'error': str(e),
+            'error': 'La API de Gemini no pudo generar una respuesta. Intenta de nuevo.',
+            'status': 'Error: respuesta vacía'
+        }
+    except Exception as e:
+        print(f"   ❌ ERROR en chatbot_response: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'success': False,
+            'error': f'Error: {str(e)}',
             'status': 'Error al generar respuesta'
         }
 
@@ -148,15 +178,8 @@ CONTEXTO DEL PERRO DEL USUARIO:
 def generate_product_description(product_name, product_type, dog_size):
     """
     Genera descripciones de productos usando IA.
-    
-    Args:
-        product_name (str): Nombre del producto
-        product_type (str): Tipo de producto
-        dog_size (str): Tamaño de perro al que va dirigido
-    
-    Returns:
-        dict: Descripción generada
     """
+    print(f"   🔍 generate_product_description llamado")
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -175,10 +198,11 @@ def generate_product_description(product_name, product_type, dog_size):
     """
     
     try:
+        print(f"   ⏳ Llamando API de Gemini...")
         # Configuración para descripciones de productos
         generation_config = {
-            'temperature': 0.6,           # Menos creativo, más preciso
-            'max_output_tokens': 500,     # Descripciones breves
+            'temperature': 0.6,
+            'max_output_tokens': 300,
             'top_p': 0.8,
             'top_k': 30
         }
@@ -187,12 +211,16 @@ def generate_product_description(product_name, product_type, dog_size):
             prompt,
             generation_config=generation_config
         )
+        print(f"   ✅ Descripción generada")
         return {
             'success': True,
             'description': response.text,
             'status': 'Descripción generada exitosamente'
         }
     except Exception as e:
+        print(f"   ❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             'success': False,
             'error': str(e),

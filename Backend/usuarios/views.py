@@ -17,6 +17,21 @@ class RegistroView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = RegistroSerializer
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return Response({
+                'success': True,
+                'data': serializer.data,
+                'message': 'Usuario registrado exitosamente'
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
 from django.contrib.auth import authenticate
 from .login_serializer import LoginSerializer
 

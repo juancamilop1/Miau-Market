@@ -3,6 +3,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .ai_serializers import ChatbotSerializer
 from .ai_service import get_product_recommendations, chatbot_response
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ChatbotView(generics.GenericAPIView):
@@ -25,6 +28,10 @@ class ChatbotView(generics.GenericAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        print("\n" + "="*60)
+        print("🤖 CHATBOT REQUEST RECIBIDO")
+        print(f"📨 Datos recibidos: {request.data}")
+        
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             try:
@@ -35,9 +42,16 @@ class ChatbotView(generics.GenericAPIView):
                 health_conditions = serializer.validated_data.get('health_conditions')
                 budget = serializer.validated_data.get('budget')
                 
+                print(f"✅ Mensaje validado: '{message}'")
+                print(f"   - dog_type: {dog_type}")
+                print(f"   - age: {age}")
+                print(f"   - size: {size}")
+                
                 # Detectar mensajes de saludo inicial
                 greeting_keywords = ['hola', 'hello', 'hi', 'saludos', 'buenos', 'buenas', 'inicio', 'empezar']
                 is_greeting = any(keyword in message.lower() for keyword in greeting_keywords) or len(message.strip()) < 10
+                
+                print(f"🔍 ¿Es saludo? {is_greeting}")
                 
                 # Si es un saludo inicial, mostrar mensaje de bienvenida
                 if is_greeting:
@@ -51,6 +65,7 @@ Puedo ayudarte con:
 
 ¡Cuéntame sobre tu mascota y empecemos! 🦴"""
                     
+                    print(f"📤 Devolviendo mensaje de bienvenida")
                     return Response({
                         'success': True,
                         'response': welcome_message,
@@ -61,8 +76,11 @@ Puedo ayudarte con:
                 keywords = ['recomend', 'product', 'compr', 'qué', 'cual', 'mejor', 'need', 'want']
                 is_recommendation_request = any(keyword in message.lower() for keyword in keywords)
                 
+                print(f"🔍 ¿Pide recomendaciones? {is_recommendation_request}")
+                
                 # Si tiene datos del perro y pide recomendaciones
                 if is_recommendation_request and (dog_type or age or size):
+                    print(f"📝 Generando recomendaciones de productos...")
                     response_data = get_product_recommendations(
                         dog_type=dog_type or 'Perro genérico',
                         age=age or 5,
@@ -70,23 +88,30 @@ Puedo ayudarte con:
                         health_conditions=health_conditions,
                         budget=budget
                     )
+                    print(f"✅ Recomendaciones generadas: {response_data['status']}")
                     return Response(response_data, status=status.HTTP_200_OK)
                 
                 # Si no, responder conversacionalmente
                 else:
+                    print(f"💬 Generando respuesta conversacional...")
                     context = {
                         'dog_type': dog_type,
                         'age': age,
                         'size': size
                     }
                     response_data = chatbot_response(message, context)
+                    print(f"✅ Respuesta generada: {response_data['status']}")
                     return Response(response_data, status=status.HTTP_200_OK)
                     
             except Exception as e:
+                print(f"❌ ERROR: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return Response({
                     'success': False,
                     'error': str(e),
                     'status': 'Error al procesar el mensaje'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+        print(f"❌ VALIDACION FALLIDA: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

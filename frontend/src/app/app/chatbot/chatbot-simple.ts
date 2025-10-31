@@ -2,6 +2,12 @@ import { Component, NgZone, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+interface ChatMessage {
+  type: 'user' | 'bot';
+  text: string;
+  timestamp: Date;
+}
+
 @Component({
   standalone: true,
   selector: 'mm-chatbot',
@@ -13,7 +19,7 @@ export class Chatbot {
   open = false;
   currentMessage = '';
   isLoading = signal(false);
-  messages = signal<any[]>([]);
+  messages = signal<ChatMessage[]>([]);
   
   private apiUrl = 'http://localhost:8000/api/usuarios/chatbot/';
 
@@ -67,6 +73,7 @@ export class Chatbot {
       }
 
       if (data.success) {
+        // La API puede devolver 'response' o 'recommendations'
         const botMessage = data.response || data.recommendations || 'Lo siento, no pude generar una respuesta.';
         console.log('🤖 Mensaje del bot:', botMessage);
         this.addBotMessage(botMessage);
@@ -80,9 +87,12 @@ export class Chatbot {
     } catch (error) {
       this.isLoading.set(false);
       console.error('❌ Error calling chatbot API:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error message:', (error as any)?.message);
-      this.addBotMessage('❌ Error de conexión. Asegúrate de que el servidor esté ejecutándose en http://localhost:8000');
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        this.addBotMessage('❌ Error de conexión. Asegúrate de que el servidor esté ejecutándose en http://localhost:8000');
+      } else {
+        this.addBotMessage('❌ Error del servidor. Por favor intenta de nuevo.');
+      }
     }
   }
 
@@ -107,6 +117,7 @@ export class Chatbot {
   }
 
   private scrollToBottom() {
+    // Hacer scroll hacia abajo después de agregar mensaje
     setTimeout(() => {
       const container = document.querySelector('.messages-container');
       if (container) {
