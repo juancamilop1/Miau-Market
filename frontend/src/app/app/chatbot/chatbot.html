@@ -5,15 +5,48 @@
 
 	<div class="chat-panel" *ngIf="open">
 		<header class="chat-header">
-			<strong>MiauBot</strong>
+			<strong>MiauBot 🐕</strong>
 			<button class="btn btn-ghost" (click)="toggle()">✕</button>
 		</header>
+		
 		<div class="chat-body">
-			<p class="muted">Aquí se mostrará el chat del bot. (Simulación)</p>
+			<!-- Mensajes del chat -->
+			<div class="messages-container">
+				<div *ngFor="let msg of messages()" 
+					 [class]="msg.type === 'user' ? 'message user-message' : 'message bot-message'">
+					<div class="message-content">
+						<span *ngIf="msg.type === 'bot'" class="bot-avatar">🤖</span>
+						{{ msg.text }}
+						<span *ngIf="msg.type === 'user'" class="user-avatar">👤</span>
+					</div>
+					<small class="message-time">{{ msg.timestamp | date:'HH:mm' }}</small>
+				</div>
+			</div>
+			
+			<!-- Estado de carga -->
+			<div *ngIf="isLoading()" class="message bot-message">
+				<div class="message-content">
+					<span class="bot-avatar">🤖</span>
+					<span class="typing-indicator">Escribiendo...</span>
+				</div>
+			</div>
 		</div>
+		
 		<footer class="chat-footer">
-			<input class="input" placeholder="Escribe un mensaje..." />
-			<button class="btn btn-primary">Enviar</button>
+			<div class="input-group">
+				<input 
+					class="input" 
+					[(ngModel)]="currentMessage"
+					(keyup.enter)="sendMessage()"
+					placeholder="Escribe un mensaje..."
+					[disabled]="isLoading()" />
+				<button 
+					class="btn btn-primary" 
+					(click)="sendMessage()"
+					[disabled]="isLoading() || !currentMessage.trim()">
+					{{ isLoading() ? '...' : 'Enviar' }}
+				</button>
+			</div>
 		</footer>
 	</div>
 </div>

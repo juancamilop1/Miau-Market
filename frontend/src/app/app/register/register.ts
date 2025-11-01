@@ -62,9 +62,11 @@ export class Register {
 
     this.api.register(registerData).subscribe({
       next: (response) => {
+        console.log('Registro exitoso:', response);
         // Registro exitoso, ahora hacer login automático
         this.api.login({ Email: this.email, password: this.password }).subscribe({
           next: (loginResponse) => {
+            console.log('Login automático exitoso:', loginResponse);
             if (loginResponse.success) {
               this.auth.login({
                 id: loginResponse.user.id,
@@ -76,6 +78,7 @@ export class Register {
           },
           error: (error) => {
             this.isLoading.set(false);
+            console.error('Error en login automático:', error);
             // Si falla el login automático, redirigir al login manual
             this.router.navigate(['/login']);
           }
@@ -83,18 +86,42 @@ export class Register {
       },
       error: (error) => {
         this.isLoading.set(false);
-        if (error.error?.password) {
-          this.errorMessage.set(error.error.password[0]);
-        } else if (error.error?.Email) {
-          this.errorMessage.set('Este email ya está registrado');
-        } else if (error.error) {
-          // Mostrar el primer error que venga del backend
-          const firstError = Object.values(error.error)[0];
-          this.errorMessage.set(Array.isArray(firstError) ? firstError[0] : String(firstError));
-        } else {
-          this.errorMessage.set('Error al registrar. Por favor intenta de nuevo.');
+        console.error('Error completo:', error);
+        console.error('Error status:', error.status);
+        console.error('Error body:', error.error);
+        
+        // Mejor manejo de errores
+        let errorMsg = 'Error al registrar. Por favor intenta de nuevo.';
+        
+        if (error.error) {
+          if (typeof error.error === 'string') {
+            errorMsg = error.error;
+          } else if (error.error.password) {
+            errorMsg = Array.isArray(error.error.password) ? error.error.password[0] : error.error.password;
+          } else if (error.error.Email) {
+            errorMsg = 'Este email ya está registrado';
+          } else if (error.error.error) {
+            errorMsg = error.error.error;
+          } else if (error.error.detail) {
+            errorMsg = error.error.detail;
+          } else if (error.error.errors) {
+            // Si hay un objeto errors, extraer primer error
+            const errorsObj = error.error.errors;
+            const firstKey = Object.keys(errorsObj)[0];
+            const firstError = errorsObj[firstKey];
+            errorMsg = Array.isArray(firstError) ? firstError[0] : String(firstError);
+          } else if (Object.keys(error.error).length > 0) {
+            // Obtener el primer error disponible
+            const firstKey = Object.keys(error.error)[0];
+            const firstError = error.error[firstKey];
+            errorMsg = Array.isArray(firstError) ? firstError[0] : String(firstError);
+          }
+        } else if (error.status === 0) {
+          errorMsg = 'Error de conexión. Verifica que el servidor esté ejecutándose.';
         }
-        console.error('Error de registro:', error);
+        
+        console.warn('Mensaje de error final:', errorMsg);
+        this.errorMessage.set(errorMsg);
       }
     });
   }
