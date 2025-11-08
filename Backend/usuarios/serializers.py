@@ -41,7 +41,7 @@ class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
         fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'created_by')
-        read_only_fields = ('id', 'Fecha_creacion')
+        read_only_fields = ('id', 'Fecha_creacion', 'created_by')
     
     def to_representation(self, instance):
         """Cambiar 'id' a 'Id_Products' en la respuesta"""

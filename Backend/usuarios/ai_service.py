@@ -229,6 +229,8 @@ CONTEXTO DEL GATO DEL USUARIO:
 
 PREGUNTA DEL CLIENTE: {message}
 
+IMPORTANTE: Responde siempre de manera educada y profesional. Si el cliente menciona productos para otras mascotas (como perros), explica amablemente que te especializas en productos para gatos y redirige la conversación a productos felinos.
+
 INSTRUCCIONES:
 1. REVISA DETALLADAMENTE el nombre exacto, descripción, precio y stock de cada producto
 2. Si recomiendas productos:
@@ -237,7 +239,7 @@ INSTRUCCIONES:
    - Menciona el precio y disponibilidad de forma conversacional
    - Solo recomienda productos con stock disponible
 3. Sé conversacional, empático y utiliza emojis ocasionalmente
-4. Si el cliente pregunta por algo que no tenemos, sugiere alternativas reales disponibles
+4. Si el cliente pregunta por productos que no tenemos o para otras mascotas, redirige amablemente a productos para gatos
 5. Proporciona consejos de cuidado específicos para gatos
 6. NO uses formato robótico con asteriscos o puntos innecesarios
 7. Escribe como si estuvieras teniendo una conversación natural con un cliente
@@ -261,6 +263,20 @@ Respuesta:"""
         )
         
         print(f"   ✅ Respuesta recibida de Gemini")
+        
+        # Verificar si la respuesta fue bloqueada por filtros de seguridad
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            finish_reason = candidate.finish_reason
+            
+            # Finish reason 2 = SAFETY (bloqueado por seguridad)
+            if finish_reason == 2:
+                print(f"   ⚠️ Respuesta bloqueada por filtros de seguridad")
+                return {
+                    'success': True,
+                    'response': "Disculpa, no pude procesar esa pregunta. ¿Podrías reformularla de otra manera? Estoy aquí para ayudarte con información sobre productos para gatos y cuidado de mascotas. 😊",
+                    'status': 'Respuesta bloqueada por seguridad'
+                }
         
         # Obtener el texto de la respuesta
         if hasattr(response, 'text') and response.text:
@@ -289,9 +305,9 @@ Respuesta:"""
         
         print(f"   ⚠️ Respuesta vacía")
         return {
-            'success': False,
-            'error': 'La API de Gemini no pudo generar una respuesta. Intenta de nuevo.',
-            'status': 'Error: respuesta vacía'
+            'success': True,
+            'response': "Lo siento, no pude generar una respuesta adecuada. ¿Podrías hacer tu pregunta de otra forma? 🤔",
+            'status': 'Respuesta vacía'
         }
     except Exception as e:
         print(f"   ❌ ERROR en chatbot_response: {str(e)}")

@@ -90,7 +90,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'miau_market',
         'USER': 'root',
-        'PASSWORD': '7011',  # Tu contraseña actual
+        'PASSWORD': '',  # Sin contraseña
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {

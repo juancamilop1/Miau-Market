@@ -49,11 +49,11 @@ class Producto(models.Model):
     Titulo = models.CharField(max_length=150)
     Descripcion = models.TextField(null=True, blank=True)
     Categoria = models.CharField(max_length=100, null=True, blank=True)
-    Precio = models.DecimalField(max_digits=10, decimal_places=2)
+    Precio = models.IntegerField()
     Stock = models.IntegerField(default=0)
     Imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
     Fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='Fecha_creacion')
-    created_by = models.ForeignKey(Usuario, null=True, blank=True, on_delete=models.SET_NULL)
+    created_by = models.ForeignKey(Usuario, null=True, blank=True, on_delete=models.SET_NULL, db_column='created_by')
 
     class Meta:
         db_table = 'Products'

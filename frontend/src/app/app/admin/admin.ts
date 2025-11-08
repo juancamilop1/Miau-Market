@@ -105,7 +105,7 @@ export class Admin implements OnInit {
     formData.append('Titulo', product.Titulo);
     formData.append('Descripcion', product.Descripcion);
     formData.append('Categoria', product.Categoria);
-    formData.append('Precio', product.Precio.toString());
+    formData.append('Precio', Math.floor(product.Precio).toString());
     formData.append('Stock', product.Stock.toString());
     
     // Si hay una imagen tipo File, agregarla

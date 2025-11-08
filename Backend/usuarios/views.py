@@ -116,6 +116,16 @@ class ProductoListView(generics.ListCreateAPIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
+    def create(self, request, *args, **kwargs):
+        print("Datos recibidos:", request.data)
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("Errores de validación:", serializer.errors)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
