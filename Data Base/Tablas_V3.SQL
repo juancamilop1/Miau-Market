@@ -35,6 +35,7 @@ CREATE TABLE Products (
     Categoria VARCHAR(100),
     Precio DECIMAL(10,2) NOT NULL,
     Stock INT NOT NULL DEFAULT 0,
+    Imagen VARCHAR(255),  -- Campo para guardar la ruta de la imagen
     Fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by INT,  -- Campo para rastrear quién creó el producto
     FOREIGN KEY (created_by) REFERENCES Users(Id_User)

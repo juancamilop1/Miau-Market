@@ -41,4 +41,22 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         db_table = 'Users'  # Nombre exacto de la tabla en MySQL
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido}"
+        return f"{self.Nombre} {self.Apellido}"
+
+
+class Producto(models.Model):
+    id = models.AutoField(primary_key=True, db_column='Id_Products')
+    Titulo = models.CharField(max_length=150)
+    Descripcion = models.TextField(null=True, blank=True)
+    Categoria = models.CharField(max_length=100, null=True, blank=True)
+    Precio = models.DecimalField(max_digits=10, decimal_places=2)
+    Stock = models.IntegerField(default=0)
+    Imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
+    Fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='Fecha_creacion')
+    created_by = models.ForeignKey(Usuario, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        db_table = 'Products'
+
+    def __str__(self):
+        return self.Titulo

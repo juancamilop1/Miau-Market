@@ -1,14 +1,15 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from .models import Producto
 
 Usuario = get_user_model()
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ('id', 'Nombre', 'Apellido', 'Email', 'Telefono', 'Address', 'City', 'BirthDate', 'FechaRegistro')
-        read_only_fields = ('id', 'FechaRegistro')
+        fields = ('id', 'Nombre', 'Apellido', 'Email', 'Telefono', 'Address', 'City', 'BirthDate', 'FechaRegistro', 'is_staff')
+        read_only_fields = ('id', 'FechaRegistro', 'is_staff')
 
 class RegistroSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -34,3 +35,17 @@ class RegistroSerializer(serializers.ModelSerializer):
             **validated_data
         )
         return user
+
+
+class ProductoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'created_by')
+        read_only_fields = ('id', 'Fecha_creacion')
+    
+    def to_representation(self, instance):
+        """Cambiar 'id' a 'Id_Products' en la respuesta"""
+        data = super().to_representation(instance)
+        data['Id_Products'] = data.pop('id')
+        return data
+

@@ -109,6 +109,19 @@ body {
 	color: var(--mm-white);
 }
 
+/* Enlace de administración con estilo destacado */
+.nav-link.admin-link {
+	background: rgba(255, 122, 0, 0.1);
+	color: var(--mm-orange);
+	border: 1px solid var(--mm-orange);
+}
+
+.nav-link.admin-link:hover,
+.nav-link.admin-link.active {
+	background: var(--mm-orange);
+	color: var(--mm-white);
+}
+
 /* Nombre de usuario en el header */
 .user-name {
 	color: var(--mm-gray-700);

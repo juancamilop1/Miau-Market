@@ -28,6 +28,10 @@
     <ng-container *ngIf="auth.isLogged()">
       <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
       <a class="nav-link" routerLink="/cart" routerLinkActive="active">Carrito</a>
+      <!-- Botón de Administración solo para admins -->
+      <a class="nav-link admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.user()?.is_staff">
+        Administración
+      </a>
     </ng-container>
     
     <!-- Botón de tema siempre visible -->

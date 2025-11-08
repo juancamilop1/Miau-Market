@@ -1,8 +1,10 @@
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
-from .serializers import RegistroSerializer, UsuarioSerializer
+from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer
+from .models import Producto
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 
@@ -53,13 +55,18 @@ class LoginView(generics.GenericAPIView):
             user = authenticate(request, Email=email, password=password)
             
             if user:
-                # Por ahora, solo devolvemos la información del usuario sin token
+                # Obtener o crear token
+                token, created = Token.objects.get_or_create(user=user)
+                
+                # Devolvemos la información del usuario con token e is_staff
                 return Response({
                     'success': True,
+                    'token': token.key,
                     'user': {
                         'id': user.id,
                         'email': user.Email,
-                        'nombre': user.Nombre
+                        'nombre': user.Nombre,
+                        'is_staff': user.is_staff
                     }
                 }, status=status.HTTP_200_OK)
             else:
@@ -93,3 +100,40 @@ class UsuarioDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return super().delete(request, *args, **kwargs)
+
+
+# Vistas para Productos
+class ProductoListView(generics.ListCreateAPIView):
+    """
+    Lista todos los productos o crea uno nuevo (solo admin).
+    """
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Recupera, actualiza o elimina un producto (solo admin puede editar/eliminar).
+    """
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
+    lookup_field = 'id'
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdminUser()]
+
+    def perform_update(self, serializer):
+        serializer.save(created_by=self.request.user)
+

@@ -5,18 +5,222 @@
   </div>
 </section>
 
-<section class="products">
-  <h2>Productos destacados</h2>
-  <!-- Search moved to header; results filtered by auth.search() -->
-  <div class="product-grid">
-    <div class="product-card" *ngFor="let p of filtered(); let idx = index">
-      <div class="product-media"></div>
-      <div class="product-body">
-        <h3>{{p.name}}</h3>
-        <p class="muted">{{p.description}}</p>
-        <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-        <button class="btn btn-primary" (click)="add(idx + 1); $event.preventDefault()">Agregar al carrito</button>
+<!-- Resultados de búsqueda - UN SOLO PRODUCTO (grande y horizontal) -->
+<section class="products" *ngIf="auth.search() && filtered().length === 1">
+  <div class="carousel-header">
+    <h2>Resultado de búsqueda: "{{ auth.search() }}"</h2>
+  </div>
+  <div class="single-product-container">
+    <div class="single-product-card" *ngFor="let p of filtered()">
+      <div class="single-product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+          style="width: 100%; height: 100%; object-fit: cover;"
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7); font-size: 4rem;">
+          📦
+        </div>
+      </div>
+      <div class="single-product-body">
+        <h2 class="single-product-title">{{p.name}}</h2>
+        <p class="single-product-description">{{p.description}}</p>
+        <div class="single-product-footer">
+          <p class="single-product-price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="single-product-stock">Stock: {{ p.stock }}</p>
+        </div>
+        <button class="btn btn-primary btn-large" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Resultados de búsqueda - MÚLTIPLES PRODUCTOS -->
+<section class="products" *ngIf="auth.search() && filtered().length > 1">
+  <div class="carousel-header">
+    <h2>Resultados de búsqueda: "{{ auth.search() }}" ({{ filtered().length }})</h2>
+  </div>
+  <div class="product-grid highlighted-grid">
+    <div class="product-card" *ngFor="let p of filtered()">
+      <div class="product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+          style="width: 100%; height: 100%; object-fit: cover;"
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+          📦
+        </div>
+      </div>
+      <div class="product-body">
+        <h3>{{p.name}}</h3>
+        <p class="muted">{{p.description}}</p>
+        <div class="product-footer">
+          <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="stock">Stock: {{ p.stock }}</p>
+        </div>
+        <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Mensaje sin resultados de búsqueda -->
+<div *ngIf="auth.search() && filtered().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
+  <p>No se encontraron productos que coincidan con "{{ auth.search() }}"</p>
+</div>
+
+<!-- Productos Destacados SIN CARRUSEL (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && highlighted().length > 0">
+  <div class="carousel-header">
+    <h2>Productos Destacados</h2>
+  </div>
+  <div class="product-grid highlighted-grid">
+    <div class="product-card" *ngFor="let p of highlighted()">
+      <div class="product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+          style="width: 100%; height: 100%; object-fit: cover;"
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+          📦
+        </div>
+      </div>
+      <div class="product-body">
+        <h3>{{p.name}}</h3>
+        <p class="muted">{{p.description}}</p>
+        <div class="product-footer">
+          <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="stock">Stock: {{ p.stock }}</p>
+        </div>
+        <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Comida (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && comida().length > 0">
+  <div class="carousel-header">
+    <h2>Comida</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comida')" [disabled]="comida().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(comida(), comidaIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            style="width: 100%; height: 100%; object-fit: cover;"
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comida')" [disabled]="comida().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Juguetes (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && juguetes().length > 0">
+  <div class="carousel-header">
+    <h2>Juguetes</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('juguetes')" [disabled]="juguetes().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(juguetes(), juguetesIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            style="width: 100%; height: 100%; object-fit: cover;"
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('juguetes')" [disabled]="juguetes().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Servicios (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && servicios().length > 0">
+  <div class="carousel-header">
+    <h2>Productos utiles</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('servicios')" [disabled]="servicios().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(servicios(), serviciosIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            style="width: 100%; height: 100%; object-fit: cover;"
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('servicios')" [disabled]="servicios().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Sin resultados ni búsqueda -->
+<div *ngIf="!auth.search() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
+  <p>No hay productos disponibles</p>
+</div>

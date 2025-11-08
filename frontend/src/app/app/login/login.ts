@@ -37,11 +37,17 @@ export class Login {
     this.api.login({ Email: this.email, password: this.password }).subscribe({
       next: (response) => {
         if (response.success) {
+          // Guardar token
+          if (response.token) {
+            this.auth.setToken(response.token);
+          }
+          
           // Login exitoso
           this.auth.login({
             id: response.user.id,
             name: response.user.nombre,
-            email: response.user.email
+            email: response.user.email,
+            is_staff: response.user.is_staff
           });
           this.router.navigate(['/shop']);
         }

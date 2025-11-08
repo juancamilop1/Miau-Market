@@ -1,0 +1,148 @@
+<div class="admin-container">
+  <div class="admin-header">
+    <h1>Panel de Administración</h1>
+    <button class="btn btn-primary" (click)="openForm()" *ngIf="!showForm()">
+      + Agregar Producto
+    </button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="alert alert-success" *ngIf="successMessage()">
+    {{ successMessage() }}
+  </div>
+  <div class="alert alert-error" *ngIf="errorMessage()" (click)="errorMessage.set('')" style="cursor: pointer;">
+    {{ errorMessage() }} (Haz clic para cerrar)
+  </div>
+
+  <!-- Formulario -->
+  <div class="admin-form" *ngIf="showForm()">
+    <h2>{{ editingId() ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
+    
+    <div class="form-group">
+      <label>Título</label>
+      <input 
+        class="input"
+        type="text" 
+        [(ngModel)]="newProduct().Titulo"
+        placeholder="Nombre del producto"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Descripción</label>
+      <textarea 
+        class="input"
+        [(ngModel)]="newProduct().Descripcion"
+        placeholder="Descripción del producto"
+        rows="4"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Categoría</label>
+      <select 
+        class="input"
+        [(ngModel)]="newProduct().Categoria"
+      >
+        <option value="">Selecciona una categoría</option>
+        <option *ngFor="let cat of categorias" [value]="cat">
+          {{ cat }}
+        </option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Precio</label>
+        <input 
+          class="input"
+          type="number" 
+          [(ngModel)]="newProduct().Precio"
+          placeholder="Precio"
+          step="0.01"
+          min="0"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Stock</label>
+        <input 
+          class="input"
+          type="number" 
+          [(ngModel)]="newProduct().Stock"
+          placeholder="Stock"
+          min="0"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Imagen</label>
+      <div class="image-upload">
+        <input 
+          class="input"
+          type="file"
+          accept="image/*"
+          (change)="onImageSelect($event)"
+          #imageInput
+        />
+        <div class="image-preview" *ngIf="imagePreviewUrl() || (newProduct().Imagen && typeof newProduct().Imagen === 'string')">
+          <img 
+            [src]="imagePreviewUrl() || newProduct().Imagen" 
+            alt="Preview"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" (click)="saveProduct()" [disabled]="loading()">
+        {{ loading() ? 'Guardando...' : (editingId() ? 'Actualizar' : 'Crear') }}
+      </button>
+      <button class="btn btn-ghost" (click)="closeForm()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Lista de productos -->
+  <div class="products-grid" *ngIf="!showForm()">
+    <div *ngIf="loading() && products().length === 0" class="loading">
+      Cargando productos...
+    </div>
+
+    <div *ngIf="products().length === 0 && !loading()" class="empty-state">
+      <p>No hay productos registrados</p>
+    </div>
+
+    <div class="product-card" *ngFor="let product of products()">
+      <div class="product-image">
+        <img 
+          *ngIf="product.Imagen" 
+          [src]="product.Imagen" 
+          alt="{{ product.Titulo }}"
+        />
+        <div *ngIf="!product.Imagen" class="no-image">
+          📦
+        </div>
+      </div>
+
+      <div class="product-info">
+        <h3>{{ product.Titulo }}</h3>
+        <p class="description">{{ product.Descripcion }}</p>
+        <p class="category">{{ product.Categoria }}</p>
+        <div class="product-stats">
+          <span class="price">COP {{ product.Precio | number:'1.2-2' }}</span>
+          <span class="stock">Stock: {{ product.Stock }}</span>
+        </div>
+      </div>
+
+      <div class="product-actions">
+        <button class="btn btn-secondary" (click)="openForm(product)">
+          ✏️ Editar
+        </button>
+        <button class="btn btn-danger" (click)="deleteProduct(product.Id_Products); $event.preventDefault()">
+          🗑️ Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
