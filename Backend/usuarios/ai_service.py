@@ -1,42 +1,114 @@
 import google.generativeai as genai
 from django.conf import settings
+from .models import Producto
+import json
 
 # Configurar la API de Gemini
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-def get_product_recommendations(dog_type, age, size, health_conditions=None, budget=None):
+
+def get_products_from_db():
     """
-    Obtiene recomendaciones de productos basadas en las características del perro.
+    Obtiene todos los productos de la base de datos con sus detalles.
+    """
+    try:
+        productos = Producto.objects.all().values(
+            'id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen'
+        )
+        return list(productos)
+    except Exception as e:
+        print(f"❌ Error obteniendo productos de BD: {str(e)}")
+        return []
+
+
+def get_products_by_category(category):
+    """
+    Obtiene productos de una categoría específica.
+    """
+    try:
+        productos = Producto.objects.filter(
+            Categoria__icontains=category
+        ).values(
+            'id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen'
+        )
+        return list(productos)
+    except Exception as e:
+        print(f"❌ Error obteniendo productos por categoría: {str(e)}")
+        return []
+
+
+def format_products_for_ai(products):
+    """
+    Formatea los productos para presentarlos a la IA.
+    """
+    formatted = []
+    for p in products:
+        formatted.append({
+            'id': p['id'],
+            'nombre': p['Titulo'],
+            'descripcion': p['Descripcion'],
+            'categoria': p['Categoria'],
+            'precio': float(p['Precio']),
+            'stock': p['Stock']
+        })
+    return formatted
+
+def get_product_recommendations(dog_type, age, size, health_conditions=None, budget=None, user_message=None):
+    """
+    Obtiene recomendaciones de productos basadas en las características del perro
+    y los productos disponibles en la base de datos.
     """
     print(f"   🔍 get_product_recommendations llamado con: dog_type={dog_type}, age={age}, size={size}")
     
+    # Obtener todos los productos disponibles
+    all_products = get_products_from_db()
+    formatted_products = format_products_for_ai(all_products)
+    
+    print(f"   📦 Productos disponibles en BD: {len(formatted_products)}")
+    
+    if not formatted_products:
+        return {
+            'success': False,
+            'error': 'No hay productos disponibles en la tienda.',
+            'status': 'Error: sin productos'
+        }
+    
     model = genai.GenerativeModel('gemini-2.5-flash')
     
+    # Crear lista de productos formateada para el prompt
+    products_text = "PRODUCTOS DISPONIBLES EN LA TIENDA:\n"
+    for p in formatted_products:
+        products_text += f"- {p['nombre']} (ID: {p['id']}, Categoría: {p['categoria']}, Precio: ${p['precio']}, Stock: {p['stock']})\n"
+        if p['descripcion']:
+            products_text += f"  Descripción: {p['descripcion'][:100]}...\n"
+    
     # Inteligencia del prompt para recomendaciones
-    prompt = f"""Eres un experto en productos para perros. Basándote en la siguiente información del perro, 
-    proporciona recomendaciones específicas de productos de una tienda de mascotas.
-
-    INFORMACIÓN DEL PERRO:
+    prompt = f"""Eres un experto en productos para gatos de MiauMarket. 
+    
+    INFORMACIÓN DEL GATO:
     - Raza/Tipo: {dog_type}
     - Edad: {age} años
     - Tamaño: {size}
-    - Condiciones de salud especiales: {health_conditions if health_conditions else 'Ninguna'}
-    - Rango de presupuesto: {budget if budget else 'No especificado'}
-
-    Por favor, proporciona:
-    1. 3-5 productos recomendados (alimento, juguetes, accesorios, etc.)
-    2. Para cada producto, explica por qué es apropiado para este perro
-    3. Incluye categorías como: alimento, juguetes, cuidado, accesorios
+    - Condiciones especiales: {health_conditions if health_conditions else 'Ninguna'}
+    - Rango de presupuesto: {user_message if user_message else (budget if budget else 'No especificado')}
+    
+    {products_text}
+    
+    Basándote SOLO en los productos disponibles listados arriba:
+    1. Recomienda 3-5 productos específicos de la tienda que sean adecuados para este gato
+    2. Explica por qué cada producto es apropiado
+    3. Menciona el nombre exacto del producto y su categoría
     4. Proporciona consejos de cuidado específicos para esta raza y edad
-
-    Formatea la respuesta de manera clara y estructurada."""
+    5. Si el cliente mencionó un presupuesto, respeta ese rango
+    
+    Sé específico y refiérete a los productos reales disponibles."""
     
     try:
         print(f"   ⏳ Llamando API de Gemini...")
         # Configuración de generación
         generation_config = {
             'temperature': 0.7,
-            'max_output_tokens': 1000,  # Aumentado para evitar truncamiento
+            'max_output_tokens': 1000,
             'top_p': 0.8,
             'top_k': 40
         }
@@ -52,10 +124,11 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
         if hasattr(response, 'text') and response.text:
             text = response.text.strip()
             print(f"   📝 Texto: {text[:100]}...")
-            if text:  # Si hay contenido, devolverlo
+            if text:
                 return {
                     'success': True,
                     'recommendations': text,
+                    'products_available': len(formatted_products),
                     'status': 'Recomendaciones generadas exitosamente'
                 }
         
@@ -70,6 +143,7 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
                     return {
                         'success': True,
                         'recommendations': full_text,
+                        'products_available': len(formatted_products),
                         'status': 'Recomendaciones generadas exitosamente'
                     }
         
@@ -92,9 +166,14 @@ def get_product_recommendations(dog_type, age, size, health_conditions=None, bud
 
 def chatbot_response(message, context=None):
     """
-    Genera una respuesta conversacional del chatbot sobre cuidado de perros y productos.
+    Genera una respuesta conversacional del chatbot sobre cuidado de gatos y productos.
+    Consulta la BD de productos para recomendaciones personalizadas.
     """
     print(f"   🔍 chatbot_response llamado con message='{message[:50]}...'")
+    
+    # Obtener productos disponibles
+    all_products = get_products_from_db()
+    formatted_products = format_products_for_ai(all_products)
     
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -102,17 +181,33 @@ def chatbot_response(message, context=None):
     context_text = ""
     if context:
         context_text = f"""
-CONTEXTO DEL PERRO DEL USUARIO:
+CONTEXTO DEL GATO DEL USUARIO:
 - Raza/Tipo: {context.get('dog_type', 'No especificada')}
 - Edad: {context.get('age', 'No especificada')} años
 - Tamaño: {context.get('size', 'No especificado')}
 """
     
-    prompt = f"""Eres un experto en cuidado de perros. Responde de forma útil y amigable.
+    # Crear lista de productos disponibles para la IA
+    products_info = "PRODUCTOS DISPONIBLES EN MIAUMARKET:\n"
+    if formatted_products:
+        for p in formatted_products[:15]:  # Limitar a 15 productos para el prompt
+            products_info += f"- {p['nombre']} ({p['categoria']}) - ${p['precio']}\n"
+    else:
+        products_info = "No hay productos disponibles en este momento.\n"
+    
+    prompt = f"""Eres un experto amigable en cuidado de gatos y asesor de productos de MiauMarket.
     
     {context_text}
     
-    PREGUNTA: {message}
+    {products_info}
+    
+    PREGUNTA DEL CLIENTE: {message}
+    
+    Responde de forma amigable y útil. Si el cliente pregunta sobre productos:
+    1. Recomienda opciones reales de nuestra tienda
+    2. Explica por qué son adecuadas
+    3. Sé conversacional y empático
+    4. Si no tenemos un producto específico, sugiere alternativas disponibles
     
     Respuesta:"""
     
@@ -121,7 +216,7 @@ CONTEXTO DEL PERRO DEL USUARIO:
         # Configuración de generación para chatbot
         generation_config = {
             'temperature': 0.7,
-            'max_output_tokens': 1000,  # Aumentado para evitar truncamiento
+            'max_output_tokens': 1000,
             'top_p': 0.9,
             'top_k': 40
         }
@@ -137,7 +232,7 @@ CONTEXTO DEL PERRO DEL USUARIO:
         if hasattr(response, 'text') and response.text:
             text = response.text.strip()
             print(f"   📝 Texto: {text[:100]}...")
-            if text:  # Si hay contenido, devolverlo
+            if text:
                 return {
                     'success': True,
                     'response': text,

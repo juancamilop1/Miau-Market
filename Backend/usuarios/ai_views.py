@@ -82,11 +82,12 @@ Puedo ayudarte con:
                 if is_recommendation_request and (dog_type or age or size):
                     print(f"📝 Generando recomendaciones de productos...")
                     response_data = get_product_recommendations(
-                        dog_type=dog_type or 'Perro genérico',
+                        dog_type=dog_type or 'Gato genérico',
                         age=age or 5,
                         size=size or 'mediano',
                         health_conditions=health_conditions,
-                        budget=budget
+                        budget=budget,
+                        user_message=message
                     )
                     print(f"✅ Recomendaciones generadas: {response_data['status']}")
                     return Response(response_data, status=status.HTTP_200_OK)
