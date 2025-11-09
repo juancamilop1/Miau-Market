@@ -7,6 +7,12 @@ export interface Product {
   name: string;
   price: number;
   description?: string;
+  imagen?: string;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
 }
 
 export interface User {
@@ -14,6 +20,8 @@ export interface User {
   name: string;
   email: string;
   is_staff?: boolean;
+  Address?: string;
+  Telefono?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -25,9 +33,24 @@ export class AuthService {
   user = this._user;
   isLogged = computed(() => !!this._user());
 
-  // Carrito en memoria
-  private _cart = signal<Product[]>([]);
+  // Carrito en memoria - ahora usa CartItem con cantidad
+  private _cart = signal<CartItem[]>([]);
   cart = this._cart;
+
+  // Computed: cantidad de productos ÚNICOS en el carrito
+  cartCount = computed(() => {
+    return this._cart().length;
+  });
+
+  // Computed: total de items en el carrito (suma de cantidades)
+  cartTotalItems = computed(() => {
+    return this._cart().reduce((sum, item) => sum + item.quantity, 0);
+  });
+
+  // Computed: total en dinero
+  cartTotal = computed(() => {
+    return this._cart().reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  });
 
   // Buscador compartido entre header y tienda
   search = signal('');
@@ -38,7 +61,19 @@ export class AuthService {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
         try {
-          this._user.set(JSON.parse(savedUser));
+          const userData = JSON.parse(savedUser);
+          this._user.set(userData);
+          
+          // Cargar el carrito específico de este usuario
+          const userCartKey = `cart_${userData.id}`;
+          const savedCart = localStorage.getItem(userCartKey);
+          if (savedCart) {
+            try {
+              this._cart.set(JSON.parse(savedCart));
+            } catch (e) {
+              console.error('Error al cargar carrito del usuario:', e);
+            }
+          }
         } catch (e) {
           console.error('Error al cargar usuario guardado:', e);
         }
@@ -52,16 +87,36 @@ export class AuthService {
     // Guardar en localStorage (solo en navegador)
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Cargar el carrito específico de este usuario
+      const userCartKey = `cart_${userData.id}`;
+      const savedCart = localStorage.getItem(userCartKey);
+      if (savedCart) {
+        try {
+          this._cart.set(JSON.parse(savedCart));
+        } catch (e) {
+          console.error('Error al cargar carrito del usuario:', e);
+        }
+      }
     }
   }
 
   logout() {
+    // Guardar el carrito del usuario actual antes de cerrar sesión
+    const currentUser = this._user();
+    if (currentUser && isPlatformBrowser(this.platformId)) {
+      const userCartKey = `cart_${currentUser.id}`;
+      localStorage.setItem(userCartKey, JSON.stringify(this._cart()));
+    }
+    
     this._user.set(null);
     this._cart.set([]);
     // Limpiar localStorage (solo en navegador)
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      // NO eliminamos el carrito del usuario, solo la clave genérica
+      localStorage.removeItem('cart');
     }
   }
 
@@ -80,14 +135,95 @@ export class AuthService {
 
   addToCart(product: Product) {
     const current = this._cart();
-    this._cart.set([...current, product]);
+    const existingItemIndex = current.findIndex(item => item.product.id === product.id);
+    
+    let updatedCart: CartItem[];
+    if (existingItemIndex >= 0) {
+      // Si el producto ya existe, incrementar cantidad
+      updatedCart = [...current];
+      updatedCart[existingItemIndex] = {
+        ...updatedCart[existingItemIndex],
+        quantity: updatedCart[existingItemIndex].quantity + 1
+      };
+    } else {
+      // Si es nuevo, agregarlo con cantidad 1
+      updatedCart = [...current, { product, quantity: 1 }];
+    }
+    
+    this._cart.set(updatedCart);
+    
+    // Guardar en localStorage (solo en navegador)
+    if (isPlatformBrowser(this.platformId)) {
+      const user = this._user();
+      if (user) {
+        const userCartKey = `cart_${user.id}`;
+        localStorage.setItem(userCartKey, JSON.stringify(updatedCart));
+      }
+      localStorage.setItem('cart', JSON.stringify(updatedCart));
+    }
+  }
+
+  // Incrementar cantidad de un producto
+  incrementQuantity(productId: string) {
+    const current = this._cart();
+    const updatedCart = current.map(item => 
+      item.product.id === productId 
+        ? { ...item, quantity: item.quantity + 1 }
+        : item
+    );
+    this._cart.set(updatedCart);
+    this.saveCart(updatedCart);
+  }
+
+  // Decrementar cantidad de un producto
+  decrementQuantity(productId: string) {
+    const current = this._cart();
+    const item = current.find(item => item.product.id === productId);
+    
+    if (item && item.quantity > 1) {
+      // Si hay más de 1, decrementar
+      const updatedCart = current.map(item => 
+        item.product.id === productId 
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      );
+      this._cart.set(updatedCart);
+      this.saveCart(updatedCart);
+    } else {
+      // Si solo hay 1, eliminar el producto
+      this.removeFromCart(productId);
+    }
   }
 
   removeFromCart(productId: string) {
-    this._cart.set(this._cart().filter(p => p.id !== productId));
+    const updatedCart = this._cart().filter(item => item.product.id !== productId);
+    this._cart.set(updatedCart);
+    this.saveCart(updatedCart);
   }
 
   clearCart() {
     this._cart.set([]);
+    
+    // Limpiar del localStorage (solo en navegador)
+    if (isPlatformBrowser(this.platformId)) {
+      const user = this._user();
+      if (user) {
+        const userCartKey = `cart_${user.id}`;
+        localStorage.removeItem(userCartKey);
+      }
+      localStorage.removeItem('cart');
+    }
+  }
+
+  // Método auxiliar para guardar carrito
+  private saveCart(cart: CartItem[]) {
+    if (isPlatformBrowser(this.platformId)) {
+      const user = this._user();
+      if (user) {
+        const userCartKey = `cart_${user.id}`;
+        localStorage.setItem(userCartKey, JSON.stringify(cart));
+      }
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
   }
 }

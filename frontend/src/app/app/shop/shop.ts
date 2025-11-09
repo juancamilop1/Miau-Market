@@ -11,6 +11,7 @@ interface ProductFromDB {
   Precio: number;
   Stock: number;
   Imagen?: string;
+  Fecha_Caducidad?: string;
 }
 
 interface ProductDisplay {
@@ -22,6 +23,7 @@ interface ProductDisplay {
   stock: number;
   dbId: number;
   categoria: string;
+  fechaCaducidad?: string;
 }
 
 @Component({
@@ -72,7 +74,8 @@ export class Shop implements OnInit {
             imagen: p.Imagen,
             stock: p.Stock,
             dbId: p.Id_Products,
-            categoria: p.Categoria
+            categoria: p.Categoria,
+            fechaCaducidad: p.Fecha_Caducidad
           }));
 
           this.allProducts.set(products);
@@ -117,7 +120,8 @@ export class Shop implements OnInit {
       id: product.id,
       name: product.name,
       price: product.price,
-      description: product.description
+      description: product.description,
+      imagen: product.imagen
     } as Product);
   }
 
@@ -188,6 +192,30 @@ export class Shop implements OnInit {
 
   getVisibleProducts(products: ProductDisplay[], startIndex: number): ProductDisplay[] {
     return products.slice(startIndex, startIndex + this.itemsPerCarousel);
+  }
+
+  // Método para determinar si un producto de comida está caducado
+  getEstadoFrescura(product: ProductDisplay): string | null {
+    // Solo mostrar para productos de categoría Comida
+    if (product.categoria !== 'Comida' || !product.fechaCaducidad) {
+      return null;
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fechas
+    
+    const fechaCaducidad = new Date(product.fechaCaducidad);
+    fechaCaducidad.setHours(0, 0, 0, 0);
+
+    return fechaCaducidad >= hoy ? 'Fresco' : 'Caducado';
+  }
+
+  // Método para obtener la clase CSS según el estado
+  getEstadoClass(product: ProductDisplay): string {
+    const estado = this.getEstadoFrescura(product);
+    if (estado === 'Fresco') return 'estado-fresco';
+    if (estado === 'Caducado') return 'estado-caducado';
+    return '';
   }
 }
 

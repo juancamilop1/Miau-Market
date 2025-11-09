@@ -47,7 +47,9 @@ export class Login {
             id: response.user.id,
             name: response.user.nombre,
             email: response.user.email,
-            is_staff: response.user.is_staff
+            is_staff: response.user.is_staff,
+            Address: response.user.Address,
+            Telefono: response.user.Telefono
           });
           this.router.navigate(['/shop']);
         }

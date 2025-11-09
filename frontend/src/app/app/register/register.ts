@@ -44,6 +44,18 @@ export class Register {
       return;
     }
 
+    // Validar que el teléfono no contenga +57 o símbolos
+    if (this.telefono.includes('+')) {
+      this.errorMessage.set('No agregues el código de país (+57). Solo ingresa el número de teléfono.');
+      return;
+    }
+
+    // Validar que el teléfono solo contenga números
+    if (!/^\d+$/.test(this.telefono)) {
+      this.errorMessage.set('El teléfono debe contener solo números.');
+      return;
+    }
+
     this.isLoading.set(true);
     this.errorMessage.set(null);
 

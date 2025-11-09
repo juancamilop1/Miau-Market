@@ -38,6 +38,7 @@ CREATE TABLE Products (
     Stock INT NOT NULL DEFAULT 0,
     Imagen VARCHAR(255),  -- Campo para guardar la ruta de la imagen
     Fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Fecha_Caducidad DATE NOT NULL,  -- Campo obligatorio para fecha de caducidad
     created_by INT,  -- Campo para rastrear quién creó el producto
     FOREIGN KEY (created_by) REFERENCES Users(Id_User)
 );

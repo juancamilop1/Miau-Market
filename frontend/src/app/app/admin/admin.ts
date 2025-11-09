@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 
@@ -11,7 +12,30 @@ interface Product {
   Categoria: string;
   Precio: number;
   Stock: number;
+  Fecha_Caducidad: string;  // Campo obligatorio para fecha de caducidad (formato YYYY-MM-DD)
   Imagen?: File | string | null;
+}
+
+interface Order {
+  Id_Factura: number;
+  Id_User: number;
+  Fecha: string;
+  Total: number;
+  Metodo_Pago: string;
+  Estado: string;
+  Direccion_Envio: string;
+  Telefono_Envio: string;
+  usuario_nombre?: string;
+  usuario_email?: string;
+  productos?: OrderProduct[];
+}
+
+interface OrderProduct {
+  Id_Products: number;
+  Cantidad: number;
+  Precio_Unitario: number;
+  Subtotal: number;
+  Titulo: string;
 }
 
 @Component({
@@ -28,6 +52,11 @@ export class Admin implements OnInit {
   successMessage = signal('');
   errorMessage = signal('');
   imagePreviewUrl = signal<string | null>(null);
+  
+  // Pedidos
+  activeTab = signal<'productos' | 'pedidos'>('productos');
+  orders = signal<Order[]>([]);
+  loadingOrders = signal(false);
 
   // Categorías disponibles
   categorias = ['Comida', 'Juguetes', 'Servicios'];
@@ -37,13 +66,26 @@ export class Admin implements OnInit {
     Descripcion: '',
     Categoria: '',
     Precio: 0,
-    Stock: 0
+    Stock: 0,
+    Fecha_Caducidad: ''
   });
 
-  constructor(public auth: AuthService, private api: ApiService) {}
+  constructor(
+    public auth: AuthService, 
+    private api: ApiService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit() {
-    this.loadProducts();
+    // Verificar si viene de una notificación
+    this.route.queryParams.subscribe(params => {
+      if (params['tab'] === 'pedidos') {
+        this.activeTab.set('pedidos');
+        this.loadOrders();
+      } else {
+        this.loadProducts();
+      }
+    });
   }
 
   loadProducts() {
@@ -76,7 +118,8 @@ export class Admin implements OnInit {
         Descripcion: '',
         Categoria: '',
         Precio: 0,
-        Stock: 0
+        Stock: 0,
+        Fecha_Caducidad: ''
       });
     }
     this.showForm.set(true);
@@ -92,7 +135,7 @@ export class Admin implements OnInit {
   saveProduct() {
     const product = this.newProduct();
     
-    if (!product.Titulo || !product.Categoria || product.Precio <= 0) {
+    if (!product.Titulo || !product.Categoria || product.Precio <= 0 || !product.Fecha_Caducidad) {
       this.errorMessage.set('Por favor completa todos los campos correctamente');
       return;
     }
@@ -107,6 +150,7 @@ export class Admin implements OnInit {
     formData.append('Categoria', product.Categoria);
     formData.append('Precio', Math.floor(product.Precio).toString());
     formData.append('Stock', product.Stock.toString());
+    formData.append('Fecha_Caducidad', product.Fecha_Caducidad);
     
     // Si hay una imagen tipo File, agregarla
     if (product.Imagen instanceof File) {
@@ -186,5 +230,36 @@ export class Admin implements OnInit {
       };
       reader.readAsDataURL(file);
     }
+  }
+
+  // Métodos para gestión de pedidos
+  loadOrders() {
+    this.loadingOrders.set(true);
+    this.api.get<Order[]>('/usuarios/pedidos/').subscribe(
+      (data: Order[]) => {
+        this.orders.set(data || []);
+        this.loadingOrders.set(false);
+      },
+      (error: any) => {
+        console.error('Error cargando pedidos:', error);
+        this.errorMessage.set('Error al cargar los pedidos');
+        this.loadingOrders.set(false);
+      }
+    );
+  }
+
+  updateOrderStatus(orderId: number, newStatus: string) {
+    this.api.put(`/usuarios/pedidos/${orderId}/`, { Estado: newStatus }).subscribe(
+      () => {
+        this.successMessage.set(`Pedido #${orderId} actualizado a ${newStatus}`);
+        this.loadOrders(); // Recargar lista de pedidos
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      (error: any) => {
+        console.error('Error actualizando pedido:', error);
+        this.errorMessage.set('Error al actualizar el estado del pedido');
+        setTimeout(() => this.errorMessage.set(''), 3000);
+      }
+    );
   }
 }

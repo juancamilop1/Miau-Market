@@ -18,6 +18,8 @@ export interface LoginResponse {
     email: string;
     nombre: string;
     is_staff?: boolean;
+    Address?: string;
+    Telefono?: string;
   };
 }
 

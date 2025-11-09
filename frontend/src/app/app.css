@@ -1,2 +1,25 @@
 /* Estilos mínimos del shell (el resto en styles.css) */
 .app-header .brand-name { font-size: 1.05rem; }
+
+/* Estilos para el badge del carrito */
+.cart-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background-color: var(--mm-orange, #ff9933);
+  color: white;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}

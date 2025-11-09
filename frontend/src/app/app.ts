@@ -1,19 +1,27 @@
 import { Component, Inject, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { Chatbot } from './app/chatbot/chatbot';
+import { NotificationsBell } from './app/notifications-bell/notifications-bell';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './auth.service';
+import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Chatbot, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Chatbot, NotificationsBell, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
   protected readonly title = signal('frontend');
-  constructor(@Inject(PLATFORM_ID) private platformId: Object, public auth: AuthService) {
+  showSearch = signal(false);
+  
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: Object, 
+    public auth: AuthService,
+    private router: Router
+  ) {
     // Aplicar tema guardado al iniciar en el navegador
     if (isPlatformBrowser(this.platformId)) {
       const saved = localStorage.getItem('mm-theme');
@@ -24,6 +32,19 @@ export class App {
         this.applyBrandAssets('dark');
       }
     }
+
+    // Verificar la URL inicial
+    const currentUrl = this.router.url;
+    this.showSearch.set(currentUrl === '/shop');
+
+    // Detectar cambios de ruta para mostrar/ocultar búsqueda
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: any) => {
+      const url = event.urlAfterRedirects || event.url;
+      // Mostrar búsqueda solo en /shop
+      this.showSearch.set(url === '/shop');
+    });
   }
 
 
@@ -75,5 +96,10 @@ export class App {
       img.onerror = () => resolve(false);
       img.src = url;
     });
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigate(['/login']);
   }
 }

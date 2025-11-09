@@ -1,13 +1,13 @@
 <header class="app-header">
   <div class="header-left">
-    <a class="brand" routerLink="/login">
+    <div class="brand">
       <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
-    </a>
+    </div>
 
     <!-- Usuario y cerrar sesión a la izquierda cuando está logueado -->
     <ng-container *ngIf="auth.isLogged()">
       <span class="user-name">{{ auth.user()?.name }}</span>
-      <button class="btn btn-ghost" (click)="auth.logout()">Cerrar sesión</button>
+      <button class="btn btn-ghost" (click)="logout()">Cerrar sesión</button>
     </ng-container>
     
     <!-- Navegación cuando NO está logueado -->
@@ -18,7 +18,7 @@
   </div>
 
   <div class="header-center">
-    <div class="header-search" *ngIf="auth.isLogged()">
+    <div class="header-search" *ngIf="auth.isLogged() && showSearch()">
       <input class="input" placeholder="Buscar productos..." [value]="auth.search()" (input)="auth.search.set($any($event.target).value)" />
     </div>
   </div>
@@ -27,7 +27,13 @@
     <!-- Tienda y Carrito a la derecha cuando está logueado -->
     <ng-container *ngIf="auth.isLogged()">
       <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
-      <a class="nav-link" routerLink="/cart" routerLinkActive="active">Carrito</a>
+      <a class="nav-link" routerLink="/my-orders" routerLinkActive="active">Mis Pedidos</a>
+      <a class="nav-link cart-link" routerLink="/cart" routerLinkActive="active">
+        Carrito
+        <span class="cart-badge" *ngIf="auth.cartCount() > 0">{{ auth.cartCount() }}</span>
+      </a>
+      <!-- Campana de notificaciones -->
+      <app-notifications-bell></app-notifications-bell>
       <!-- Botón de Administración solo para admins -->
       <a class="nav-link admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.user()?.is_staff">
         Administración

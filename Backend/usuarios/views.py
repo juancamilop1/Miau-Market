@@ -2,9 +2,13 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer
-from .models import Producto
+from .pedidos_serializers import CrearPedidoSerializer
+from .notificaciones_serializers import NotificacionSerializer
+from .models import Producto, Notificacion
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 
@@ -66,7 +70,9 @@ class LoginView(generics.GenericAPIView):
                         'id': user.id,
                         'email': user.Email,
                         'nombre': user.Nombre,
-                        'is_staff': user.is_staff
+                        'is_staff': user.is_staff,
+                        'Address': user.Address,
+                        'Telefono': user.Telefono
                     }
                 }, status=status.HTTP_200_OK)
             else:
@@ -106,10 +112,26 @@ class UsuarioDetailView(generics.RetrieveUpdateDestroyAPIView):
 class ProductoListView(generics.ListCreateAPIView):
     """
     Lista todos los productos o crea uno nuevo (solo admin).
+    Para usuarios normales: solo muestra productos no caducados.
+    Para admins: muestra todos los productos.
     """
-    queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     parser_classes = (MultiPartParser, FormParser)
+
+    def get_queryset(self):
+        from datetime import date
+        
+        # Si es un usuario admin, mostrar todos los productos
+        if self.request.user.is_authenticated and self.request.user.is_staff:
+            return Producto.objects.all()
+        
+        # Para usuarios normales o no autenticados, filtrar productos caducados de categoría Comida
+        hoy = date.today()
+        # Mostrar todos los productos EXCEPTO los de Comida que ya caducaron (hoy o antes)
+        return Producto.objects.exclude(
+            Categoria='Comida',
+            Fecha_Caducidad__lte=hoy
+        )
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -147,3 +169,517 @@ class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         serializer.save(created_by=self.request.user)
 
+
+# Vista para crear pedidos
+class CrearPedidoView(APIView):
+    """
+    Crea un nuevo pedido con sus detalles.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Lista todos los pedidos con información del usuario y productos (solo para staff).
+        """
+        if not request.user.is_staff:
+            return Response({
+                'success': False,
+                'error': 'No tienes permisos para ver todos los pedidos'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                # Obtener pedidos
+                cursor.execute("""
+                    SELECT 
+                        p.Id_Factura,
+                        p.Id_User,
+                        p.Fecha,
+                        p.Total,
+                        p.Metodo_Pago,
+                        p.Estado,
+                        p.Direccion_Envio,
+                        p.Telefono_Envio,
+                        u.Nombre,
+                        u.Apellido,
+                        u.Email
+                    FROM PaymentOrders p
+                    LEFT JOIN Users u ON p.Id_User = u.Id_User
+                    ORDER BY p.Fecha DESC
+                """)
+                
+                columns = [col[0] for col in cursor.description]
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                
+                # Formatear datos para el frontend
+                orders = []
+                for row in results:
+                    # Obtener productos de este pedido
+                    cursor.execute("""
+                        SELECT 
+                            od.Id_Products,
+                            od.Cantidad,
+                            od.Precio_Unitario,
+                            od.Subtotal,
+                            pr.Titulo
+                        FROM Orders_Details od
+                        LEFT JOIN Products pr ON od.Id_Products = pr.Id_Products
+                        WHERE od.Id_Factura = %s
+                    """, [row['Id_Factura']])
+                    
+                    productos_cols = [col[0] for col in cursor.description]
+                    productos = [dict(zip(productos_cols, prod)) for prod in cursor.fetchall()]
+                    
+                    orders.append({
+                        'Id_Factura': row['Id_Factura'],
+                        'Id_User': row['Id_User'],
+                        'Fecha': row['Fecha'],
+                        'Total': row['Total'],
+                        'Metodo_Pago': row['Metodo_Pago'],
+                        'Estado': row['Estado'],
+                        'Direccion_Envio': row['Direccion_Envio'],
+                        'Telefono_Envio': row['Telefono_Envio'],
+                        'usuario_nombre': f"{row['Nombre']} {row['Apellido']}" if row['Nombre'] else 'N/A',
+                        'usuario_email': row['Email'] or 'N/A',
+                        'productos': productos
+                    })
+                
+                return Response(orders, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        serializer = CrearPedidoSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                # Obtener datos validados
+                data = serializer.validated_data
+                
+                # Crear la orden de pago
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    # Primero verificar que hay suficiente stock para todos los productos
+                    for producto in data['productos']:
+                        cursor.execute("""
+                            SELECT Stock FROM Products WHERE Id_Products = %s
+                        """, [producto['Id_Products']])
+                        
+                        result = cursor.fetchone()
+                        if not result:
+                            return Response({
+                                'success': False,
+                                'error': f'Producto con ID {producto["Id_Products"]} no encontrado'
+                            }, status=status.HTTP_404_NOT_FOUND)
+                        
+                        stock_disponible = result[0]
+                        if stock_disponible < producto['Cantidad']:
+                            return Response({
+                                'success': False,
+                                'error': f'Stock insuficiente para el producto ID {producto["Id_Products"]}. Disponible: {stock_disponible}, Solicitado: {producto["Cantidad"]}'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Si hay suficiente stock, proceder con la creación del pedido
+                    # Insertar en PaymentOrders con dirección y teléfono
+                    cursor.execute("""
+                        INSERT INTO PaymentOrders (Id_User, Fecha, Total, Metodo_Pago, Estado, Direccion_Envio, Telefono_Envio)
+                        VALUES (%s, NOW(), %s, %s, 'Pendiente', %s, %s)
+                    """, [
+                        data['Id_User'],
+                        data['Total'],
+                        data['Metodo_Pago'],
+                        data['direccion_envio'],
+                        data['telefono_envio']
+                    ])
+                    
+                    # Obtener el ID de la factura recién creada
+                    cursor.execute("SELECT LAST_INSERT_ID()")
+                    id_factura = cursor.fetchone()[0]
+                    
+                    # Insertar los detalles de cada producto y restar del stock
+                    for producto in data['productos']:
+                        subtotal = producto['Cantidad'] * producto['Precio_Unitario']
+                        
+                        # Insertar detalle del pedido
+                        cursor.execute("""
+                            INSERT INTO Orders_Details 
+                            (Id_Factura, Id_Products, Cantidad, Precio_Unitario, Subtotal)
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, [
+                            id_factura,
+                            producto['Id_Products'],
+                            producto['Cantidad'],
+                            producto['Precio_Unitario'],
+                            subtotal
+                        ])
+                        
+                        # Restar del stock
+                        cursor.execute("""
+                            UPDATE Products 
+                            SET Stock = Stock - %s 
+                            WHERE Id_Products = %s
+                        """, [
+                            producto['Cantidad'],
+                            producto['Id_Products']
+                        ])
+                
+                # Crear notificación para todos los admins
+                admins = Usuario.objects.filter(is_staff=True)
+                for admin in admins:
+                    Notificacion.objects.create(
+                        Id_User=admin.id,
+                        Titulo='Nuevo Pedido Recibido',
+                        Mensaje=f'Se ha confirmado un nuevo pedido #{id_factura} por COP {data["Total"]}',
+                        Tipo='nuevo_pedido',
+                        Id_Factura=id_factura
+                    )
+                    
+                    # Limpiar notificaciones antiguas del admin (mantener solo las últimas 10)
+                    notifs_admin = Notificacion.objects.filter(Id_User=admin.id).order_by('-Fecha_Creacion')
+                    if notifs_admin.count() > 10:
+                        ids_mantener = list(notifs_admin.values_list('id', flat=True)[:10])
+                        Notificacion.objects.filter(Id_User=admin.id).exclude(id__in=ids_mantener).delete()
+                
+                return Response({
+                    'success': True,
+                    'message': 'Pedido creado exitosamente',
+                    'id_factura': id_factura,
+                    'direccion_envio': data['direccion_envio'],
+                    'telefono_envio': data['telefono_envio']
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActualizarPedidoView(APIView):
+    """
+    Actualiza el estado de un pedido (solo para staff) y crea notificación para el usuario.
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def put(self, request, pk):
+        nuevo_estado = request.data.get('Estado')
+        
+        if not nuevo_estado:
+            return Response({
+                'success': False,
+                'error': 'Estado es requerido'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validar que el estado sea válido
+        estados_validos = ['Pendiente', 'Enviado', 'Entregado', 'Devuelto']
+        if nuevo_estado not in estados_validos:
+            return Response({
+                'success': False,
+                'error': f'Estado inválido. Valores permitidos: {", ".join(estados_validos)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                # Obtener información del pedido y usuario
+                cursor.execute("""
+                    SELECT Id_User, Total FROM PaymentOrders WHERE Id_Factura = %s
+                """, [pk])
+                
+                pedido_info = cursor.fetchone()
+                if not pedido_info:
+                    return Response({
+                        'success': False,
+                        'error': 'Pedido no encontrado'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                id_user, total = pedido_info
+                
+                # Actualizar estado del pedido
+                cursor.execute("""
+                    UPDATE PaymentOrders 
+                    SET Estado = %s 
+                    WHERE Id_Factura = %s
+                """, [nuevo_estado, pk])
+            
+            # Crear notificación para el usuario
+            mensajes = {
+                'Pendiente': f'Tu pedido #{pk} está pendiente de procesamiento.',
+                'Enviado': f'¡Tu pedido #{pk} ha sido enviado! Pronto llegará a tu dirección.',
+                'Entregado': f'Tu pedido #{pk} ha sido entregado. ¡Gracias por tu compra!',
+                'Devuelto': f'Tu pedido #{pk} ha sido devuelto.'
+            }
+            
+            try:
+                usuario = Usuario.objects.get(id=id_user)
+                Notificacion.objects.create(
+                    Id_User=usuario.id,
+                    Titulo=f'Pedido {nuevo_estado}',
+                    Mensaje=mensajes[nuevo_estado],
+                    Tipo=nuevo_estado.lower(),
+                    Id_Factura=pk
+                )
+                
+                # Limpiar notificaciones antiguas del usuario (mantener solo las últimas 7)
+                notifs_usuario = Notificacion.objects.filter(Id_User=usuario.id).order_by('-Fecha_Creacion')
+                if notifs_usuario.count() > 7:
+                    ids_mantener = list(notifs_usuario.values_list('id', flat=True)[:7])
+                    Notificacion.objects.filter(Id_User=usuario.id).exclude(id__in=ids_mantener).delete()
+                    
+            except Usuario.DoesNotExist:
+                pass  # Si no se encuentra el usuario, continuar sin crear notificación
+            
+            return Response({
+                'success': True,
+                'message': f'Pedido actualizado a {nuevo_estado}'
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MisPedidosView(APIView):
+    """
+    Obtiene todos los pedidos del usuario autenticado con sus productos.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            from django.db import connection
+            
+            cursor = connection.cursor()
+            
+            # Obtener pedidos del usuario autenticado
+            cursor.execute("""
+                SELECT 
+                    po.Id_Factura,
+                    po.Total,
+                    po.Fecha,
+                    po.Estado,
+                    po.Direccion_Envio,
+                    po.Telefono_Envio
+                FROM PaymentOrders po
+                WHERE po.Id_User = %s
+                ORDER BY po.Fecha DESC
+            """, [request.user.id])
+            
+            columns = [col[0] for col in cursor.description]
+            pedidos_data = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+            # Para cada pedido, obtener sus productos
+            orders = []
+            for row in pedidos_data:
+                cursor.execute("""
+                    SELECT 
+                        od.Id_Products,
+                        od.Cantidad,
+                        od.Precio_Unitario,
+                        p.Titulo,
+                        p.Imagen
+                    FROM Orders_Details od
+                    INNER JOIN Products p ON od.Id_Products = p.Id_Products
+                    WHERE od.Id_Factura = %s
+                """, [row['Id_Factura']])
+                
+                productos_columns = [col[0] for col in cursor.description]
+                productos = [dict(zip(productos_columns, prod_row)) for prod_row in cursor.fetchall()]
+                
+                orders.append({
+                    'Id_Factura': row['Id_Factura'],
+                    'Total': row['Total'],
+                    'Fecha_Compra': row['Fecha'],
+                    'Estado': row['Estado'],
+                    'Direccion_Envio': row['Direccion_Envio'],
+                    'Telefono_Envio': row['Telefono_Envio'],
+                    'productos': productos
+                })
+            
+            return Response(orders, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            import traceback
+            print("Error en MisPedidosView:")
+            print(traceback.format_exc())
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class NotificacionesView(APIView):
+    """
+    Obtiene las notificaciones del usuario autenticado.
+    Limita automáticamente a las últimas N notificaciones según el tipo de usuario.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Definir límite según tipo de usuario
+        limite = 10 if request.user.is_staff else 7
+        
+        # Obtener todas las notificaciones del usuario ordenadas por fecha
+        todas_notificaciones = Notificacion.objects.filter(
+            Id_User=request.user.id
+        ).order_by('-Fecha_Creacion')
+        
+        # Contar cuántas tiene
+        total = todas_notificaciones.count()
+        
+        # Si excede el límite, eliminar las más antiguas
+        if total > limite:
+            # Obtener IDs de las que se deben mantener (las más recientes)
+            ids_mantener = list(todas_notificaciones.values_list('id', flat=True)[:limite])
+            
+            # Eliminar las que no están en la lista de mantener
+            Notificacion.objects.filter(
+                Id_User=request.user.id
+            ).exclude(id__in=ids_mantener).delete()
+            
+            # Obtener las notificaciones actualizadas
+            notificaciones = todas_notificaciones.filter(id__in=ids_mantener)
+        else:
+            # Si no excede el límite, devolver todas
+            notificaciones = todas_notificaciones[:limite]
+        
+        serializer = NotificacionSerializer(notificaciones, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MarcarNotificacionLeidaView(APIView):
+    """
+    Marca una notificación como leída.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            notificacion = Notificacion.objects.get(
+                id=pk,
+                Id_User=request.user.id
+            )
+            notificacion.Leida = True
+            notificacion.save()
+            
+            return Response({
+                'success': True,
+                'message': 'Notificación marcada como leída'
+            }, status=status.HTTP_200_OK)
+        
+        except Notificacion.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Notificación no encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class MarcarTodasLeidasView(APIView):
+    """
+    Marca todas las notificaciones del usuario como leídas.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        Notificacion.objects.filter(
+            Id_User=request.user.id,
+            Leida=False
+        ).update(Leida=True)
+        
+        return Response({
+            'success': True,
+            'message': 'Todas las notificaciones marcadas como leídas'
+        }, status=status.HTTP_200_OK)
+
+
+class VerificarProductosCaducadosView(APIView):
+    """
+    Verifica productos caducados de categoría Comida y notifica a los administradores.
+    Se ejecuta automáticamente al cargar notificaciones.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from datetime import date
+        
+        try:
+            hoy = date.today()
+            
+            # Buscar TODOS los productos de categoría Comida que ya caducaron (hoy o antes)
+            productos_caducados = Producto.objects.filter(
+                Categoria='Comida',
+                Fecha_Caducidad__lte=hoy
+            )
+            
+            # Notificar solo si el usuario es admin
+            es_admin = getattr(request.user, 'is_staff', False)
+            
+            if productos_caducados.exists() and es_admin:
+                # Solo notificar a admins
+                admins = Usuario.objects.filter(is_staff=True)
+                
+                notificaciones_creadas = 0
+                for producto in productos_caducados:
+                    for admin in admins:
+                        # Verificar si ya existe una notificación para este producto
+                        notif_existe = Notificacion.objects.filter(
+                            Id_User=admin.id,
+                            Tipo='producto_caducado',
+                            Mensaje__contains=f'ID {producto.id}'
+                        ).exists()
+                        
+                        if not notif_existe:
+                            # Calcular hace cuánto caducó
+                            dias_caducado = (hoy - producto.Fecha_Caducidad).days
+                            
+                            if dias_caducado == 0:
+                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) ha caducado hoy.'
+                            elif dias_caducado == 1:
+                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) caducó ayer.'
+                            else:
+                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) caducó hace {dias_caducado} días.'
+                            
+                            Notificacion.objects.create(
+                                Id_User=admin.id,
+                                Titulo='⚠️ Producto Caducado',
+                                Mensaje=mensaje,
+                                Tipo='producto_caducado'
+                            )
+                            notificaciones_creadas += 1
+                            
+                            # Limpiar notificaciones antiguas del admin
+                            notifs_admin = Notificacion.objects.filter(Id_User=admin.id).order_by('-Fecha_Creacion')
+                            if notifs_admin.count() > 10:
+                                ids_mantener = list(notifs_admin.values_list('id', flat=True)[:10])
+                                Notificacion.objects.filter(Id_User=admin.id).exclude(id__in=ids_mantener).delete()
+                
+                return Response({
+                    'success': True,
+                    'productos_caducados': productos_caducados.count(),
+                    'notificaciones_creadas': notificaciones_creadas
+                }, status=status.HTTP_200_OK)
+            
+            return Response({
+                'success': True,
+                'productos_caducados': productos_caducados.count() if productos_caducados.exists() else 0,
+                'notificaciones_creadas': 0
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,9 +1,24 @@
 <div class="admin-container">
   <div class="admin-header">
     <h1>Panel de Administración</h1>
-    <button class="btn btn-primary" (click)="openForm()" *ngIf="!showForm()">
-      + Agregar Producto
-    </button>
+    
+    <!-- Tabs de navegación -->
+    <div class="admin-tabs">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'productos'"
+        (click)="activeTab.set('productos')"
+      >
+        📦 Productos
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'pedidos'"
+        (click)="activeTab.set('pedidos'); loadOrders()"
+      >
+        🛒 Pedidos
+      </button>
+    </div>
   </div>
 
   <!-- Mensajes -->
@@ -13,6 +28,14 @@
   <div class="alert alert-error" *ngIf="errorMessage()" (click)="errorMessage.set('')" style="cursor: pointer;">
     {{ errorMessage() }} (Haz clic para cerrar)
   </div>
+
+  <!-- PESTAÑA DE PRODUCTOS -->
+  <div *ngIf="activeTab() === 'productos'">
+    <div class="section-header">
+      <button class="btn btn-primary" (click)="openForm()" *ngIf="!showForm()">
+        + Agregar Producto
+      </button>
+    </div>
 
   <!-- Formulario -->
   <div class="admin-form" *ngIf="showForm()">
@@ -77,6 +100,16 @@
     </div>
 
     <div class="form-group">
+      <label>Fecha de Caducidad *</label>
+      <input 
+        class="input"
+        type="date" 
+        [(ngModel)]="newProduct().Fecha_Caducidad"
+        required
+      />
+    </div>
+
+    <div class="form-group">
       <label>Imagen</label>
       <div class="image-upload">
         <input 
@@ -129,6 +162,7 @@
         <h3>{{ product.Titulo }}</h3>
         <p class="description">{{ product.Descripcion }}</p>
         <p class="category">{{ product.Categoria }}</p>
+        <p class="expiry-date">Caduca: {{ product.Fecha_Caducidad }}</p>
         <div class="product-stats">
           <span class="price">COP {{ product.Precio | number:'1.0-0' }}</span>
           <span class="stock">Stock: {{ product.Stock }}</span>
@@ -142,6 +176,92 @@
         <button class="btn btn-danger" (click)="deleteProduct(product.Id_Products); $event.preventDefault()">
           🗑️ Eliminar
         </button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- PESTAÑA DE PEDIDOS -->
+  <div *ngIf="activeTab() === 'pedidos'" class="orders-section">
+    <h2>Gestión de Pedidos</h2>
+
+    <div *ngIf="loadingOrders()" class="loading">
+      Cargando pedidos...
+    </div>
+
+    <div *ngIf="orders().length === 0 && !loadingOrders()" class="empty-state">
+      <p>No hay pedidos registrados</p>
+    </div>
+
+    <div class="orders-list">
+      <div class="order-card" *ngFor="let order of orders()">
+        <div class="order-header">
+          <div class="order-info">
+            <h3>Pedido #{{ order.Id_Factura }}</h3>
+            <p class="order-date">{{ order.Fecha }}</p>
+          </div>
+          <div class="order-status">
+            <span 
+              class="status-badge" 
+              [class.status-pendiente]="order.Estado === 'Pendiente'"
+              [class.status-enviado]="order.Estado === 'Enviado'"
+              [class.status-entregado]="order.Estado === 'Entregado'"
+              [class.status-devuelto]="order.Estado === 'Devuelto'"
+            >
+              {{ order.Estado }}
+            </span>
+          </div>
+        </div>
+
+        <div class="order-details">
+          <div class="detail-row">
+            <strong>Cliente:</strong> {{ order.usuario_nombre }} ({{ order.usuario_email }})
+          </div>
+          <div class="detail-row">
+            <strong>Teléfono:</strong> {{ order.Telefono_Envio || 'No especificado' }}
+          </div>
+          <div class="detail-row">
+            <strong>Dirección:</strong> {{ order.Direccion_Envio || 'No especificada' }}
+          </div>
+          <div class="detail-row">
+            <strong>Total:</strong> <span class="order-total">COP {{ order.Total | number:'1.0-0' }}</span>
+          </div>
+          <div class="detail-row">
+            <strong>Método de pago:</strong> {{ order.Metodo_Pago }}
+          </div>
+        </div>
+
+        <!-- Productos del pedido -->
+        <div class="order-products" *ngIf="order.productos && order.productos.length > 0">
+          <h4>Productos:</h4>
+          <div class="product-list">
+            <div class="product-item" *ngFor="let producto of order.productos">
+              <div class="product-info">
+                <strong>{{ producto.Titulo }}</strong>
+                <span class="product-quantity">Cantidad: {{ producto.Cantidad }}</span>
+              </div>
+              <div class="product-prices">
+                <span class="product-unit-price">COP {{ producto.Precio_Unitario | number:'1.0-0' }} c/u</span>
+                <strong class="product-subtotal">COP {{ producto.Subtotal | number:'1.0-0' }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-actions">
+          <label for="estado-{{ order.Id_Factura }}"><strong>Cambiar estado:</strong></label>
+          <select 
+            id="estado-{{ order.Id_Factura }}"
+            class="status-select"
+            [value]="order.Estado"
+            (change)="updateOrderStatus(order.Id_Factura, $any($event.target).value)"
+          >
+            <option value="Pendiente">Pendiente</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Entregado">Entregado</option>
+            <option value="Devuelto">Devuelto</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>

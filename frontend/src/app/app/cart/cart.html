@@ -1,22 +1,94 @@
 <section class="cart-hero">
   <h1>Tu carrito</h1>
-  <p>Este es un apartado de carrito estático — aquí se mostrarán los productos añadidos.</p>
+  <p *ngIf="cart().length > 0" class="cart-summary">
+    {{ cart().length }} producto(s) únicos
+  </p>
 </section>
 
-<section class="cart-list">
-  <div *ngIf="cart().length === 0">
-    <p class="muted">Tu carrito está vacío.</p>
+<section class="cart-container">
+  <!-- Carrito vacío -->
+  <div *ngIf="cart().length === 0" class="empty-cart">
+    <div class="empty-icon">🛒</div>
+    <p class="empty-message">Tu carrito está vacío</p>
+    <a class="btn btn-primary" routerLink="/shop">Ir a la tienda</a>
   </div>
-  <div *ngFor="let p of cart()" class="cart-item">
-    <div>
-      <strong>{{p.name}}</strong>
-      <div class="muted">$ {{p.price.toFixed(2)}}</div>
+
+  <!-- Lista de productos -->
+  <div *ngIf="cart().length > 0" class="cart-content">
+    <div class="cart-items">
+      <div *ngFor="let item of cart()" class="cart-item">
+        <!-- Imagen del producto -->
+        <div class="item-image">
+          <img 
+            *ngIf="item.product.imagen" 
+            [src]="item.product.imagen" 
+            [alt]="item.product.name"
+          />
+          <div *ngIf="!item.product.imagen" class="no-image">📦</div>
+        </div>
+
+        <!-- Información del producto -->
+        <div class="item-info">
+          <h3 class="item-name">{{ item.product.name }}</h3>
+          <p class="item-description" *ngIf="item.product.description">
+            {{ item.product.description }}
+          </p>
+          <p class="item-price">COP {{ item.product.price | number:'1.0-0' }} c/u</p>
+        </div>
+
+        <!-- Controles de cantidad -->
+        <div class="item-quantity">
+          <button 
+            class="quantity-btn" 
+            (click)="decrement(item.product.id)"
+            title="Disminuir cantidad"
+          >
+            −
+          </button>
+          <span class="quantity-value">{{ item.quantity }}</span>
+          <button 
+            class="quantity-btn" 
+            (click)="increment(item.product.id)"
+            title="Aumentar cantidad"
+          >
+            +
+          </button>
+        </div>
+
+        <!-- Subtotal y eliminar -->
+        <div class="item-actions">
+          <p class="item-subtotal">
+            COP {{ (item.product.price * item.quantity) | number:'1.0-0' }}
+          </p>
+          <button 
+            class="btn-remove" 
+            (click)="remove(item.product.id)"
+            title="Eliminar producto"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
     </div>
-    <div>
-      <button class="btn btn-ghost" (click)="remove(p.id)">Eliminar</button>
+
+    <!-- Resumen del carrito -->
+    <div class="cart-summary-box">
+      <h2>Resumen del pedido</h2>
+      <div class="summary-row">
+        <span>Total de productos:</span>
+        <strong>{{ cart().length }}</strong>
+      </div>
+      <div class="summary-row">
+        <span>Total de items:</span>
+        <strong>{{ auth.cartTotalItems() }}</strong>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-row summary-total">
+        <span>Total a pagar:</span>
+        <strong>COP {{ cartTotal() | number:'1.0-0' }}</strong>
+      </div>
+      <a class="btn btn-primary btn-large" routerLink="/checkout">Proceder al envío</a>
+      <button class="btn btn-ghost" (click)="clear()">Vaciar carrito</button>
     </div>
-  </div>
-  <div *ngIf="cart().length > 0" style="margin-top:12px;">
-    <button class="btn" (click)="clear()">Vaciar carrito</button>
   </div>
 </section>

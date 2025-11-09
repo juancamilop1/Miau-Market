@@ -25,6 +25,9 @@
       <div class="single-product-body">
         <h2 class="single-product-title">{{p.name}}</h2>
         <p class="single-product-description">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto-large">
+          {{ getEstadoFrescura(p) }}
+        </p>
         <div class="single-product-footer">
           <p class="single-product-price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="single-product-stock">Stock: {{ p.stock }}</p>
@@ -56,6 +59,9 @@
       <div class="product-body">
         <h3>{{p.name}}</h3>
         <p class="muted">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+          {{ getEstadoFrescura(p) }}
+        </p>
         <div class="product-footer">
           <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="stock">Stock: {{ p.stock }}</p>
@@ -92,6 +98,9 @@
       <div class="product-body">
         <h3>{{p.name}}</h3>
         <p class="muted">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+          {{ getEstadoFrescura(p) }}
+        </p>
         <div class="product-footer">
           <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="stock">Stock: {{ p.stock }}</p>
@@ -127,6 +136,9 @@
         <div class="product-body">
           <h3>{{p.name}}</h3>
           <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
           <div class="product-footer">
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>
@@ -166,6 +178,9 @@
         <div class="product-body">
           <h3>{{p.name}}</h3>
           <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
           <div class="product-footer">
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>
@@ -205,6 +220,9 @@
         <div class="product-body">
           <h3>{{p.name}}</h3>
           <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
           <div class="product-footer">
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>

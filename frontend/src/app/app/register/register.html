@@ -51,31 +51,36 @@
 			/>
 		</div>
 		<div class="field">
-			<label for="telefono">Teléfono</label>
+			<label for="telefono">Teléfono *</label>
 			<input 
 				id="telefono" 
 				type="tel" 
 				class="input" 
-				placeholder="+57 300 123 4567" 
+				placeholder="3001234567" 
 				[(ngModel)]="telefono"
 				name="telefono"
+				required
 				[disabled]="isLoading()"
+				maxlength="10"
 			/>
+			<small class="field-hint">Solo números, sin el código de país (+57)</small>
 		</div>
 		<div class="field">
-			<label for="address">Dirección</label>
+			<label for="address">Dirección *</label>
 			<input 
 				id="address" 
 				type="text" 
 				class="input" 
-				placeholder="Calle 123 #45-67" 
+				placeholder="Calle 123 #45-67, Apt 101" 
 				[(ngModel)]="address"
 				name="address"
+				required
 				[disabled]="isLoading()"
 			/>
+			<small class="field-hint">Debe ser única (no se permite duplicar direcciones)</small>
 		</div>
 		<div class="field">
-			<label for="city">Ciudad</label>
+			<label for="city">Ciudad *</label>
 			<input 
 				id="city" 
 				type="text" 
@@ -83,17 +88,19 @@
 				placeholder="Bogotá" 
 				[(ngModel)]="city"
 				name="city"
+				required
 				[disabled]="isLoading()"
 			/>
 		</div>
 		<div class="field">
-			<label for="birthDate">Fecha de nacimiento</label>
+			<label for="birthDate">Fecha de nacimiento * (Debes ser mayor de 18 años)</label>
 			<input 
 				id="birthDate" 
 				type="date" 
 				class="input" 
 				[(ngModel)]="birthDate"
 				name="birthDate"
+				required
 				[disabled]="isLoading()"
 			/>
 		</div>
