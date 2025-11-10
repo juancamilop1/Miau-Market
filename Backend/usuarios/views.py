@@ -62,6 +62,11 @@ class LoginView(generics.GenericAPIView):
                 # Obtener o crear token
                 token, created = Token.objects.get_or_create(user=user)
                 
+                # Calcular edad a partir de fecha de nacimiento
+                from datetime import date
+                today = date.today()
+                edad = today.year - user.BirthDate.year - ((today.month, today.day) < (user.BirthDate.month, user.BirthDate.day))
+                
                 # Devolvemos la información del usuario con token e is_staff
                 return Response({
                     'success': True,
@@ -69,10 +74,13 @@ class LoginView(generics.GenericAPIView):
                     'user': {
                         'id': user.id,
                         'email': user.Email,
-                        'nombre': user.Nombre,
+                        'name': user.Nombre,
+                        'Apellido': user.Apellido,
                         'is_staff': user.is_staff,
                         'Address': user.Address,
-                        'Telefono': user.Telefono
+                        'Telefono': user.Telefono,
+                        'Ciudad': user.City,
+                        'Edad': edad
                     }
                 }, status=status.HTTP_200_OK)
             else:
@@ -683,3 +691,91 @@ class VerificarProductosCaducadosView(APIView):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActualizarPerfilView(APIView):
+    """
+    Actualiza el perfil del usuario autenticado.
+    Permite cambiar nombre, teléfono, dirección, ciudad, edad y contraseña.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        try:
+            user = request.user
+            data = request.data
+
+            # Validar campos obligatorios
+            if not data.get('name') or not data.get('Apellido') or not data.get('Telefono') or not data.get('Address') or not data.get('Ciudad') or not data.get('Edad'):
+                return Response({
+                    'error': 'Todos los campos son obligatorios'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Validar edad y calcular fecha de nacimiento
+            try:
+                edad = int(data.get('Edad'))
+                if edad < 18 or edad > 120:
+                    return Response({
+                        'error': 'La edad debe estar entre 18 y 120 años'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Calcular fecha de nacimiento aproximada (año actual - edad)
+                from datetime import date
+                año_nacimiento = date.today().year - edad
+                fecha_nacimiento = date(año_nacimiento, 1, 1)
+                
+            except (ValueError, TypeError):
+                return Response({
+                    'error': 'La edad debe ser un número válido'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Si se está cambiando la contraseña
+            if 'password_actual' in data and 'password_nueva' in data:
+                # Verificar contraseña actual
+                if not user.check_password(data.get('password_actual')):
+                    return Response({
+                        'error': 'La contraseña actual es incorrecta'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Validar nueva contraseña
+                if len(data.get('password_nueva')) < 6:
+                    return Response({
+                        'error': 'La contraseña debe tener al menos 6 caracteres'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Cambiar contraseña
+                user.set_password(data.get('password_nueva'))
+
+            # Actualizar datos del usuario
+            user.Nombre = data.get('name').strip()
+            user.Apellido = data.get('Apellido').strip()
+            user.Telefono = data.get('Telefono')
+            user.Address = data.get('Address')
+            user.City = data.get('Ciudad')  # Ciudad va a City
+            user.BirthDate = fecha_nacimiento
+            user.save()
+
+            return Response({
+                'success': True,
+                'message': 'Perfil actualizado exitosamente',
+                'user': {
+                    'id': user.id,
+                    'email': user.Email,
+                    'name': user.Nombre,
+                    'Apellido': user.Apellido,
+                    'Telefono': user.Telefono,
+                    'Address': user.Address,
+                    'Ciudad': user.City,
+                    'Edad': edad,
+                    'is_staff': user.is_staff
+                }
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import traceback
+            print("Error en ActualizarPerfilView:")
+            print(traceback.format_exc())
+            return Response({
+                'error': 'Error al actualizar el perfil'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

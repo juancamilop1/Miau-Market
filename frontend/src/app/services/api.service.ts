@@ -16,10 +16,14 @@ export interface LoginResponse {
   user: {
     id: number;
     email: string;
-    nombre: string;
+    name?: string; // Nuevo formato
+    nombre?: string; // Formato antiguo (compatibilidad)
     is_staff?: boolean;
     Address?: string;
     Telefono?: string;
+    Ciudad?: string;
+    Edad?: number;
+    Apellido?: string;
   };
 }
 

@@ -53,12 +53,29 @@ export class MyOrders implements OnInit {
     
     this.api.get<Pedido[]>('/usuarios/mis-pedidos/').subscribe({
       next: (data) => {
-        this.pedidos.set(data);
+        console.log('Pedidos recibidos:', data);
+        // Asegurarse de que data sea un array
+        if (Array.isArray(data)) {
+          this.pedidos.set(data);
+        } else {
+          this.pedidos.set([]);
+        }
         this.cargando.set(false);
       },
       error: (err) => {
         console.error('Error cargando pedidos:', err);
-        this.error.set('Error al cargar tus pedidos. Por favor intenta de nuevo.');
+        // Solo mostrar error si realmente hay un problema (no cuando la lista está vacía)
+        if (err.status === 0) {
+          this.error.set('No se pudo conectar con el servidor. Verifica tu conexión.');
+        } else if (err.status === 401) {
+          this.error.set('Sesión expirada. Por favor inicia sesión nuevamente.');
+          this.router.navigate(['/login']);
+        } else if (err.status === 500) {
+          this.error.set('Error en el servidor. Por favor intenta de nuevo más tarde.');
+        } else {
+          this.error.set('Error al cargar tus pedidos. Por favor intenta de nuevo.');
+        }
+        this.pedidos.set([]);
         this.cargando.set(false);
       }
     });

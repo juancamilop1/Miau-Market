@@ -1,0 +1,182 @@
+<div class="dashboard-container">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <h1>📊 Dashboard de Estadísticas</h1>
+    <button class="btn-volver" (click)="volverAAdmin()">
+      ← Volver a Administración
+    </button>
+  </header>
+
+  <!-- Loading -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando estadísticas...</p>
+  </div>
+
+  <!-- Contenido principal -->
+  <div *ngIf="!loading()" class="dashboard-content">
+    
+    <!-- Tarjetas de resumen -->
+    <section class="stats-cards">
+      <div class="stat-card stat-primary">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+          <h3>Ingresos Totales</h3>
+          <p class="stat-value">{{ formatearMoneda(ingresosTotales()) }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-success">
+        <div class="stat-icon">🛍️</div>
+        <div class="stat-info">
+          <h3>Total Pedidos</h3>
+          <p class="stat-value">{{ totalPedidos() }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-warning">
+        <div class="stat-icon">📦</div>
+        <div class="stat-info">
+          <h3>Total Productos</h3>
+          <p class="stat-value">{{ totalProductos() }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-info">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+          <h3>Usuarios</h3>
+          <p class="stat-value">{{ totalUsuarios() }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-secondary">
+        <div class="stat-icon">🧾</div>
+        <div class="stat-info">
+          <h3>Ticket Promedio</h3>
+          <p class="stat-value">{{ formatearMoneda(ticketPromedio()) }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card stat-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+          <h3>Stock Bajo</h3>
+          <p class="stat-value">{{ productosStockBajo().length }}</p>
+          <small>Menos de 10 unidades</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Estados de pedidos -->
+    <section class="pedidos-estado">
+      <h2>📋 Estado de Pedidos</h2>
+      <div class="estado-cards">
+        <div class="estado-card pendiente">
+          <span class="badge">Pendientes</span>
+          <p class="count">{{ pedidosPendientes() }}</p>
+        </div>
+        <div class="estado-card enviado">
+          <span class="badge">Enviados</span>
+          <p class="count">{{ pedidosEnviados() }}</p>
+        </div>
+        <div class="estado-card entregado">
+          <span class="badge">Entregados</span>
+          <p class="count">{{ pedidosEntregados() }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gráficos y tablas -->
+    <div class="dashboard-grid">
+      
+      <!-- Productos por categoría -->
+      <section class="chart-section">
+        <h2>🏷️ Productos por Categoría</h2>
+        <div class="category-stats">
+          <div *ngFor="let cat of estadisticasCategorias()" class="category-bar">
+            <div class="category-info">
+              <span class="category-name">{{ cat.categoria }}</span>
+              <span class="category-count">{{ cat.cantidad }} productos</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="cat.porcentaje"></div>
+            </div>
+            <span class="category-percentage">{{ cat.porcentaje | number:'1.0-1' }}%</span>
+          </div>
+          <div *ngIf="estadisticasCategorias().length === 0" class="empty-state">
+            No hay productos registrados
+          </div>
+        </div>
+      </section>
+
+      <!-- Productos más vendidos -->
+      <section class="chart-section">
+        <h2>⭐ Top 5 Productos Más Vendidos</h2>
+        <div class="top-products">
+          <div *ngFor="let producto of productosMasVendidos(); let i = index" class="top-product-item">
+            <div class="rank">{{ i + 1 }}</div>
+            <div class="product-details">
+              <h4>{{ producto.nombre }}</h4>
+              <p>{{ producto.cantidad }} unidades vendidas</p>
+              <p class="revenue">{{ formatearMoneda(producto.ingresos) }}</p>
+            </div>
+          </div>
+          <div *ngIf="productosMasVendidos().length === 0" class="empty-state">
+            No hay datos de ventas disponibles
+          </div>
+        </div>
+      </section>
+
+      <!-- Ventas por mes -->
+      <section class="chart-section full-width">
+        <h2>📈 Ventas por Mes (Últimos 6 meses)</h2>
+        <div class="sales-chart">
+          <div *ngFor="let venta of ventasPorMes()" class="sales-bar-container">
+            <div class="sales-bar-wrapper">
+              <div 
+                class="sales-bar" 
+                [style.height.%]="getBarHeight(venta.total)">
+                <span class="sales-value">{{ formatearMoneda(venta.total) }}</span>
+              </div>
+            </div>
+            <span class="sales-label">{{ venta.mes }}</span>
+          </div>
+          <div *ngIf="ventasPorMes().length === 0" class="empty-state">
+            No hay datos de ventas disponibles
+          </div>
+        </div>
+      </section>
+
+      <!-- Productos con stock bajo -->
+      <section class="chart-section full-width" *ngIf="productosStockBajo().length > 0">
+        <h2>⚠️ Productos con Stock Bajo</h2>
+        <div class="low-stock-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Stock Actual</th>
+                <th>Precio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let producto of productosStockBajo()">
+                <td>{{ producto.Titulo }}</td>
+                <td><span class="badge-categoria">{{ producto.Categoria }}</span></td>
+                <td>
+                  <span class="stock-badge" [class.critical]="producto.Stock < 5">
+                    {{ producto.Stock }} unidades
+                  </span>
+                </td>
+                <td>{{ formatearMoneda(producto.Precio) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>

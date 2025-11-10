@@ -1,7 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 
@@ -40,7 +40,7 @@ interface OrderProduct {
 
 @Component({
   selector: 'mm-admin',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './admin.html',
   styleUrl: './admin.css'
 })
@@ -59,7 +59,7 @@ export class Admin implements OnInit {
   loadingOrders = signal(false);
 
   // Categorías disponibles
-  categorias = ['Comida', 'Juguetes', 'Servicios'];
+  categorias = ['Comida de Gato', 'Comida de Perro', 'Juguetes', 'Servicios'];
 
   newProduct = signal<Product>({
     Titulo: '',

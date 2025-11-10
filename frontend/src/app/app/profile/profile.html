@@ -1,0 +1,192 @@
+<div class="profile-container">
+  <div class="profile-header">
+    <h1>Mi Perfil</h1>
+    <p class="subtitle">Administra tu información personal</p>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="alert alert-success" *ngIf="mensaje()">
+    ✓ {{ mensaje() }}
+  </div>
+  <div class="alert alert-error" *ngIf="error()">
+    ✗ {{ error() }}
+  </div>
+
+  <div class="profile-content">
+    <!-- Información del perfil -->
+    <div class="profile-card">
+      <div class="card-header">
+        <h2>Información Personal</h2>
+        <button 
+          *ngIf="!editando()" 
+          class="btn btn-primary"
+          (click)="activarEdicion()"
+        >
+          ✏️ Editar Perfil
+        </button>
+      </div>
+
+      <div class="profile-form">
+        <!-- Nombre -->
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input 
+            id="nombre"
+            type="text" 
+            class="input"
+            [(ngModel)]="nombre"
+            [disabled]="!editando()"
+            placeholder="Tu nombre"
+          />
+        </div>
+
+        <!-- Apellido -->
+        <div class="form-group">
+          <label for="apellido">Apellido</label>
+          <input 
+            id="apellido"
+            type="text" 
+            class="input"
+            [(ngModel)]="apellido"
+            [disabled]="!editando()"
+            placeholder="Tu apellido"
+          />
+        </div>
+
+        <!-- Email (no editable) -->
+        <div class="form-group">
+          <label for="email">Correo Electrónico</label>
+          <input 
+            id="email"
+            type="email" 
+            class="input input-disabled"
+            [value]="email"
+            disabled
+          />
+         
+        </div>
+
+        <!-- Teléfono -->
+        <div class="form-group">
+          <label for="telefono">Teléfono</label>
+          <input 
+            id="telefono"
+            type="tel" 
+            class="input"
+            [(ngModel)]="telefono"
+            [disabled]="!editando()"
+            placeholder="Ej: 3001234567"
+          />
+        </div>
+
+        <!-- Edad -->
+        <div class="form-group">
+          <label for="edad">Edad</label>
+          <input 
+            id="edad"
+            type="number" 
+            class="input"
+            [(ngModel)]="edad"
+            [disabled]="!editando()"
+            placeholder="Tu edad"
+            min="18"
+            max="120"
+          />
+        </div>
+
+        <!-- Ciudad -->
+        <div class="form-group">
+          <label for="ciudad">Ciudad</label>
+          <select 
+            id="ciudad"
+            class="input"
+            [(ngModel)]="ciudad"
+            [disabled]="!editando()"
+          >
+            <option value="" disabled>Selecciona tu ciudad</option>
+            <option *ngFor="let city of ciudadesColombia" [value]="city">
+              {{ city }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Dirección -->
+        <div class="form-group">
+          <label for="direccion">Dirección</label>
+          <textarea 
+            id="direccion"
+            class="input"
+            [(ngModel)]="direccion"
+            [disabled]="!editando()"
+            placeholder="Calle, número, apartamento..."
+            rows="3"
+          ></textarea>
+        </div>
+
+        <!-- Cambio de contraseña (solo en modo edición) -->
+        <div *ngIf="editando()" class="password-section">
+          <button 
+            type="button"
+            class="btn btn-ghost"
+            (click)="toggleCambioPassword()"
+          >
+            {{ mostrarCambioPassword() ? '❌ Cancelar cambio de contraseña' : '🔒 Cambiar contraseña' }}
+          </button>
+
+          <div *ngIf="mostrarCambioPassword()" class="password-fields">
+            <div class="form-group">
+              <label for="passwordActual">Contraseña Actual</label>
+              <input 
+                id="passwordActual"
+                type="password" 
+                class="input"
+                [(ngModel)]="passwordActual"
+                placeholder="Tu contraseña actual"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="passwordNueva">Nueva Contraseña</label>
+              <input 
+                id="passwordNueva"
+                type="password" 
+                class="input"
+                [(ngModel)]="passwordNueva"
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="passwordConfirmar">Confirmar Nueva Contraseña</label>
+              <input 
+                id="passwordConfirmar"
+                type="password" 
+                class="input"
+                [(ngModel)]="passwordConfirmar"
+                placeholder="Repite la nueva contraseña"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="form-actions" *ngIf="editando()">
+          <button 
+            class="btn btn-primary btn-large"
+            (click)="guardarCambios()"
+            [disabled]="cargando()"
+          >
+            {{ cargando() ? 'Guardando...' : '💾 Guardar Cambios' }}
+          </button>
+          <button 
+            class="btn btn-ghost btn-large"
+            (click)="cancelarEdicion()"
+            [disabled]="cargando()"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

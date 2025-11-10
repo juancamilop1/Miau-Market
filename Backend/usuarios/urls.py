@@ -3,7 +3,7 @@ from .views import (
     RegistroView, LoginView, UsuarioListView, UsuarioDetailView,
     ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
     MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView, MarcarTodasLeidasView,
-    VerificarProductosCaducadosView
+    VerificarProductosCaducadosView, ActualizarPerfilView
 )
 from .ai_views import ChatbotView
 
@@ -12,6 +12,8 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('', UsuarioListView.as_view(), name='usuario-list'),
     path('<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
+    # Endpoint de perfil
+    path('perfil/', ActualizarPerfilView.as_view(), name='perfil'),
     # Endpoint único de chatbot inteligente
     path('chatbot/', ChatbotView.as_view(), name='chatbot'),
     # Endpoints de productos

@@ -66,7 +66,10 @@
           <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="stock">Stock: {{ p.stock }}</p>
         </div>
-        <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        <div class="product-actions">
+          <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -105,23 +108,26 @@
           <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="stock">Stock: {{ p.stock }}</p>
         </div>
-        <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        <div class="product-actions">
+          <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Comida (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && comida().length > 0">
+<!-- Comida de Gato (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && comidaGato().length > 0">
   <div class="carousel-header">
-    <h2>Comida</h2>
+    <h2>🐱 Comida de Gato</h2>
   </div>
   <div class="carousel-container">
-    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comida')" [disabled]="comida().length <= 4">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
       ❮
     </button>
     <div class="product-grid">
-      <div class="product-card" *ngFor="let p of getVisibleProducts(comida(), comidaIndex())">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaGato(), comidaGatoIndex())">
         <div class="product-media">
           <img 
             *ngIf="p.imagen" 
@@ -143,11 +149,59 @@
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>
           </div>
-          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
         </div>
       </div>
     </div>
-    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comida')" [disabled]="comida().length <= 4">
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Comida de Perro (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && comidaPerro().length > 0">
+  <div class="carousel-header">
+    <h2>🐶 Comida de Perro</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaPerro(), comidaPerroIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
       ❯
     </button>
   </div>
@@ -185,7 +239,10 @@
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>
           </div>
-          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -227,7 +284,10 @@
             <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
             <p class="stock">Stock: {{ p.stock }}</p>
           </div>
-          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -240,4 +300,66 @@
 <!-- Sin resultados ni búsqueda -->
 <div *ngIf="!auth.search() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
   <p>No hay productos disponibles</p>
+</div>
+
+<!-- Modal de detalles del producto -->
+<div class="modal-overlay" *ngIf="mostrarModal()" (click)="cerrarModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()" *ngIf="productoSeleccionado()">
+    
+    <div class="modal-body">
+      <div class="modal-image">
+        <img 
+          *ngIf="productoSeleccionado()?.imagen" 
+          [src]="productoSeleccionado()!.imagen" 
+          [alt]="productoSeleccionado()!.name"
+        />
+        <div *ngIf="!productoSeleccionado()?.imagen" class="modal-placeholder">
+          📦
+        </div>
+      </div>
+
+      <div class="modal-info">
+        <h2 class="modal-title">{{ productoSeleccionado()!.name }}</h2>
+        <p class="modal-category">{{ productoSeleccionado()!.categoria }}</p>
+        
+        <div class="modal-description">
+          <h3>Descripción</h3>
+          <p>{{ productoSeleccionado()!.description }}</p>
+        </div>
+
+        <div class="modal-details">
+          <div class="detail-item">
+            <span class="detail-label">Precio:</span>
+            <span class="detail-value price-large">COP {{ productoSeleccionado()!.price | number:'1.0-0' }}</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Stock disponible:</span>
+            <span class="detail-value">{{ productoSeleccionado()!.stock }} unidades</span>
+          </div>
+
+          <div class="detail-item" *ngIf="productoSeleccionado()!.fechaCaducidad">
+            <span class="detail-label">Fecha de caducidad:</span>
+            <span class="detail-value">{{ formatearFecha(productoSeleccionado()!.fechaCaducidad) }}</span>
+          </div>
+
+          <div class="detail-item" *ngIf="getEstadoFrescura(productoSeleccionado()!)">
+            <span class="detail-label">Estado:</span>
+            <span [ngClass]="getEstadoClass(productoSeleccionado()!)" class="detail-value estado-badge">
+              {{ getEstadoFrescura(productoSeleccionado()!) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-primary btn-large" (click)="agregarDesdeModal()">
+            Agregar al carrito
+          </button>
+          <button class="btn btn-primary btn-large" (click)="cerrarModal()">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

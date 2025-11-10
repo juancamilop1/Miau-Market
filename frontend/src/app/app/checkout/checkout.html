@@ -103,7 +103,7 @@
         <button 
           class="btn btn-primary btn-large btn-block" 
           (click)="confirmarPedido()"
-          [disabled]="loading() || !direccion() || !telefono()"
+          [disabled]="loading() || confirmando() || !direccion || !telefono"
         >
           {{ loading() ? 'Procesando...' : 'Confirmar Pedido' }}
         </button>

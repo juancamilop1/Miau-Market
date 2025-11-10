@@ -6,6 +6,8 @@ import { Cart } from './app/cart/cart';
 import { Admin } from './app/admin/admin';
 import { Checkout } from './app/checkout/checkout';
 import { MyOrders } from './app/my-orders/my-orders';
+import { Profile } from './app/profile/profile';
+import { Dashboard } from './app/dashboard/dashboard';
 
 export const routes: Routes = [
 	{ path: '', pathMatch: 'full', redirectTo: 'shop' },
@@ -13,7 +15,9 @@ export const routes: Routes = [
 	{ path: 'cart', component: Cart, title: 'MiauMarket | Carrito' },
 	{ path: 'checkout', component: Checkout, title: 'MiauMarket | Confirmar Pedido' },
 	{ path: 'my-orders', component: MyOrders, title: 'MiauMarket | Mis Pedidos' },
+	{ path: 'profile', component: Profile, title: 'MiauMarket | Mi Perfil' },
 	{ path: 'admin', component: Admin, title: 'MiauMarket | Administración' },
+	{ path: 'dashboard', component: Dashboard, title: 'MiauMarket | Dashboard' },
 	{ path: 'login', component: Login, title: 'MiauMarket | Iniciar sesión' },
 	{ path: 'register', component: Register, title: 'MiauMarket | Crear cuenta' },
 	{ path: '**', redirectTo: 'shop' },

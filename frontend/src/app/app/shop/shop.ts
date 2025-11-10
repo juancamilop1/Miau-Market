@@ -41,12 +41,19 @@ export class Shop implements OnInit {
   allProducts = signal<ProductDisplay[]>([]);
   loading = signal(false);
 
+  // Modal de detalles del producto
+  mostrarModal = signal(false);
+  productoSeleccionado = signal<ProductDisplay | null>(null);
+
   // Carruseles por categoría
   highlighted = signal<ProductDisplay[]>([]);
   highlightedIndex = signal(0);
 
-  comida = signal<ProductDisplay[]>([]);
-  comidaIndex = signal(0);
+  comidaGato = signal<ProductDisplay[]>([]);
+  comidaGatoIndex = signal(0);
+
+  comidaPerro = signal<ProductDisplay[]>([]);
+  comidaPerroIndex = signal(0);
 
   juguetes = signal<ProductDisplay[]>([]);
   juguetesIndex = signal(0);
@@ -101,7 +108,8 @@ export class Shop implements OnInit {
     this.highlighted.set(highlighted);
 
     // Organizar por categoría
-    this.comida.set(products.filter(p => p.categoria === 'Comida'));
+    this.comidaGato.set(products.filter(p => p.categoria === 'Comida de Gato'));
+    this.comidaPerro.set(products.filter(p => p.categoria === 'Comida de Perro'));
     this.juguetes.set(products.filter(p => p.categoria === 'Juguetes'));
     this.servicios.set(products.filter(p => p.categoria === 'Servicios'));
   }
@@ -125,8 +133,40 @@ export class Shop implements OnInit {
     } as Product);
   }
 
+  // Métodos para el modal
+  verDetalles(product: ProductDisplay) {
+    this.productoSeleccionado.set(product);
+    this.mostrarModal.set(true);
+  }
+
+  cerrarModal() {
+    this.mostrarModal.set(false);
+    setTimeout(() => {
+      this.productoSeleccionado.set(null);
+    }, 300); // Esperar a que termine la animación
+  }
+
+  agregarDesdeModal() {
+    const producto = this.productoSeleccionado();
+    if (producto) {
+      this.add(producto);
+      this.cerrarModal();
+    }
+  }
+
+  formatearFecha(fecha?: string): string {
+    if (!fecha) return 'No especificada';
+    const fechaObj = new Date(fecha);
+    const opciones: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return fechaObj.toLocaleDateString('es-ES', opciones);
+  }
+
   // Métodos para controlar carruseles
-  nextSlide(category: 'highlighted' | 'comida' | 'juguetes' | 'servicios') {
+  nextSlide(category: 'highlighted' | 'comidaGato' | 'comidaPerro' | 'juguetes' | 'servicios') {
     let items: ProductDisplay[];
     let currentIndex: number;
     let setter: (index: number) => void;
@@ -137,10 +177,15 @@ export class Shop implements OnInit {
         currentIndex = this.highlightedIndex();
         setter = (i) => this.highlightedIndex.set(i);
         break;
-      case 'comida':
-        items = this.comida();
-        currentIndex = this.comidaIndex();
-        setter = (i) => this.comidaIndex.set(i);
+      case 'comidaGato':
+        items = this.comidaGato();
+        currentIndex = this.comidaGatoIndex();
+        setter = (i) => this.comidaGatoIndex.set(i);
+        break;
+      case 'comidaPerro':
+        items = this.comidaPerro();
+        currentIndex = this.comidaPerroIndex();
+        setter = (i) => this.comidaPerroIndex.set(i);
         break;
       case 'juguetes':
         items = this.juguetes();
@@ -158,7 +203,7 @@ export class Shop implements OnInit {
     setter(nextIndex);
   }
 
-  prevSlide(category: 'highlighted' | 'comida' | 'juguetes' | 'servicios') {
+  prevSlide(category: 'highlighted' | 'comidaGato' | 'comidaPerro' | 'juguetes' | 'servicios') {
     let items: ProductDisplay[];
     let currentIndex: number;
     let setter: (index: number) => void;
@@ -169,10 +214,15 @@ export class Shop implements OnInit {
         currentIndex = this.highlightedIndex();
         setter = (i) => this.highlightedIndex.set(i);
         break;
-      case 'comida':
-        items = this.comida();
-        currentIndex = this.comidaIndex();
-        setter = (i) => this.comidaIndex.set(i);
+      case 'comidaGato':
+        items = this.comidaGato();
+        currentIndex = this.comidaGatoIndex();
+        setter = (i) => this.comidaGatoIndex.set(i);
+        break;
+      case 'comidaPerro':
+        items = this.comidaPerro();
+        currentIndex = this.comidaPerroIndex();
+        setter = (i) => this.comidaPerroIndex.set(i);
         break;
       case 'juguetes':
         items = this.juguetes();
@@ -196,8 +246,8 @@ export class Shop implements OnInit {
 
   // Método para determinar si un producto de comida está caducado
   getEstadoFrescura(product: ProductDisplay): string | null {
-    // Solo mostrar para productos de categoría Comida
-    if (product.categoria !== 'Comida' || !product.fechaCaducidad) {
+    // Solo mostrar para productos de categoría Comida de Gato o Comida de Perro
+    if ((product.categoria !== 'Comida de Gato' && product.categoria !== 'Comida de Perro') || !product.fechaCaducidad) {
       return null;
     }
 

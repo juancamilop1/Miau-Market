@@ -33,15 +33,31 @@ export class Checkout implements OnInit {
   loading = signal(false);
   errorMessage = signal('');
   successMessage = signal('');
+  confirmando = signal(false); // Evitar confirmaciones múltiples
 
   // Datos del usuario para confirmación
-  direccion = signal('');
-  telefono = signal('');
+  direccion = '';
+  telefono = '';
   email = signal('');
+  
+  // Items seleccionados del carrito
+  selectedCartItems = signal<any[]>([]);
 
   ngOnInit() {
-    // Verificar que hay productos en el carrito
-    if (this.auth.cart().length === 0) {
+    // Obtener items seleccionados del sessionStorage
+    const selectedIdsJson = sessionStorage.getItem('selectedCartItems');
+    const selectedIds = selectedIdsJson ? JSON.parse(selectedIdsJson) : [];
+    
+    // Filtrar el carrito para obtener solo items seleccionados
+    const allCartItems = this.auth.cart();
+    const selectedItems = selectedIds.length > 0 
+      ? allCartItems.filter((item: any) => selectedIds.includes(item.product.id))
+      : allCartItems;
+    
+    this.selectedCartItems.set(selectedItems);
+    
+    // Verificar que hay productos seleccionados
+    if (selectedItems.length === 0) {
       this.router.navigate(['/cart']);
       return;
     }
@@ -52,29 +68,37 @@ export class Checkout implements OnInit {
       this.email.set(user.email);
       // Autocompletar dirección y teléfono desde los datos del usuario
       if (user.Address) {
-        this.direccion.set(user.Address);
+        this.direccion = user.Address;
       }
       if (user.Telefono) {
-        this.telefono.set(user.Telefono);
+        this.telefono = user.Telefono;
       }
     }
   }
 
   cart() {
-    return this.auth.cart();
+    return this.selectedCartItems();
   }
 
   cartTotal() {
-    return this.auth.cartTotal();
+    return this.selectedCartItems().reduce((sum, item) => 
+      sum + (item.product.price * item.quantity), 0
+    );
   }
 
   confirmarPedido() {
+    // Evitar confirmaciones múltiples
+    if (this.confirmando()) {
+      console.log('Ya se está procesando un pedido, ignorando clic');
+      return;
+    }
+
     console.log('Botón confirmar pedido clickeado');
-    console.log('Dirección:', this.direccion());
-    console.log('Teléfono:', this.telefono());
+    console.log('Dirección:', this.direccion);
+    console.log('Teléfono:', this.telefono);
     
     // Validar datos
-    if (!this.direccion() || !this.telefono()) {
+    if (!this.direccion || !this.telefono) {
       this.errorMessage.set('Por favor completa la dirección y el teléfono');
       return;
     }
@@ -88,6 +112,8 @@ export class Checkout implements OnInit {
     console.log('Usuario:', user);
     console.log('Carrito:', this.cart());
 
+    // Marcar como confirmando para bloquear múltiples clics
+    this.confirmando.set(true);
     this.loading.set(true);
     this.errorMessage.set('');
 
@@ -101,8 +127,8 @@ export class Checkout implements OnInit {
         Cantidad: item.quantity,
         Precio_Unitario: item.product.price
       })),
-      direccion_envio: this.direccion(),
-      telefono_envio: this.telefono()
+      direccion_envio: this.direccion,
+      telefono_envio: this.telefono
     };
 
     console.log('Datos del pedido:', orderData);
@@ -114,8 +140,12 @@ export class Checkout implements OnInit {
         this.successMessage.set('¡Pedido confirmado exitosamente! Redirigiendo a tus pedidos...');
         this.loading.set(false);
         
-        // Limpiar carrito
-        this.auth.clearCart();
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('selectedCartItems');
+        
+        // Remover solo los items seleccionados del carrito
+        const selectedIds = this.selectedCartItems().map(item => item.product.id);
+        selectedIds.forEach(id => this.auth.removeFromCart(id));
         
         // Redirigir a Mis Pedidos después de 2 segundos
         setTimeout(() => {
@@ -129,6 +159,7 @@ export class Checkout implements OnInit {
         console.error('Error error:', error.error);
         this.errorMessage.set('Error al procesar el pedido. Intenta nuevamente.');
         this.loading.set(false);
+        this.confirmando.set(false); // Permitir reintentar si hay error
       }
     );
   }

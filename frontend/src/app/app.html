@@ -6,7 +6,9 @@
 
     <!-- Usuario y cerrar sesión a la izquierda cuando está logueado -->
     <ng-container *ngIf="auth.isLogged()">
-      <span class="user-name">{{ auth.user()?.name }}</span>
+      <a routerLink="/profile" class="user-name user-name-link" routerLinkActive="user-name-active">
+        👤 {{ auth.user()?.name }} {{ auth.user()?.Apellido }}
+      </a>
       <button class="btn btn-ghost" (click)="logout()">Cerrar sesión</button>
     </ng-container>
     

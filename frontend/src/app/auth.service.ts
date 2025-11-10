@@ -22,6 +22,9 @@ export interface User {
   is_staff?: boolean;
   Address?: string;
   Telefono?: string;
+  Ciudad?: string;
+  Edad?: number;
+  Apellido?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -77,13 +80,29 @@ export class AuthService {
         } catch (e) {
           console.error('Error al cargar usuario guardado:', e);
         }
+      } else {
+        // Usuario no logueado: cargar carrito anónimo
+        const anonCart = localStorage.getItem('cart_anon');
+        if (anonCart) {
+          try {
+            this._cart.set(JSON.parse(anonCart));
+          } catch (e) {
+            console.error('Error al cargar carrito anónimo:', e);
+          }
+        }
       }
     }
   }
 
   // Método actualizado para recibir datos del backend
   login(userData: User) {
+    // Guardar el carrito anónimo antes de hacer login
+    const anonCart = isPlatformBrowser(this.platformId) 
+      ? this._cart() 
+      : [];
+    
     this._user.set(userData);
+    
     // Guardar en localStorage (solo en navegador)
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('user', JSON.stringify(userData));
@@ -91,32 +110,73 @@ export class AuthService {
       // Cargar el carrito específico de este usuario
       const userCartKey = `cart_${userData.id}`;
       const savedCart = localStorage.getItem(userCartKey);
+      let userCart: CartItem[] = [];
+      
       if (savedCart) {
         try {
-          this._cart.set(JSON.parse(savedCart));
+          userCart = JSON.parse(savedCart);
         } catch (e) {
           console.error('Error al cargar carrito del usuario:', e);
         }
       }
+      
+      // Fusionar carrito anónimo con carrito del usuario
+      if (anonCart.length > 0) {
+        const mergedCart = this.mergeCart(userCart, anonCart);
+        this._cart.set(mergedCart);
+        localStorage.setItem(userCartKey, JSON.stringify(mergedCart));
+        // Limpiar carrito anónimo
+        localStorage.removeItem('cart_anon');
+      } else {
+        this._cart.set(userCart);
+      }
     }
+  }
+  
+  // Método auxiliar para fusionar carritos
+  private mergeCart(userCart: CartItem[], anonCart: CartItem[]): CartItem[] {
+    const merged = [...userCart];
+    
+    // Para cada item del carrito anónimo
+    for (const anonItem of anonCart) {
+      const existingIndex = merged.findIndex(item => item.product.id === anonItem.product.id);
+      
+      if (existingIndex >= 0) {
+        // Si ya existe, sumar las cantidades
+        merged[existingIndex] = {
+          ...merged[existingIndex],
+          quantity: merged[existingIndex].quantity + anonItem.quantity
+        };
+      } else {
+        // Si no existe, agregarlo
+        merged.push(anonItem);
+      }
+    }
+    
+    return merged;
   }
 
   logout() {
     // Guardar el carrito del usuario actual antes de cerrar sesión
     const currentUser = this._user();
+    const currentCart = this._cart();
+    
     if (currentUser && isPlatformBrowser(this.platformId)) {
       const userCartKey = `cart_${currentUser.id}`;
-      localStorage.setItem(userCartKey, JSON.stringify(this._cart()));
+      localStorage.setItem(userCartKey, JSON.stringify(currentCart));
     }
     
     this._user.set(null);
-    this._cart.set([]);
-    // Limpiar localStorage (solo en navegador)
+    
+    // Mantener el carrito pero cambiarlo a anónimo
+    if (isPlatformBrowser(this.platformId) && currentCart.length > 0) {
+      localStorage.setItem('cart_anon', JSON.stringify(currentCart));
+    }
+    
+    // Limpiar localStorage de usuario (solo en navegador)
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      // NO eliminamos el carrito del usuario, solo la clave genérica
-      localStorage.removeItem('cart');
     }
   }
 
@@ -220,9 +280,14 @@ export class AuthService {
     if (isPlatformBrowser(this.platformId)) {
       const user = this._user();
       if (user) {
+        // Usuario logueado: guardar en su carrito específico
         const userCartKey = `cart_${user.id}`;
         localStorage.setItem(userCartKey, JSON.stringify(cart));
+      } else {
+        // Usuario anónimo: guardar en carrito anónimo
+        localStorage.setItem('cart_anon', JSON.stringify(cart));
       }
+      // Mantener también en 'cart' para compatibilidad
       localStorage.setItem('cart', JSON.stringify(cart));
     }
   }

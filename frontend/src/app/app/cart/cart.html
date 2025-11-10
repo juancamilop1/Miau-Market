@@ -15,8 +15,36 @@
 
   <!-- Lista de productos -->
   <div *ngIf="cart().length > 0" class="cart-content">
-    <div class="cart-items">
-      <div *ngFor="let item of cart()" class="cart-item">
+    <!-- Columna izquierda: Items del carrito -->
+    <div class="cart-items-wrapper">
+      <!-- Checkbox para seleccionar todos -->
+      <div class="select-all-bar">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            class="checkbox-input"
+            [checked]="allSelected()"
+            (change)="toggleAll()"
+          />
+          <span class="checkbox-text">Seleccionar todos</span>
+        </label>
+        <span class="selected-count" *ngIf="hasSelected()">
+          {{ selectedItems().size }} de {{ cart().length }} seleccionado(s)
+        </span>
+      </div>
+
+      <div class="cart-items">
+        <div *ngFor="let item of cart()" class="cart-item" [class.item-selected]="isSelected(item.product.id)">
+          <!-- Checkbox de selección -->
+          <div class="item-checkbox">
+            <input 
+              type="checkbox" 
+              class="checkbox-input"
+              [checked]="isSelected(item.product.id)"
+              (change)="toggleItem(item.product.id)"
+            />
+          </div>
+
         <!-- Imagen del producto -->
         <div class="item-image">
           <img 
@@ -70,10 +98,15 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <!-- Resumen del carrito -->
+    <!-- Columna derecha: Resumen del carrito -->
     <div class="cart-summary-box">
       <h2>Resumen del pedido</h2>
+      <div class="summary-row">
+        <span>Productos seleccionados:</span>
+        <strong>{{ selectedItems().size }}</strong>
+      </div>
       <div class="summary-row">
         <span>Total de productos:</span>
         <strong>{{ cart().length }}</strong>
@@ -87,7 +120,18 @@
         <span>Total a pagar:</span>
         <strong>COP {{ cartTotal() | number:'1.0-0' }}</strong>
       </div>
-      <a class="btn btn-primary btn-large" routerLink="/checkout">Proceder al envío</a>
+      <a 
+        class="btn btn-primary btn-large" 
+        routerLink="/checkout"
+        (click)="proceedToCheckout($event)"
+        [class.disabled]="!hasSelected()"
+        [attr.aria-disabled]="!hasSelected()"
+      >
+        Proceder al envío
+      </a>
+      <p class="checkout-hint" *ngIf="!hasSelected()">
+        Selecciona al menos un producto para continuar
+      </p>
       <button class="btn btn-ghost" (click)="clear()">Vaciar carrito</button>
     </div>
   </div>
