@@ -3,7 +3,8 @@ from .views import (
     RegistroView, LoginView, UsuarioListView, UsuarioDetailView,
     ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
     MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView, MarcarTodasLeidasView,
-    VerificarProductosCaducadosView, ActualizarPerfilView
+    VerificarProductosCaducadosView, ActualizarPerfilView,
+    ProductReviewsView, UserReviewView, ProductRatingsView
 )
 from .ai_views import ChatbotView
 
@@ -28,4 +29,9 @@ urlpatterns = [
     path('notificaciones/<int:pk>/leer/', MarcarNotificacionLeidaView.as_view(), name='marcar-leida'),
     path('notificaciones/leer-todas/', MarcarTodasLeidasView.as_view(), name='marcar-todas-leidas'),
     path('notificaciones/verificar-caducados/', VerificarProductosCaducadosView.as_view(), name='verificar-caducados'),
+    # Endpoints de reseñas de productos
+    path('productos/<int:product_id>/reviews/', ProductReviewsView.as_view(), name='product-reviews'),
+    path('productos/<int:product_id>/my-review/', UserReviewView.as_view(), name='user-review'),
+    path('productos/<int:product_id>/rating/', ProductRatingsView.as_view(), name='product-rating'),
+    path('ratings/', ProductRatingsView.as_view(), name='all-ratings'),
 ]

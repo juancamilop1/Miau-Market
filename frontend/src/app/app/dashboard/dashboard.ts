@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { StarRating } from '../star-rating/star-rating';
 
 interface Product {
   Id_Products: number;
@@ -48,10 +49,22 @@ interface ProductoMasVendido {
   ingresos: number;
 }
 
+interface ProductRating {
+  Id_Products: number;
+  Titulo: string;
+  Total_Reviews: number;
+  Rating_Promedio: number;
+  Reviews_5_Estrellas: number;
+  Reviews_4_Estrellas: number;
+  Reviews_3_Estrellas: number;
+  Reviews_2_Estrellas: number;
+  Reviews_1_Estrella: number;
+}
+
 @Component({
   selector: 'mm-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, StarRating],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
@@ -64,6 +77,7 @@ export class Dashboard implements OnInit {
   products = signal<Product[]>([]);
   orders = signal<Order[]>([]);
   users = signal<User[]>([]);
+  ratings = signal<ProductRating[]>([]);
   loading = signal(true);
 
   // Estadísticas calculadas
@@ -171,6 +185,26 @@ export class Dashboard implements OnInit {
     }));
   });
 
+  // Estadísticas de calificaciones
+  productosMejorCalificados = computed(() => {
+    return this.ratings()
+      .filter(r => r.Total_Reviews > 0)
+      .sort((a, b) => b.Rating_Promedio - a.Rating_Promedio)
+      .slice(0, 5);
+  });
+
+  totalReviews = computed(() => {
+    return this.ratings().reduce((sum, r) => sum + r.Total_Reviews, 0);
+  });
+
+  promedioGeneralRating = computed(() => {
+    const ratingsConReviews = this.ratings().filter(r => r.Total_Reviews > 0);
+    if (ratingsConReviews.length === 0) return 0;
+    
+    const suma = ratingsConReviews.reduce((sum, r) => sum + r.Rating_Promedio, 0);
+    return suma / ratingsConReviews.length;
+  });
+
   ngOnInit() {
     // Verificar que sea admin
     if (!this.auth.user()?.is_staff) {
@@ -220,12 +254,24 @@ export class Dashboard implements OnInit {
         this.verificarCargaCompleta();
       }
     );
+
+    // Cargar ratings de productos
+    this.api.get<{ratings: ProductRating[]}>('/usuarios/ratings/').subscribe(
+      (data: any) => {
+        this.ratings.set(data.ratings || []);
+        this.verificarCargaCompleta();
+      },
+      (error: any) => {
+        console.error('Error cargando ratings:', error);
+        this.verificarCargaCompleta();
+      }
+    );
   }
 
   private cargasCompletadas = 0;
   private verificarCargaCompleta() {
     this.cargasCompletadas++;
-    if (this.cargasCompletadas >= 2) { // Productos y pedidos son críticos
+    if (this.cargasCompletadas >= 3) { // Productos, pedidos y ratings son críticos
       this.loading.set(false);
     }
   }

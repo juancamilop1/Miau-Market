@@ -1,0 +1,44 @@
+.star-rating {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.star {
+  display: inline-block;
+  cursor: default;
+  transition: all 0.2s ease;
+  color: var(--mm-gray-400, #ccc);
+}
+
+.star.interactive {
+  cursor: pointer;
+}
+
+.star.filled {
+  color: #ffc107;
+}
+
+.star.interactive:hover {
+  transform: scale(1.1);
+}
+
+/* Tamaños de estrellas */
+.star-small {
+  font-size: 14px;
+}
+
+.star-medium {
+  font-size: 20px;
+}
+
+.star-large {
+  font-size: 32px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .star:not(.filled) {
+    color: var(--mm-gray-700, #555) !important;
+  }
+}

@@ -620,3 +620,132 @@
     height: 200px;
   }
 }
+
+/* ==================== ESTILOS DE CALIFICACIONES ==================== */
+
+.ratings-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.rating-stat-card {
+  background: var(--mm-white, white);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid var(--mm-gray-300, #e0e0e0);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.rating-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rating-stat-card .stat-icon {
+  font-size: 2.5rem;
+}
+
+.rating-stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--mm-primary, #6a11cb);
+}
+
+.rating-stat-card .stat-label {
+  color: var(--mm-gray-700, #666);
+  font-size: 0.9rem;
+}
+
+.top-rated-products {
+  margin-top: 2rem;
+}
+
+.top-rated-products h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: var(--mm-black, #000);
+}
+
+.rated-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rated-product-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--mm-gray-100, #f8f9fa);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.rated-product-item:hover {
+  background: var(--mm-gray-200, #e9ecef);
+  transform: translateX(4px);
+}
+
+.rank-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--mm-primary, #6a11cb);
+  min-width: 40px;
+  text-align: center;
+}
+
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.product-name {
+  font-weight: 600;
+  color: var(--mm-black, #000);
+}
+
+.product-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rating-text {
+  font-weight: 600;
+  color: #ffc107;
+  font-size: 1.1rem;
+}
+
+.product-reviews {
+  text-align: right;
+}
+
+.reviews-count {
+  color: var(--mm-gray-700, #666);
+  font-size: 0.9rem;
+}
+
+/* Dark mode para calificaciones */
+@media (prefers-color-scheme: dark) {
+  .rating-stat-card {
+    background: var(--mm-gray-800, #2a2a2a) !important;
+    border-color: var(--mm-gray-600, #555) !important;
+  }
+
+  .rated-product-item {
+    background: var(--mm-gray-800, #2a2a2a) !important;
+  }
+
+  .rated-product-item:hover {
+    background: var(--mm-gray-700, #333) !important;
+  }
+}
+

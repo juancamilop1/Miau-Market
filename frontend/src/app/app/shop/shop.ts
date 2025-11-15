@@ -1,7 +1,10 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService, Product } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { StarRating } from '../star-rating/star-rating';
 
 interface ProductFromDB {
   Id_Products: number;
@@ -26,12 +29,35 @@ interface ProductDisplay {
   fechaCaducidad?: string;
 }
 
+interface Review {
+  Id_Review: number;
+  Id_Products: number;
+  Id_User: number;
+  Nombre: string;
+  Apellido: string;
+  Rating: number;
+  Comentario: string;
+  Fecha: string;
+}
+
+interface ProductRating {
+  Id_Products: number;
+  Titulo: string;
+  Total_Reviews: number;
+  Rating_Promedio: number;
+  Reviews_5_Estrellas: number;
+  Reviews_4_Estrellas: number;
+  Reviews_3_Estrellas: number;
+  Reviews_2_Estrellas: number;
+  Reviews_1_Estrella: number;
+}
+
 @Component({
   standalone: true,
   selector: 'mm-shop',
   templateUrl: './shop.html',
-  styleUrls: ['./shop.css']
-  ,imports: [CommonModule]
+  styleUrls: ['./shop.css'],
+  imports: [CommonModule, FormsModule, StarRating, RouterLink]
 })
 export class Shop implements OnInit {
   auth = inject(AuthService);
@@ -44,6 +70,20 @@ export class Shop implements OnInit {
   // Modal de detalles del producto
   mostrarModal = signal(false);
   productoSeleccionado = signal<ProductDisplay | null>(null);
+  
+  // Reseñas del producto seleccionado
+  reviews = signal<Review[]>([]);
+  productRating = signal<ProductRating | null>(null);
+  loadingReviews = signal(false);
+  
+  // Nueva reseña
+  nuevaCalificacion = signal<number>(0);
+  nuevoComentario = '';  // Variable normal para ngModel
+  enviandoReview = signal(false);
+  
+  // Reseña del usuario
+  miReview = signal<Review | null>(null);
+  editandoReview = signal(false);
 
   // Carruseles por categoría
   highlighted = signal<ProductDisplay[]>([]);
@@ -137,12 +177,19 @@ export class Shop implements OnInit {
   verDetalles(product: ProductDisplay) {
     this.productoSeleccionado.set(product);
     this.mostrarModal.set(true);
+    this.cargarReviewsDelProducto(product.dbId);
   }
 
   cerrarModal() {
     this.mostrarModal.set(false);
     setTimeout(() => {
       this.productoSeleccionado.set(null);
+      this.reviews.set([]);
+      this.productRating.set(null);
+      this.miReview.set(null);
+      this.nuevaCalificacion.set(0);
+      this.nuevoComentario = '';
+      this.editandoReview.set(false);
     }, 300); // Esperar a que termine la animación
   }
 
@@ -266,6 +313,165 @@ export class Shop implements OnInit {
     if (estado === 'Fresco') return 'estado-fresco';
     if (estado === 'Caducado') return 'estado-caducado';
     return '';
+  }
+
+  // ==================== MÉTODOS DE RESEÑAS ====================
+  
+  cargarReviewsDelProducto(productId: number): void {
+    this.loadingReviews.set(true);
+    
+    // Cargar reseñas del producto
+    this.api.get(`/usuarios/productos/${productId}/reviews/`).subscribe({
+      next: (response: any) => {
+        this.reviews.set(response.reviews || []);
+      },
+      error: (error) => {
+        console.error('Error al cargar reseñas:', error);
+        this.reviews.set([]);
+      }
+    });
+    
+    // Cargar rating agregado
+    this.api.get(`/usuarios/productos/${productId}/rating/`).subscribe({
+      next: (response: any) => {
+        this.productRating.set(response.rating || null);
+      },
+      error: (error) => {
+        console.error('Error al cargar rating:', error);
+        this.productRating.set(null);
+      }
+    });
+    
+    // Si el usuario está autenticado, cargar su reseña
+    if (this.auth.isLogged()) {
+      this.api.get(`/usuarios/productos/${productId}/my-review/`).subscribe({
+        next: (response: any) => {
+          this.miReview.set(response.review || null);
+          if (response.review) {
+            this.nuevaCalificacion.set(response.review.Rating);
+            this.nuevoComentario = response.review.Comentario || '';
+          }
+          this.loadingReviews.set(false);
+        },
+        error: (error) => {
+          console.error('Error al cargar mi reseña:', error);
+          this.miReview.set(null);
+          this.loadingReviews.set(false);
+        }
+      });
+    } else {
+      this.loadingReviews.set(false);
+    }
+  }
+  
+  onRatingChange(rating: number): void {
+    this.nuevaCalificacion.set(rating);
+  }
+  
+  enviarReview(): void {
+    const producto = this.productoSeleccionado();
+    if (!producto || this.nuevaCalificacion() === 0) {
+      alert('Por favor selecciona una calificación');
+      return;
+    }
+    
+    if (!this.auth.isLogged()) {
+      alert('Debes iniciar sesión para dejar una reseña');
+      return;
+    }
+    
+    this.enviandoReview.set(true);
+    
+    const reviewData = {
+      Rating: this.nuevaCalificacion(),
+      Comentario: this.nuevoComentario
+    };
+    
+    const miReviewActual = this.miReview();
+    
+    if (miReviewActual) {
+      // Actualizar reseña existente
+      this.api.put(`/usuarios/productos/${producto.dbId}/my-review/`, reviewData).subscribe({
+        next: () => {
+          this.enviandoReview.set(false);
+          this.editandoReview.set(false);
+          this.cargarReviewsDelProducto(producto.dbId);
+          alert('Reseña actualizada exitosamente');
+        },
+        error: (error) => {
+          console.error('Error al actualizar reseña:', error);
+          this.enviandoReview.set(false);
+          alert('Error al actualizar la reseña');
+        }
+      });
+    } else {
+      // Crear nueva reseña
+      this.api.post(`/usuarios/productos/${producto.dbId}/reviews/`, reviewData).subscribe({
+        next: () => {
+          this.enviandoReview.set(false);
+          this.cargarReviewsDelProducto(producto.dbId);
+          this.nuevaCalificacion.set(0);
+          this.nuevoComentario = '';
+          alert('Reseña enviada exitosamente');
+        },
+        error: (error) => {
+          console.error('Error al enviar reseña:', error);
+          this.enviandoReview.set(false);
+          alert(error.error?.error || 'Error al enviar la reseña');
+        }
+      });
+    }
+  }
+  
+  editarMiReview(): void {
+    this.editandoReview.set(true);
+  }
+  
+  cancelarEdicion(): void {
+    const miReviewActual = this.miReview();
+    if (miReviewActual) {
+      this.nuevaCalificacion.set(miReviewActual.Rating);
+      this.nuevoComentario = miReviewActual.Comentario || '';
+    }
+    this.editandoReview.set(false);
+  }
+  
+  eliminarMiReview(): void {
+    const producto = this.productoSeleccionado();
+    if (!producto) return;
+    
+    if (!confirm('¿Estás seguro de que deseas eliminar tu reseña?')) {
+      return;
+    }
+    
+    this.api.delete(`/usuarios/productos/${producto.dbId}/my-review/`).subscribe({
+      next: () => {
+        this.miReview.set(null);
+        this.nuevaCalificacion.set(0);
+        this.nuevoComentario = '';
+        this.editandoReview.set(false);
+        this.cargarReviewsDelProducto(producto.dbId);
+        alert('Reseña eliminada exitosamente');
+      },
+      error: (error) => {
+        console.error('Error al eliminar reseña:', error);
+        alert('Error al eliminar la reseña');
+      }
+    });
+  }
+  
+  formatearFechaReview(fecha: string): string {
+    const fechaObj = new Date(fecha);
+    const opciones: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return fechaObj.toLocaleDateString('es-ES', opciones);
+  }
+  
+  getPercentaje(cantidad: number, total: number): number {
+    return total > 0 ? (cantidad / total) * 100 : 0;
   }
 }
 

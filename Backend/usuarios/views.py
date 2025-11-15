@@ -779,3 +779,238 @@ class ActualizarPerfilView(APIView):
                 'error': 'Error al actualizar el perfil'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+# ==================== VISTAS DE RESEÑAS DE PRODUCTOS ====================
+from .reviews_serializers import CrearReviewSerializer, ReviewSerializer, ProductoConCalificacionSerializer
+from django.db import connection
+
+class ProductReviewsView(APIView):
+    """
+    Vista para gestionar reseñas de productos
+    GET: Obtener todas las reseñas de un producto
+    POST: Crear una nueva reseña (usuario autenticado)
+    """
+    
+    def get(self, request, product_id):
+        """Obtener todas las reseñas de un producto específico"""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        r.Id_Review,
+                        r.Id_Products,
+                        r.Id_User,
+                        u.Nombre,
+                        u.Apellido,
+                        r.Rating,
+                        r.Comentario,
+                        r.Fecha
+                    FROM Product_Reviews r
+                    INNER JOIN Users u ON r.Id_User = u.Id_User
+                    WHERE r.Id_Products = %s
+                    ORDER BY r.Fecha DESC
+                """, [product_id])
+                
+                columns = [col[0] for col in cursor.description]
+                reviews = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                
+            return Response({
+                'reviews': reviews,
+                'total': len(reviews)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error al obtener reseñas: {str(e)}")
+            return Response({
+                'error': 'Error al obtener reseñas'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request, product_id):
+        """Crear una nueva reseña para un producto"""
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Debes iniciar sesión para dejar una reseña'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Agregar el product_id y user_id a los datos
+        data = request.data.copy()
+        data['Id_Products'] = product_id
+        
+        serializer = CrearReviewSerializer(data=data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                # Verificar si el usuario ya dejó una reseña para este producto
+                cursor.execute("""
+                    SELECT Id_Review FROM Product_Reviews 
+                    WHERE Id_User = %s AND Id_Products = %s
+                """, [request.user.id, product_id])
+                
+                existing_review = cursor.fetchone()
+                
+                if existing_review:
+                    return Response({
+                        'error': 'Ya has dejado una reseña para este producto'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Insertar nueva reseña
+                cursor.execute("""
+                    INSERT INTO Product_Reviews (Id_Products, Id_User, Rating, Comentario)
+                    VALUES (%s, %s, %s, %s)
+                """, [
+                    product_id,
+                    request.user.id,
+                    serializer.validated_data['Rating'],
+                    serializer.validated_data.get('Comentario', '')
+                ])
+                
+            return Response({
+                'message': 'Reseña creada exitosamente'
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"Error al crear reseña: {str(e)}")
+            return Response({
+                'error': 'Error al crear la reseña'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserReviewView(APIView):
+    """
+    Vista para gestionar la reseña propia del usuario
+    GET: Obtener la reseña del usuario para un producto
+    PUT: Actualizar la reseña del usuario
+    DELETE: Eliminar la reseña del usuario
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, product_id):
+        """Obtener la reseña del usuario para un producto específico"""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT Id_Review, Id_Products, Id_User, Rating, Comentario, Fecha
+                    FROM Product_Reviews
+                    WHERE Id_User = %s AND Id_Products = %s
+                """, [request.user.id, product_id])
+                
+                row = cursor.fetchone()
+                if not row:
+                    return Response({
+                        'review': None
+                    }, status=status.HTTP_200_OK)
+                
+                columns = [col[0] for col in cursor.description]
+                review = dict(zip(columns, row))
+                
+            return Response({
+                'review': review
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error al obtener reseña del usuario: {str(e)}")
+            return Response({
+                'error': 'Error al obtener la reseña'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request, product_id):
+        """Actualizar la reseña del usuario"""
+        serializer = CrearReviewSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE Product_Reviews
+                    SET Rating = %s, Comentario = %s
+                    WHERE Id_User = %s AND Id_Products = %s
+                """, [
+                    serializer.validated_data['Rating'],
+                    serializer.validated_data.get('Comentario', ''),
+                    request.user.id,
+                    product_id
+                ])
+                
+                if cursor.rowcount == 0:
+                    return Response({
+                        'error': 'No se encontró la reseña'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+            return Response({
+                'message': 'Reseña actualizada exitosamente'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error al actualizar reseña: {str(e)}")
+            return Response({
+                'error': 'Error al actualizar la reseña'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request, product_id):
+        """Eliminar la reseña del usuario"""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    DELETE FROM Product_Reviews
+                    WHERE Id_User = %s AND Id_Products = %s
+                """, [request.user.id, product_id])
+                
+                if cursor.rowcount == 0:
+                    return Response({
+                        'error': 'No se encontró la reseña'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+            return Response({
+                'message': 'Reseña eliminada exitosamente'
+            }, status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            print(f"Error al eliminar reseña: {str(e)}")
+            return Response({
+                'error': 'Error al eliminar la reseña'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProductRatingsView(APIView):
+    """
+    Vista para obtener estadísticas de calificación de productos
+    GET: Obtener calificación promedio y distribución de estrellas
+    """
+    
+    def get(self, request, product_id=None):
+        """Obtener estadísticas de calificación"""
+        try:
+            with connection.cursor() as cursor:
+                if product_id:
+                    # Obtener rating de un producto específico
+                    cursor.execute("""
+                        SELECT * FROM Product_Ratings
+                        WHERE Id_Products = %s
+                    """, [product_id])
+                else:
+                    # Obtener ratings de todos los productos
+                    cursor.execute("SELECT * FROM Product_Ratings")
+                
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
+                ratings = [dict(zip(columns, row)) for row in rows]
+                
+            if product_id:
+                return Response({
+                    'rating': ratings[0] if ratings else None
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'ratings': ratings
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            print(f"Error al obtener ratings: {str(e)}")
+            return Response({
+                'error': 'Error al obtener calificaciones'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

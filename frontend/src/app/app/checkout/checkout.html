@@ -3,6 +3,18 @@
   <p class="checkout-subtitle">Pago contra entrega - Revisa tu información antes de confirmar</p>
 </section>
 
+<!-- Overlay de procesamiento -->
+<div class="processing-overlay" *ngIf="loading() || confirmando()">
+  <div class="processing-content">
+    <div class="spinner-large"></div>
+    <h2>Procesando tu pedido...</h2>
+    <p>Por favor espera, estamos confirmando tu compra</p>
+    <div class="progress-bar-animated">
+      <div class="progress-fill-animated"></div>
+    </div>
+  </div>
+</div>
+
 <section class="checkout-container">
   <!-- Mensajes -->
   <div class="alert alert-success" *ngIf="successMessage()">

@@ -177,6 +177,62 @@
         </div>
       </section>
 
+      <!-- Calificaciones y Reseñas -->
+      <section class="chart-section full-width">
+        <h2>⭐ Calificaciones y Reseñas</h2>
+        
+        <div class="ratings-stats">
+          <div class="rating-stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ totalReviews() }}</div>
+              <div class="stat-label">Total de Reseñas</div>
+            </div>
+          </div>
+          
+          <div class="rating-stat-card">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ promedioGeneralRating().toFixed(1) }}</div>
+              <div class="stat-label">Promedio General</div>
+            </div>
+          </div>
+          
+          <div class="rating-stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ productosMejorCalificados().length }}</div>
+              <div class="stat-label">Productos Calificados</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-rated-products" *ngIf="productosMejorCalificados().length > 0">
+          <h3>Top 5 Productos Mejor Calificados</h3>
+          <div class="rated-products-list">
+            <div class="rated-product-item" *ngFor="let producto of productosMejorCalificados(); let i = index">
+              <div class="rank-number">#{{ i + 1 }}</div>
+              <div class="product-info">
+                <div class="product-name">{{ producto.Titulo }}</div>
+                <div class="product-rating">
+                  <app-star-rating 
+                    [rating]="producto.Rating_Promedio" 
+                    [readonly]="true"
+                    size="small">
+                  </app-star-rating>
+                  <span class="rating-text">{{ producto.Rating_Promedio.toFixed(1) }}</span>
+                </div>
+              </div>
+              <div class="product-reviews">
+                <span class="reviews-count">{{ producto.Total_Reviews }} {{ producto.Total_Reviews === 1 ? 'reseña' : 'reseñas' }}</span>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="productosMejorCalificados().length === 0" class="empty-state">
+            No hay productos calificados todavía
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>

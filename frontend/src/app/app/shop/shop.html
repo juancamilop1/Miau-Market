@@ -307,17 +307,157 @@
   <div class="modal-content" (click)="$event.stopPropagation()" *ngIf="productoSeleccionado()">
     
     <div class="modal-body">
-      <div class="modal-image">
-        <img 
-          *ngIf="productoSeleccionado()?.imagen" 
-          [src]="productoSeleccionado()!.imagen" 
-          [alt]="productoSeleccionado()!.name"
-        />
-        <div *ngIf="!productoSeleccionado()?.imagen" class="modal-placeholder">
-          📦
+      <!-- Columna izquierda: Imagen y Reseñas -->
+      <div class="modal-left-column">
+        <div class="modal-image">
+          <img 
+            *ngIf="productoSeleccionado()?.imagen" 
+            [src]="productoSeleccionado()!.imagen" 
+            [alt]="productoSeleccionado()!.name"
+          />
+          <div *ngIf="!productoSeleccionado()?.imagen" class="modal-placeholder">
+            📦
+          </div>
+        </div>
+
+        <!-- Sección de Reseñas -->
+        <div class="reviews-section">
+          <h3>Reseñas y Calificaciones</h3>
+
+          <!-- Resumen de calificaciones -->
+          <div class="rating-summary" *ngIf="productRating() && productRating()!.Total_Reviews > 0">
+            <div class="rating-average">
+              <span class="rating-number">{{ productRating()!.Rating_Promedio.toFixed(1) }}</span>
+              <app-star-rating 
+                [rating]="productRating()!.Rating_Promedio" 
+                [readonly]="true"
+                size="medium">
+              </app-star-rating>
+              <span class="total-reviews">({{ productRating()!.Total_Reviews }} {{ productRating()!.Total_Reviews === 1 ? 'reseña' : 'reseñas' }})</span>
+            </div>
+
+            <!-- Distribución de estrellas -->
+            <div class="rating-distribution">
+              <div class="rating-bar" *ngFor="let i of [5, 4, 3, 2, 1]">
+                <span class="star-label">{{ i }} ★</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" 
+                       [style.width.%]="getPercentaje(
+                         i === 5 ? productRating()!.Reviews_5_Estrellas :
+                         i === 4 ? productRating()!.Reviews_4_Estrellas :
+                         i === 3 ? productRating()!.Reviews_3_Estrellas :
+                         i === 2 ? productRating()!.Reviews_2_Estrellas :
+                         productRating()!.Reviews_1_Estrella,
+                         productRating()!.Total_Reviews
+                       )">
+                  </div>
+                </div>
+                <span class="count">{{ 
+                  i === 5 ? productRating()!.Reviews_5_Estrellas :
+                  i === 4 ? productRating()!.Reviews_4_Estrellas :
+                  i === 3 ? productRating()!.Reviews_3_Estrellas :
+                  i === 2 ? productRating()!.Reviews_2_Estrellas :
+                  productRating()!.Reviews_1_Estrella
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario para nueva reseña o editar (si el usuario está autenticado) -->
+          <div class="review-form" *ngIf="auth.isLogged() && (!miReview() || editandoReview())">
+            <h4>{{ miReview() ? 'Editar mi reseña' : 'Deja tu reseña' }}</h4>
+            <div class="form-group">
+              <label>Calificación:</label>
+              <app-star-rating 
+                [rating]="nuevaCalificacion()" 
+                [readonly]="false"
+                size="large"
+                (ratingChange)="onRatingChange($event)">
+              </app-star-rating>
+            </div>
+            <div class="form-group">
+              <label>Comentario (opcional):</label>
+              <textarea 
+                [(ngModel)]="nuevoComentario"
+                placeholder="Comparte tu experiencia..."
+                maxlength="1000"
+                rows="4">
+              </textarea>
+              <small>{{ nuevoComentario.length }}/1000 caracteres</small>
+            </div>
+            <div class="form-actions">
+              <button 
+                class="btn btn-primary" 
+                (click)="enviarReview()"
+                [disabled]="enviandoReview() || nuevaCalificacion() === 0">
+                {{ enviandoReview() ? 'Enviando...' : (miReview() ? 'Actualizar reseña' : 'Enviar reseña') }}
+              </button>
+              <button 
+                class="btn btn-secondary" 
+                (click)="cancelarEdicion()"
+                *ngIf="miReview() && editandoReview()">
+                Cancelar
+              </button>
+            </div>
+          </div>
+
+          <!-- Mostrar reseña existente del usuario (modo lectura) -->
+          <div class="my-review" *ngIf="auth.isLogged() && miReview() && !editandoReview()">
+            <h4>Mi reseña</h4>
+            <div class="review-item own-review">
+              <div class="review-header">
+                <app-star-rating 
+                  [rating]="miReview()!.Rating" 
+                  [readonly]="true"
+                  size="small">
+                </app-star-rating>
+                <span class="review-date">{{ formatearFechaReview(miReview()!.Fecha) }}</span>
+              </div>
+              <p class="review-comment" *ngIf="miReview()!.Comentario">{{ miReview()!.Comentario }}</p>
+              <div class="review-actions">
+                <button class="btn btn-sm btn-secondary" (click)="editarMiReview()">Editar</button>
+                <button class="btn btn-sm btn-danger" (click)="eliminarMiReview()">Eliminar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje para usuarios no autenticados -->
+          <div class="login-prompt" *ngIf="!auth.isLogged()">
+            <p>💬 <a routerLink="/login" (click)="cerrarModal()">Inicia sesión</a> para dejar una reseña</p>
+          </div>
+
+          <!-- Lista de reseñas -->
+          <div class="reviews-list" *ngIf="reviews().length > 0">
+            <h4>Todas las reseñas</h4>
+            <div class="review-item" *ngFor="let review of reviews()">
+              <div class="review-header">
+                <div class="reviewer-info">
+                  <span class="reviewer-name">{{ review.Nombre }} {{ review.Apellido }}</span>
+                  <app-star-rating 
+                    [rating]="review.Rating" 
+                    [readonly]="true"
+                    size="small">
+                  </app-star-rating>
+                </div>
+                <span class="review-date">{{ formatearFechaReview(review.Fecha) }}</span>
+              </div>
+              <p class="review-comment" *ngIf="review.Comentario">{{ review.Comentario }}</p>
+            </div>
+          </div>
+
+          <!-- Sin reseñas -->
+          <div class="no-reviews" *ngIf="!loadingReviews() && reviews().length === 0 && (!productRating() || productRating()!.Total_Reviews === 0)">
+            <p>Este producto aún no tiene reseñas. ¡Sé el primero en dejar una!</p>
+          </div>
+
+          <!-- Cargando reseñas -->
+          <div class="loading-reviews" *ngIf="loadingReviews()">
+            <p>Cargando reseñas...</p>
+          </div>
         </div>
       </div>
 
+      <!-- Columna derecha: Información del producto -->
       <div class="modal-info">
         <h2 class="modal-title">{{ productoSeleccionado()!.name }}</h2>
         <p class="modal-category">{{ productoSeleccionado()!.categoria }}</p>
@@ -355,7 +495,7 @@
           <button class="btn btn-primary btn-large" (click)="agregarDesdeModal()">
             Agregar al carrito
           </button>
-          <button class="btn btn-primary btn-large" (click)="cerrarModal()">
+          <button class="btn btn-secondary btn-large" (click)="cerrarModal()">
             Cerrar
           </button>
         </div>
