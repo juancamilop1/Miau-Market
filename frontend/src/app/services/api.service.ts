@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import { PLATFORM_ID, inject } from '@angular/core';
+import { EnvironmentService } from './environment.service';
 
 // Interfaces para los datos
 export interface LoginRequest {
@@ -56,8 +57,9 @@ export interface RegisterResponse {
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = 'http://localhost:8000/api';
   private platformId = inject(PLATFORM_ID);
+  private envService = inject(EnvironmentService);
+  private baseUrl = this.envService.getApiUrl();
 
   constructor(private http: HttpClient) { }
 

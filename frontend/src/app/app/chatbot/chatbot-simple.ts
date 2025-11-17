@@ -1,6 +1,7 @@
-import { Component, NgZone, signal } from '@angular/core';
+import { Component, NgZone, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { EnvironmentService } from '../../services/environment.service';
 
 interface ChatMessage {
   type: 'user' | 'bot';
@@ -16,12 +17,14 @@ interface ChatMessage {
   imports: [CommonModule, FormsModule]
 })
 export class Chatbot {
+  private envService = inject(EnvironmentService);
+  
   open = false;
   currentMessage = '';
   isLoading = signal(false);
   messages = signal<ChatMessage[]>([]);
   
-  private apiUrl = 'http://localhost:8000/api/usuarios/chatbot/';
+  private apiUrl = this.envService.getChatbotUrl();
 
   constructor(private ngZone: NgZone) {
     // Agregar mensaje de bienvenida inicial

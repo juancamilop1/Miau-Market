@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, signal } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, signal, OnInit } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { Chatbot } from './app/chatbot/chatbot';
@@ -13,7 +13,7 @@ import { filter } from 'rxjs';
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('frontend');
   showSearch = signal(false);
   
@@ -69,6 +69,13 @@ export class App {
         url.startsWith('/dashboard/')
       );
     });
+  }
+
+  ngOnInit() {
+    // Forzar detección móvil después de que el componente se inicialice
+    if (isPlatformBrowser(this.platformId)) {
+      setTimeout(() => this.checkIfMobile(), 0);
+    }
   }
 
 
@@ -138,7 +145,10 @@ export class App {
 
   private checkIfMobile() {
     if (isPlatformBrowser(this.platformId)) {
-      this.isMobile.set(window.innerWidth <= 768);
+      // Usar matchMedia para mejor detección móvil
+      const isMobileDevice = window.matchMedia('(max-width: 768px)').matches;
+      this.isMobile.set(isMobileDevice);
+      console.log('Mobile detection:', isMobileDevice, 'Width:', window.innerWidth);
     }
   }
 }

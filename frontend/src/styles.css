@@ -143,6 +143,46 @@ body {
 	padding: 0 4px;
 }
 
+/* MOBILE NAV BUTTONS (Login/Register) */
+.mobile-header-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.mobile-nav-btn {
+	padding: 6px 12px;
+	border-radius: 6px;
+	text-decoration: none;
+	font-size: 13px;
+	font-weight: 600;
+	transition: all 0.2s;
+	white-space: nowrap;
+	display: inline-block;
+}
+
+.mobile-nav-btn:not(.primary) {
+	color: var(--mm-black);
+	background: transparent;
+	border: 1px solid var(--mm-gray);
+}
+
+.mobile-nav-btn.primary {
+	background: var(--mm-orange);
+	color: white;
+	border: none;
+}
+
+.mobile-nav-btn:active {
+	transform: scale(0.95);
+}
+
+/* Dark mode para botones móviles */
+[data-theme="dark"] .mobile-nav-btn:not(.primary) {
+	color: white;
+	border-color: var(--mm-gray);
+}
+
 /* MOBILE MENU OVERLAY */
 .mobile-menu-overlay {
 	position: fixed;
@@ -483,9 +523,6 @@ body {
 	/* Ensure mobile header shows */
 	.mobile-header { display: flex !important; }
 	
-	/* Reduce padding on main */
-	.app-main { padding: 1rem; }
-	
 	/* Auth cards full width on mobile */
 	.auth-card {
 		width: 100%;
@@ -577,11 +614,18 @@ body {
 }
 
 .app-main {
-	/* Usamos la altura del header para centrar exactamente el contenido */
+	/* Mobile: sin padding para formularios fullscreen */
 	min-height: calc(100dvh - var(--header-h));
 	display: grid;
 	place-items: center;
-	padding: 24px;
+	padding: 0;
+}
+
+/* Desktop: agregar padding */
+@media (min-width: 769px) {
+	.app-main {
+		padding: 24px;
+	}
 }
 
 /* Tarjetas de Auth */

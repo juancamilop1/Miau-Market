@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../auth.service';
+import { EnvironmentService } from '../../services/environment.service';
 
 interface Producto {
   Id_Products: number;
@@ -33,6 +34,7 @@ export class MyOrders implements OnInit {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private envService = inject(EnvironmentService);
   
   pedidos = signal<Pedido[]>([]);
   cargando = signal(true);
@@ -113,13 +115,7 @@ export class MyOrders implements OnInit {
   }
   
   getImagenUrl(imagen: string | null): string {
-    if (!imagen) return 'assets/placeholder-product.png';
-    if (imagen.startsWith('http')) return imagen;
-    // Si no empieza con /media/, agregarlo
-    if (!imagen.startsWith('/media/')) {
-      return `http://localhost:8000/media/${imagen}`;
-    }
-    return `http://localhost:8000${imagen}`;
+    return this.envService.getImageUrl(imagen);
   }
   
   volverATienda() {

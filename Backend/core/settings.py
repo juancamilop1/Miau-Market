@@ -27,7 +27,8 @@ SECRET_KEY = 'django-insecure-f!@l69jw)!i7kvfj@)@!3t_f$wx-mqw92ewy88s9=rk@yr&$ye
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Permitir conexiones desde cualquier host en la red local (solo para desarrollo)
+ALLOWED_HOSTS = ['*']  # En producción, especifica tu dominio real
 
 
 # Application definition
@@ -57,9 +58,13 @@ MIDDLEWARE = [
 ]
 
 # CORS Configuration
+# Permitir conexiones desde localhost y red local (solo para desarrollo)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
+    # Agregará automáticamente tu IP local cuando ejecutes run_network.bat
 ]
+# Permitir CUALQUIER origen en desarrollo (comentar en producción)
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'core.urls'
