@@ -19,6 +19,7 @@ export interface LoginResponse {
     name?: string; // Nuevo formato
     nombre?: string; // Formato antiguo (compatibilidad)
     is_staff?: boolean;
+    is_superuser?: boolean;
     Address?: string;
     Telefono?: string;
     Ciudad?: string;

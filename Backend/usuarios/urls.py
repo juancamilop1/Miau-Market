@@ -4,7 +4,9 @@ from .views import (
     ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
     MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView, MarcarTodasLeidasView,
     VerificarProductosCaducadosView, ActualizarPerfilView,
-    ProductReviewsView, UserReviewView, ProductRatingsView
+    ProductReviewsView, UserReviewView, ProductRatingsView,
+    GestionUsuariosView, ConvertirAdministradorView, EliminarUsuarioView,
+    BulkDeleteUsersView, BulkMakeAdminView
 )
 from .ai_views import ChatbotView
 
@@ -34,4 +36,11 @@ urlpatterns = [
     path('productos/<int:product_id>/my-review/', UserReviewView.as_view(), name='user-review'),
     path('productos/<int:product_id>/rating/', ProductRatingsView.as_view(), name='product-rating'),
     path('ratings/', ProductRatingsView.as_view(), name='all-ratings'),
+    # Endpoints de gestión de usuarios (Admin)
+    path('gestion/usuarios/', GestionUsuariosView.as_view(), name='gestion-usuarios'),
+    path('gestion/usuarios/<int:user_id>/convertir-admin/', ConvertirAdministradorView.as_view(), name='convertir-admin'),
+    path('gestion/usuarios/<int:user_id>/eliminar/', EliminarUsuarioView.as_view(), name='eliminar-usuario'),
+    # Endpoints de acciones masivas (Admin)
+    path('gestion/usuarios/bulk-delete/', BulkDeleteUsersView.as_view(), name='bulk-delete-users'),
+    path('gestion/usuarios/bulk-make-admin/', BulkMakeAdminView.as_view(), name='bulk-make-admin'),
 ]

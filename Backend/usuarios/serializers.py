@@ -48,17 +48,6 @@ class RegistroSerializer(serializers.ModelSerializer):
         
         return value
     
-    def validate_Address(self, value):
-        """Validar que la dirección no esté vacía y no esté duplicada"""
-        if not value or value.strip() == '':
-            raise serializers.ValidationError("La dirección es obligatoria.")
-        
-        # Verificar que la dirección no esté duplicada
-        if Usuario.objects.filter(Address=value).exists():
-            raise serializers.ValidationError("Esta dirección ya está registrada.")
-        
-        return value
-
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})

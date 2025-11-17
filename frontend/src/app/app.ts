@@ -17,6 +17,13 @@ export class App {
   protected readonly title = signal('frontend');
   showSearch = signal(false);
   
+  // Mobile menu state
+  showMobileMenu = signal(false);
+  isMobile = signal(false);
+  
+  // Hide chatbot in admin
+  isAdminPage = signal(false);
+  
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object, 
     public auth: AuthService,
@@ -31,19 +38,36 @@ export class App {
         console.log('MiauMarket: aplicando tema dark desde localStorage');
         this.applyBrandAssets('dark');
       }
+      
+      // Detectar si es móvil
+      this.checkIfMobile();
+      window.addEventListener('resize', () => this.checkIfMobile());
     }
 
     // Verificar la URL inicial
     const currentUrl = this.router.url;
     this.showSearch.set(currentUrl === '/shop');
+    this.isAdminPage.set(
+      currentUrl === '/admin' || 
+      currentUrl.startsWith('/admin/') || 
+      currentUrl === '/dashboard' || 
+      currentUrl.startsWith('/dashboard/')
+    );
 
-    // Detectar cambios de ruta para mostrar/ocultar búsqueda
+    // Detectar cambios de ruta para mostrar/ocultar búsqueda y chatbot
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
       const url = event.urlAfterRedirects || event.url;
       // Mostrar búsqueda solo en /shop
       this.showSearch.set(url === '/shop');
+      // Ocultar chatbot en /admin y /dashboard
+      this.isAdminPage.set(
+        url === '/admin' || 
+        url.startsWith('/admin/') || 
+        url === '/dashboard' || 
+        url.startsWith('/dashboard/')
+      );
     });
   }
 
@@ -101,5 +125,20 @@ export class App {
   logout() {
     this.auth.logout();
     this.router.navigate(['/login']);
+  }
+
+  // Mobile menu functions
+  toggleMobileMenu() {
+    this.showMobileMenu.update(val => !val);
+  }
+
+  closeMobileMenu() {
+    this.showMobileMenu.set(false);
+  }
+
+  private checkIfMobile() {
+    if (isPlatformBrowser(this.platformId)) {
+      this.isMobile.set(window.innerWidth <= 768);
+    }
   }
 }

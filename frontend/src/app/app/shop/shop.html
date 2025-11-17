@@ -3,6 +3,16 @@
     <h1>Bienvenido a MiauMarket</h1>
     <p>Encuentra todo para consentir a tu gato: juguetes, comida, accesorios y más.</p>
   </div>
+  
+  <!-- Mobile search bar -->
+  <div class="mobile-search-bar">
+    <input 
+      class="search-input-mobile" 
+      placeholder="🔍 Buscar productos..." 
+      [value]="auth.search()" 
+      (input)="auth.search.set($any($event.target).value)" 
+    />
+  </div>
 </section>
 
 <!-- Resultados de búsqueda - UN SOLO PRODUCTO (grande y horizontal) -->

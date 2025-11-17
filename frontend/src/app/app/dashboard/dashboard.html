@@ -70,19 +70,25 @@
 
     <!-- Estados de pedidos -->
     <section class="pedidos-estado">
-      <h2>📋 Estado de Pedidos</h2>
+      <h2>📋 Resumen de Pedidos por Estado</h2>
       <div class="estado-cards">
         <div class="estado-card pendiente">
+          <div class="estado-icon">⏳</div>
           <span class="badge">Pendientes</span>
           <p class="count">{{ pedidosPendientes() }}</p>
+          <span class="porcentaje">{{ totalPedidos() > 0 ? ((pedidosPendientes() / totalPedidos()) * 100).toFixed(1) : 0 }}%</span>
         </div>
         <div class="estado-card enviado">
+          <div class="estado-icon">🚚</div>
           <span class="badge">Enviados</span>
           <p class="count">{{ pedidosEnviados() }}</p>
+          <span class="porcentaje">{{ totalPedidos() > 0 ? ((pedidosEnviados() / totalPedidos()) * 100).toFixed(1) : 0 }}%</span>
         </div>
         <div class="estado-card entregado">
+          <div class="estado-icon">✅</div>
           <span class="badge">Entregados</span>
           <p class="count">{{ pedidosEntregados() }}</p>
+          <span class="porcentaje">{{ totalPedidos() > 0 ? ((pedidosEntregados() / totalPedidos()) * 100).toFixed(1) : 0 }}%</span>
         </div>
       </div>
     </section>
@@ -90,28 +96,38 @@
     <!-- Gráficos y tablas -->
     <div class="dashboard-grid">
       
-      <!-- Productos por categoría -->
+      <!-- Gráfico de Ventas por Mes -->
+      <section class="chart-section full-width">
+        <h2>📈 Ventas por Mes (Últimos 6 meses)</h2>
+        <div class="chart-container">
+          <canvas #ventasChart></canvas>
+        </div>
+        <div *ngIf="ventasPorMes().length === 0" class="empty-state">
+          No hay datos de ventas disponibles
+        </div>
+      </section>
+
+      <!-- Gráfico de Estados de Pedidos -->
+      <section class="chart-section">
+        <h2>📋 Estado de Pedidos</h2>
+        <div class="chart-container chart-medium">
+          <canvas #estadosPedidosChart></canvas>
+        </div>
+      </section>
+
+      <!-- Gráfico de Productos por Categoría -->
       <section class="chart-section">
         <h2>🏷️ Productos por Categoría</h2>
-        <div class="category-stats">
-          <div *ngFor="let cat of estadisticasCategorias()" class="category-bar">
-            <div class="category-info">
-              <span class="category-name">{{ cat.categoria }}</span>
-              <span class="category-count">{{ cat.cantidad }} productos</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" [style.width.%]="cat.porcentaje"></div>
-            </div>
-            <span class="category-percentage">{{ cat.porcentaje | number:'1.0-1' }}%</span>
-          </div>
-          <div *ngIf="estadisticasCategorias().length === 0" class="empty-state">
-            No hay productos registrados
-          </div>
+        <div class="chart-container chart-medium">
+          <canvas #categoriasChart></canvas>
+        </div>
+        <div *ngIf="estadisticasCategorias().length === 0" class="empty-state">
+          No hay productos registrados
         </div>
       </section>
 
       <!-- Productos más vendidos -->
-      <section class="chart-section">
+      <section class="chart-section full-width">
         <h2>⭐ Top 5 Productos Más Vendidos</h2>
         <div class="top-products">
           <div *ngFor="let producto of productosMasVendidos(); let i = index" class="top-product-item">
@@ -123,26 +139,6 @@
             </div>
           </div>
           <div *ngIf="productosMasVendidos().length === 0" class="empty-state">
-            No hay datos de ventas disponibles
-          </div>
-        </div>
-      </section>
-
-      <!-- Ventas por mes -->
-      <section class="chart-section full-width">
-        <h2>📈 Ventas por Mes (Últimos 6 meses)</h2>
-        <div class="sales-chart">
-          <div *ngFor="let venta of ventasPorMes()" class="sales-bar-container">
-            <div class="sales-bar-wrapper">
-              <div 
-                class="sales-bar" 
-                [style.height.%]="getBarHeight(venta.total)">
-                <span class="sales-value">{{ formatearMoneda(venta.total) }}</span>
-              </div>
-            </div>
-            <span class="sales-label">{{ venta.mes }}</span>
-          </div>
-          <div *ngIf="ventasPorMes().length === 0" class="empty-state">
             No hay datos de ventas disponibles
           </div>
         </div>

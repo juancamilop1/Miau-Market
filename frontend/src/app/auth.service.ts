@@ -20,6 +20,7 @@ export interface User {
   name: string;
   email: string;
   is_staff?: boolean;
+  is_superuser?: boolean;
   Address?: string;
   Telefono?: string;
   Ciudad?: string;

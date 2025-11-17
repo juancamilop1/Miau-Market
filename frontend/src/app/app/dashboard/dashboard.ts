@@ -1,9 +1,13 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 import { StarRating } from '../star-rating/star-rating';
+import { Chart, ChartConfiguration, registerables } from 'chart.js';
+
+// Registrar todos los componentes de Chart.js
+Chart.register(...registerables);
 
 interface Product {
   Id_Products: number;
@@ -68,10 +72,20 @@ interface ProductRating {
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, AfterViewInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
   private router = inject(Router);
+
+  // Referencias a los canvas de los gráficos
+  @ViewChild('ventasChart') ventasChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('categoriasChart') categoriasChartRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('estadosPedidosChart') estadosPedidosChartRef!: ElementRef<HTMLCanvasElement>;
+
+  // Instancias de los gráficos
+  private ventasChart?: Chart;
+  private categoriasChart?: Chart;
+  private estadosPedidosChart?: Chart;
 
   // Datos cargados
   products = signal<Product[]>([]);
@@ -215,6 +229,11 @@ export class Dashboard implements OnInit {
     this.cargarDatos();
   }
 
+  ngAfterViewInit() {
+    // Los gráficos se crearán después de que los datos se carguen
+    // en verificarCargaCompleta()
+  }
+
   cargarDatos() {
     this.loading.set(true);
     
@@ -273,7 +292,262 @@ export class Dashboard implements OnInit {
     this.cargasCompletadas++;
     if (this.cargasCompletadas >= 3) { // Productos, pedidos y ratings son críticos
       this.loading.set(false);
+      // Crear gráficos después de cargar los datos
+      setTimeout(() => this.crearGraficos(), 100);
     }
+  }
+
+  private crearGraficos() {
+    this.crearGraficoVentas();
+    this.crearGraficoCategorias();
+    this.crearGraficoEstadosPedidos();
+  }
+
+  private crearGraficoVentas() {
+    if (!this.ventasChartRef) return;
+
+    const ctx = this.ventasChartRef.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    // Destruir gráfico anterior si existe
+    if (this.ventasChart) {
+      this.ventasChart.destroy();
+    }
+
+    const ventas = this.ventasPorMes();
+    
+    const config: ChartConfiguration<'line'> = {
+      type: 'line',
+      data: {
+        labels: ventas.map(v => v.mes),
+        datasets: [{
+          label: 'Ingresos',
+          data: ventas.map(v => v.total),
+          borderColor: '#ff6f00',
+          backgroundColor: 'rgba(255, 111, 0, 0.1)',
+          borderWidth: 3,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#ff6f00',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-black') || '#333',
+              font: {
+                size: 14,
+                weight: 'bold'
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: {
+              size: 14
+            },
+            bodyFont: {
+              size: 13
+            },
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.y ?? 0;
+                return `Ingresos: ${this.formatearMoneda(value)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-gray-700') || '#666',
+              callback: (value) => {
+                return this.formatearMoneda(Number(value));
+              }
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            ticks: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-gray-700') || '#666'
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    };
+
+    this.ventasChart = new Chart(ctx, config);
+  }
+
+  private crearGraficoCategorias() {
+    if (!this.categoriasChartRef) return;
+
+    const ctx = this.categoriasChartRef.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    if (this.categoriasChart) {
+      this.categoriasChart.destroy();
+    }
+
+    const categorias = this.estadisticasCategorias();
+    
+    // Colores variados para las categorías
+    const colores = [
+      '#ff6f00',
+      '#ffa726',
+      '#ffb74d',
+      '#ffc107',
+      '#ffca28',
+      '#ffd54f',
+      '#ffe082',
+      '#ffecb3'
+    ];
+
+    const config: ChartConfiguration<'doughnut'> = {
+      type: 'doughnut',
+      data: {
+        labels: categorias.map(c => c.categoria),
+        datasets: [{
+          data: categorias.map(c => c.cantidad),
+          backgroundColor: colores.slice(0, categorias.length),
+          borderColor: '#fff',
+          borderWidth: 2,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'right',
+            labels: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-black') || '#333',
+              font: {
+                size: 12
+              },
+              padding: 15,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            callbacks: {
+              label: (context) => {
+                const label = context.label || '';
+                const value = context.parsed;
+                const total = categorias.reduce((sum, c) => sum + c.cantidad, 0);
+                const porcentaje = ((value / total) * 100).toFixed(1);
+                return `${label}: ${value} productos (${porcentaje}%)`;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    this.categoriasChart = new Chart(ctx, config);
+  }
+
+  private crearGraficoEstadosPedidos() {
+    if (!this.estadosPedidosChartRef) return;
+
+    const ctx = this.estadosPedidosChartRef.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    if (this.estadosPedidosChart) {
+      this.estadosPedidosChart.destroy();
+    }
+
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      data: {
+        labels: ['Pendientes', 'Enviados', 'Entregados'],
+        datasets: [{
+          label: 'Cantidad de Pedidos',
+          data: [
+            this.pedidosPendientes(),
+            this.pedidosEnviados(),
+            this.pedidosEntregados()
+          ],
+          backgroundColor: [
+            'rgba(255, 193, 7, 0.7)',
+            'rgba(33, 150, 243, 0.7)',
+            'rgba(76, 175, 80, 0.7)'
+          ],
+          borderColor: [
+            '#ffc107',
+            '#2196f3',
+            '#4caf50'
+          ],
+          borderWidth: 2,
+          borderRadius: 8,
+          barThickness: 60
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            callbacks: {
+              label: (context) => {
+                return `${context.parsed.y} pedido${context.parsed.y !== 1 ? 's' : ''}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-gray-700') || '#666',
+              stepSize: 1
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            ticks: {
+              color: getComputedStyle(document.documentElement).getPropertyValue('--mm-gray-700') || '#666',
+              font: {
+                size: 13,
+                weight: 'bold'
+              }
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    };
+
+    this.estadosPedidosChart = new Chart(ctx, config);
   }
 
   formatearMes(mes: string): string {

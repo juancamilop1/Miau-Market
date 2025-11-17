@@ -55,6 +55,7 @@ export class Login {
             name: response.user.name || response.user.nombre || '', // Soporte para ambos
             email: response.user.email,
             is_staff: response.user.is_staff,
+            is_superuser: response.user.is_superuser,
             Address: response.user.Address,
             Telefono: response.user.Telefono,
             Ciudad: response.user.Ciudad,

@@ -77,6 +77,7 @@ class LoginView(generics.GenericAPIView):
                         'name': user.Nombre,
                         'Apellido': user.Apellido,
                         'is_staff': user.is_staff,
+                        'is_superuser': user.is_superuser,
                         'Address': user.Address,
                         'Telefono': user.Telefono,
                         'Ciudad': user.City,
@@ -114,6 +115,255 @@ class UsuarioDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return super().delete(request, *args, **kwargs)
+
+
+# ==================== VISTAS DE GESTIÓN DE USUARIOS (ADMIN) ====================
+
+class GestionUsuariosView(APIView):
+    """
+    Vista para listar todos los usuarios con sus detalles completos
+    Solo accesible para staff (is_staff=True)
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """Listar todos los usuarios con información completa"""
+        try:
+            # Obtener todos los usuarios directamente con el ORM
+            usuarios_qs = Usuario.objects.all().order_by('-FechaRegistro')
+            
+            usuarios = []
+            for usuario in usuarios_qs:
+                usuarios.append({
+                    'Id_User': usuario.id,
+                    'Nombre': usuario.Nombre,
+                    'Apellido': usuario.Apellido,
+                    'Email': usuario.Email,
+                    'Telefono': usuario.Telefono,
+                    'Address': usuario.Address,
+                    'is_staff': usuario.is_staff,
+                    'is_superuser': usuario.is_superuser,
+                    'is_active': usuario.is_active,
+                    'FechaRegistro': usuario.FechaRegistro,
+                    'Total_Pedidos': 0,  # Por ahora en 0, se puede agregar después
+                    'Total_Gastado': 0   # Por ahora en 0, se puede agregar después
+                })
+            
+            return Response({
+                'usuarios': usuarios,
+                'total': len(usuarios)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error al listar usuarios: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'error': 'Error al obtener la lista de usuarios'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ConvertirAdministradorView(APIView):
+    """
+    Vista para convertir un usuario en administrador
+    Solo accesible para superusuarios (is_superuser=True)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, user_id):
+        """Convertir usuario en staff/admin"""
+        # Verificar que el usuario actual es superusuario
+        if not request.user.is_superuser:
+            return Response({
+                'error': 'Solo los superusuarios pueden crear administradores'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            usuario = Usuario.objects.get(id=user_id)
+            
+            # No permitir que se modifique a sí mismo
+            if usuario.id == request.user.id:
+                return Response({
+                    'error': 'No puedes modificar tus propios permisos'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Toggle is_staff
+            nuevo_estado = request.data.get('is_staff', not usuario.is_staff)
+            usuario.is_staff = nuevo_estado
+            usuario.save()
+            
+            mensaje = f"Usuario {'convertido en administrador' if nuevo_estado else 'removido como administrador'} exitosamente"
+            
+            return Response({
+                'success': True,
+                'message': mensaje,
+                'usuario': {
+                    'id': usuario.id,
+                    'Nombre': usuario.Nombre,
+                    'Apellido': usuario.Apellido,
+                    'is_staff': usuario.is_staff
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Usuario.DoesNotExist:
+            return Response({
+                'error': 'Usuario no encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error al convertir administrador: {str(e)}")
+            return Response({
+                'error': 'Error al modificar el usuario'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EliminarUsuarioView(APIView):
+    """
+    Vista para eliminar un usuario
+    Accesible para staff (is_staff=True)
+    Restricciones:
+    - Staff NO puede eliminar superusuarios (a menos que el staff sea superusuario)
+    - Nadie puede eliminarse a sí mismo
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def delete(self, request, user_id):
+        """Eliminar un usuario"""
+        try:
+            usuario = Usuario.objects.get(id=user_id)
+            
+            # No permitir auto-eliminación
+            if usuario.id == request.user.id:
+                return Response({
+                    'error': 'No puedes eliminar tu propia cuenta'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Si el usuario a eliminar es superusuario, solo otro superusuario puede eliminarlo
+            if usuario.is_superuser and not request.user.is_superuser:
+                return Response({
+                    'error': 'Solo los superusuarios pueden eliminar cuentas de superusuario'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            nombre_completo = f"{usuario.Nombre} {usuario.Apellido}"
+            usuario.delete()
+            
+            return Response({
+                'success': True,
+                'message': f'Usuario {nombre_completo} eliminado exitosamente'
+            }, status=status.HTTP_200_OK)
+            
+        except Usuario.DoesNotExist:
+            return Response({
+                'error': 'Usuario no encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error al eliminar usuario: {str(e)}")
+            return Response({
+                'error': 'Error al eliminar el usuario'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BulkDeleteUsersView(APIView):
+    """
+    Vista para eliminar múltiples usuarios a la vez
+    Solo accesible para administradores
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request):
+        """Eliminar múltiples usuarios"""
+        try:
+            user_ids = request.data.get('user_ids', [])
+            
+            if not user_ids or not isinstance(user_ids, list):
+                return Response({
+                    'error': 'Debes proporcionar una lista de IDs de usuarios'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Filtrar el ID del usuario actual
+            user_ids = [uid for uid in user_ids if uid != request.user.id]
+            
+            if not user_ids:
+                return Response({
+                    'error': 'No hay usuarios válidos para eliminar'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Obtener usuarios a eliminar
+            usuarios = Usuario.objects.filter(id__in=user_ids)
+            
+            # Si no es superusuario, no puede eliminar superusuarios
+            if not request.user.is_superuser:
+                # Verificar si hay superusuarios en la lista
+                superusuarios_en_lista = usuarios.filter(is_superuser=True).exists()
+                if superusuarios_en_lista:
+                    return Response({
+                        'error': 'Solo los superusuarios pueden eliminar cuentas de superusuario'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            
+            count = usuarios.count()
+            usuarios.delete()
+            
+            return Response({
+                'success': True,
+                'message': f'{count} usuario{"s" if count != 1 else ""} eliminado{"s" if count != 1 else ""} exitosamente'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error en eliminación masiva: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'error': 'Error al eliminar usuarios'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BulkMakeAdminView(APIView):
+    """
+    Vista para convertir múltiples usuarios en administradores
+    Solo accesible para superusuarios
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Convertir múltiples usuarios en administradores"""
+        # Verificar que el usuario actual es superusuario
+        if not request.user.is_superuser:
+            return Response({
+                'error': 'Solo los superusuarios pueden crear administradores'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user_ids = request.data.get('user_ids', [])
+            
+            if not user_ids or not isinstance(user_ids, list):
+                return Response({
+                    'error': 'Debes proporcionar una lista de IDs de usuarios'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Filtrar el ID del usuario actual y superusuarios
+            usuarios = Usuario.objects.filter(
+                id__in=user_ids,
+                is_superuser=False
+            ).exclude(id=request.user.id)
+            
+            if not usuarios.exists():
+                return Response({
+                    'error': 'No hay usuarios válidos para convertir en administradores'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            count = usuarios.update(is_staff=True)
+            
+            return Response({
+                'success': True,
+                'message': f'{count} usuario{"s" if count != 1 else ""} convertido{"s" if count != 1 else ""} en administrador{"es" if count != 1 else ""} exitosamente'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error en conversión masiva: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'error': 'Error al convertir usuarios en administradores'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Vistas para Productos
