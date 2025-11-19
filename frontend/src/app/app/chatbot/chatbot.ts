@@ -17,16 +17,21 @@ export class Chatbot {
   currentMessage = '';
   isLoading = signal(false);
   messages = signal<any[]>([]);
+  private hasShownGreeting = false;
   
   private apiUrl = this.envService.getChatbotUrl();
 
   constructor(private ngZone: NgZone) {
-    // Agregar mensaje de bienvenida inicial
-    this.addBotMessage('¡Hola! 🐾 Bienvenido a MiauMarket.\nSoy tu asistente para todo lo que tu perro necesita 🐕\n\nPuedo ayudarte con:\n• Productos recomendados\n• Cuidado y alimentación\n• Comportamiento y razas\n\n¡Cuéntame sobre tu mascota y empecemos! 🦴');
+    // No agregar saludo aquí - se agregará cuando el usuario abre el chat
   }
 
   toggle() { 
-    this.open = !this.open; 
+    this.open = !this.open;
+    // Solo mostrar saludo la primera vez que abre
+    if (this.open && !this.hasShownGreeting) {
+      this.hasShownGreeting = true;
+      this.addBotMessage('¡Hola! 🐾 Bienvenido a MiauMarket.\nSoy tu asistente para todo lo que tu gato necesita 🐱\n\nPuedo ayudarte con:\n• Productos recomendados\n• Cuidado y alimentación\n• Comportamiento de gatos\n\n¡Cuéntame sobre tu gato y empecemos! 😸');
+    }
   }
 
   sendMessage() {
@@ -44,12 +49,19 @@ export class Chatbot {
   }
 
   private async callChatbotAPI(message: string) {
+    // Construir historial de conversación
+    const conversationHistory = this.messages().map(msg => ({
+      role: msg.type === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    }));
+
     const payload = {
-      message: message
+      message: message,
+      conversation_history: conversationHistory
     };
 
     try {
-      console.log('📤 Enviando mensaje al chatbot:', payload);
+      console.log('📤 Enviando mensaje al chatbot con historial:', payload);
       
       const response = await fetch(this.apiUrl, {
         method: 'POST',

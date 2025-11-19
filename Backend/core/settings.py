@@ -95,7 +95,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'miau_market',
         'USER': 'root',
-        'PASSWORD': '',  # Sin contraseña
+        'PASSWORD': '1234',  # Sin contraseña
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
@@ -161,7 +161,7 @@ REST_FRAMEWORK = {
 }
 
 # Gemini API Configuration
-GEMINI_API_KEY = 'AIzaSyAx4J7jhdOLut_2RrGuVmkx-jnH2acUQsQ'
+GEMINI_API_KEY = 'AIzaSyABKSSaexHIyYGfDq-peFlGbvkAt-7igUE'
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 

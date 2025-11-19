@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal, computed, effect, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
@@ -167,6 +167,7 @@ export class Admin implements OnInit {
   Math = Math;
 
   constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
     public auth: AuthService, 
     private api: ApiService,
     private route: ActivatedRoute
@@ -177,12 +178,19 @@ export class Admin implements OnInit {
       this.currentPage.set(1); // Resetear a página 1
     });
     
-    // Detectar si es móvil
-    this.checkIfMobile();
-    window.addEventListener('resize', () => this.checkIfMobile());
+    // Detectar si es móvil solo en el navegador
+    if (isPlatformBrowser(this.platformId)) {
+      this.checkIfMobile();
+      window.addEventListener('resize', () => this.checkIfMobile());
+    }
   }
 
   ngOnInit() {
+    // Forzar detección móvil después de que el componente se inicialice
+    if (isPlatformBrowser(this.platformId)) {
+      setTimeout(() => this.checkIfMobile(), 0);
+    }
+
     // Verificar si viene de una notificación
     this.route.queryParams.subscribe(params => {
       if (params['tab'] === 'pedidos') {
@@ -742,7 +750,9 @@ export class Admin implements OnInit {
   // ==================== FUNCIONES MOBILE ====================
 
   checkIfMobile() {
-    this.isMobile.set(window.innerWidth <= 768);
+    if (isPlatformBrowser(this.platformId)) {
+      this.isMobile.set(window.innerWidth <= 768);
+    }
   }
 
   toggleMobileMenu() {

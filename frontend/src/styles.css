@@ -1,5 +1,23 @@
-/* Paleta global MiauMarket: naranja, blanco y negro */
+/* Variables por defecto para tema claro */
 :root {
+	--mm-orange: #FF7A00;
+	--mm-orange-600: #e66d00;
+	--mm-black: #0f0f10;
+	--mm-white: #ffffff;
+	--mm-gray-100: #f5f5f6;
+	--mm-gray-400: #b7bcc0;
+	--mm-gray-700: #3b3f44;
+	--header-h: 64px;
+	--radius: 12px;
+	--border: #e6e8ea;
+	--shadow-1: 0 6px 18px rgba(14,14,14,0.06);
+	--shadow-2: 0 8px 24px rgba(14,14,14,0.08);
+	--mm-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Light theme: aplicado explícitamente */
+html.theme-light,
+html[data-mm-theme='light'] {
 	--mm-orange: #FF7A00;
 	--mm-orange-600: #e66d00;
 	--mm-black: #0f0f10;
@@ -33,9 +51,13 @@ html[data-mm-theme='dark'] {
 	/* Naranja se mantiene igual - no se redefine */
 }
 
-/* Dark mode usando prefers-color-scheme */
+/* Color scheme: solo usar cuando NO hay tema manual especificado */
+html:not([data-mm-theme]) {
+	color-scheme: light dark;
+}
+
 @media (prefers-color-scheme: dark) {
-	:root {
+	html:not([data-mm-theme]) {
 		/* Texto claro en fondo oscuro */
 		--mm-black: #f0f2f4;
 		/* Fondos oscuros */

@@ -32,11 +32,21 @@ export class App implements OnInit {
     // Aplicar tema guardado al iniciar en el navegador
     if (isPlatformBrowser(this.platformId)) {
       const saved = localStorage.getItem('mm-theme');
+      const root = document.documentElement;
+      
       if (saved === 'dark') {
-        document.documentElement.classList.add('theme-dark');
-        document.documentElement.setAttribute('data-mm-theme', 'dark');
+        root.classList.remove('theme-light');
+        root.classList.add('theme-dark');
+        root.setAttribute('data-mm-theme', 'dark');
         console.log('MiauMarket: aplicando tema dark desde localStorage');
         this.applyBrandAssets('dark');
+      } else {
+        // Asegurarse de que el tema light está aplicado por defecto
+        root.classList.remove('theme-dark');
+        root.classList.add('theme-light');
+        root.setAttribute('data-mm-theme', 'light');
+        console.log('MiauMarket: aplicando tema light');
+        this.applyBrandAssets('light');
       }
       
       // Detectar si es móvil
@@ -82,12 +92,25 @@ export class App implements OnInit {
   toggleTheme() {
     if (!isPlatformBrowser(this.platformId)) return;
     const root = document.documentElement;
-    const dark = root.classList.toggle('theme-dark');
-    // Also set an attribute so styles or other scripts can detect theme reliably
-    root.setAttribute('data-mm-theme', dark ? 'dark' : 'light');
-    console.log('MiauMarket: toggleTheme ->', dark ? 'dark' : 'light');
-    localStorage.setItem('mm-theme', dark ? 'dark' : 'light');
-    this.applyBrandAssets(dark ? 'dark' : 'light');
+    const isDark = root.classList.contains('theme-dark');
+    
+    if (isDark) {
+      // Cambiar a light
+      root.classList.remove('theme-dark');
+      root.classList.add('theme-light');
+      root.setAttribute('data-mm-theme', 'light');
+      localStorage.setItem('mm-theme', 'light');
+      console.log('MiauMarket: toggleTheme -> light');
+      this.applyBrandAssets('light');
+    } else {
+      // Cambiar a dark
+      root.classList.remove('theme-light');
+      root.classList.add('theme-dark');
+      root.setAttribute('data-mm-theme', 'dark');
+      localStorage.setItem('mm-theme', 'dark');
+      console.log('MiauMarket: toggleTheme -> dark');
+      this.applyBrandAssets('dark');
+    }
   }
 
   private applyBrandAssets(mode: 'dark' | 'light') {
