@@ -51,40 +51,77 @@
 			/>
 		</div>
 		<div class="field">
-			<label for="telefono">Teléfono</label>
+			<label for="telefono">Teléfono *</label>
 			<input 
 				id="telefono" 
 				type="tel" 
 				class="input" 
-				placeholder="+57 300 123 4567" 
+				placeholder="3001234567" 
 				[(ngModel)]="telefono"
 				name="telefono"
+				required
 				[disabled]="isLoading()"
+				maxlength="10"
 			/>
+			<small class="field-hint">Solo números, sin el código de país (+57)</small>
 		</div>
 		<div class="field">
-			<label for="address">Dirección</label>
+			<label for="address">Dirección *</label>
 			<input 
 				id="address" 
 				type="text" 
 				class="input" 
-				placeholder="Calle 123 #45-67" 
+				placeholder="Calle 123 #45-67, Apt 101" 
 				[(ngModel)]="address"
 				name="address"
+				required
 				[disabled]="isLoading()"
 			/>
+			<small class="field-hint">Debe ser única (no se permite duplicar direcciones)</small>
 		</div>
 		<div class="field">
-			<label for="city">Ciudad</label>
-			<input 
+			<label for="city">Ciudad *</label>
+			<select 
 				id="city" 
-				type="text" 
 				class="input" 
-				placeholder="Bogotá" 
 				[(ngModel)]="city"
 				name="city"
+				required
 				[disabled]="isLoading()"
-			/>
+			>
+				<option value="" disabled selected>Selecciona tu ciudad</option>
+				<option value="Bogotá D.C.">Bogotá D.C.</option>
+				<option value="Medellín">Medellín</option>
+				<option value="Cali">Cali</option>
+				<option value="Barranquilla">Barranquilla</option>
+				<option value="Cartagena">Cartagena</option>
+				<option value="Cúcuta">Cúcuta</option>
+				<option value="Bucaramanga">Bucaramanga</option>
+				<option value="Pereira">Pereira</option>
+				<option value="Santa Marta">Santa Marta</option>
+				<option value="Ibagué">Ibagué</option>
+				<option value="Pasto">Pasto</option>
+				<option value="Manizales">Manizales</option>
+				<option value="Neiva">Neiva</option>
+				<option value="Villavicencio">Villavicencio</option>
+				<option value="Armenia">Armenia</option>
+				<option value="Valledupar">Valledupar</option>
+				<option value="Montería">Montería</option>
+				<option value="Popayán">Popayán</option>
+				<option value="Sincelejo">Sincelejo</option>
+				<option value="Tunja">Tunja</option>
+				<option value="Florencia">Florencia</option>
+				<option value="Riohacha">Riohacha</option>
+				<option value="Quibdó">Quibdó</option>
+				<option value="Yopal">Yopal</option>
+				<option value="Mocoa">Mocoa</option>
+				<option value="Arauca">Arauca</option>
+				<option value="San Andrés">San Andrés</option>
+				<option value="Leticia">Leticia</option>
+				<option value="Mitú">Mitú</option>
+				<option value="Puerto Carreño">Puerto Carreño</option>
+				<option value="Inírida">Inírida</option>
+			</select>
 		</div>
 		<div class="field">
 			<label for="birthDate">Fecha de nacimiento</label>
@@ -94,6 +131,7 @@
 				class="input" 
 				[(ngModel)]="birthDate"
 				name="birthDate"
+				required
 				[disabled]="isLoading()"
 			/>
 		</div>

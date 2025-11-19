@@ -30,6 +30,13 @@ export class Register {
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
 
+  ngOnInit() {
+    // Si el usuario ya está logueado, redirigir a la tienda
+    if (this.auth.isLogged()) {
+      this.router.navigate(['/shop']);
+    }
+  }
+
   submit(ev: Event) {
     ev.preventDefault();
     
@@ -41,6 +48,18 @@ export class Register {
 
     if (this.password !== this.password2) {
       this.errorMessage.set('Las contraseñas no coinciden');
+      return;
+    }
+
+    // Validar que el teléfono no contenga +57 o símbolos
+    if (this.telefono.includes('+')) {
+      this.errorMessage.set('No agregues el código de país (+57). Solo ingresa el número de teléfono.');
+      return;
+    }
+
+    // Validar que el teléfono solo contenga números
+    if (!/^\d+$/.test(this.telefono)) {
+      this.errorMessage.set('El teléfono debe contener solo números.');
       return;
     }
 
@@ -70,8 +89,14 @@ export class Register {
             if (loginResponse.success) {
               this.auth.login({
                 id: loginResponse.user.id,
-                name: loginResponse.user.nombre,
-                email: loginResponse.user.email
+                name: loginResponse.user.name || loginResponse.user.nombre || '',
+                email: loginResponse.user.email,
+                is_staff: loginResponse.user.is_staff,
+                Address: loginResponse.user.Address,
+                Telefono: loginResponse.user.Telefono,
+                Ciudad: loginResponse.user.Ciudad,
+                Edad: loginResponse.user.Edad,
+                Apellido: loginResponse.user.Apellido
               });
               this.router.navigate(['/shop']);
             }

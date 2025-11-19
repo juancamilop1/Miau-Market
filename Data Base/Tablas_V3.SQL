@@ -1,4 +1,5 @@
 -- Eliminación de tablas si existen para evitar conflictos
+DROP TABLE IF EXISTS authtoken_token;
 DROP TABLE IF EXISTS Orders_Details;
 DROP TABLE IF EXISTS PaymentOrders;
 DROP TABLE IF EXISTS Products;
@@ -35,7 +36,9 @@ CREATE TABLE Products (
     Categoria VARCHAR(100),
     Precio DECIMAL(10,2) NOT NULL,
     Stock INT NOT NULL DEFAULT 0,
+    Imagen VARCHAR(255),  -- Campo para guardar la ruta de la imagen
     Fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Fecha_Caducidad DATE NOT NULL,  -- Campo obligatorio para fecha de caducidad
     created_by INT,  -- Campo para rastrear quién creó el producto
     FOREIGN KEY (created_by) REFERENCES Users(Id_User)
 );
@@ -100,8 +103,18 @@ CREATE TABLE auth_group_permissions (
     FOREIGN KEY (permission_id) REFERENCES auth_permission(id)
 );
 
+-- Tabla para tokens de autenticación de Django REST Framework
+CREATE TABLE authtoken_token (
+    `key` VARCHAR(40) NOT NULL PRIMARY KEY,
+    created DATETIME(6) NOT NULL,
+    user_id INT NOT NULL,
+    UNIQUE KEY (user_id),
+    FOREIGN KEY (user_id) REFERENCES Users(Id_User) ON DELETE CASCADE
+);
+
 -- Índices para mejorar el rendimiento
 CREATE INDEX idx_users_email ON Users(Email);
 CREATE INDEX idx_products_categoria ON Products(Categoria);
 CREATE INDEX idx_paymentorders_estado ON PaymentOrders(Estado);
 CREATE INDEX idx_paymentorders_user ON PaymentOrders(Id_User);
+CREATE INDEX idx_authtoken_token_user ON authtoken_token(user_id);

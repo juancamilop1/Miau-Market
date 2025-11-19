@@ -36,6 +36,7 @@ class ChatbotView(generics.GenericAPIView):
         if serializer.is_valid():
             try:
                 message = serializer.validated_data.get('message', '')
+                conversation_history = serializer.validated_data.get('conversation_history', [])
                 dog_type = serializer.validated_data.get('dog_type')
                 age = serializer.validated_data.get('age')
                 size = serializer.validated_data.get('size')
@@ -43,33 +44,30 @@ class ChatbotView(generics.GenericAPIView):
                 budget = serializer.validated_data.get('budget')
                 
                 print(f"✅ Mensaje validado: '{message}'")
+                print(f"   - Historial: {len(conversation_history)} mensajes anteriores")
                 print(f"   - dog_type: {dog_type}")
                 print(f"   - age: {age}")
                 print(f"   - size: {size}")
                 
-                # Detectar mensajes de saludo inicial
-                greeting_keywords = ['hola', 'hello', 'hi', 'saludos', 'buenos', 'buenas', 'inicio', 'empezar']
-                is_greeting = any(keyword in message.lower() for keyword in greeting_keywords) or len(message.strip()) < 10
+                # Detectar si es SOLO un saludo sin contexto (evitar saludo doble)
+                # Palabras que indican solo saludo
+                only_greeting_keywords = ['hola', 'hello', 'hi', 'saludos', 'buenos', 'buenas', 'hey', 'ey', 'q tal', 'qué tal']
+                message_lower = message.lower().strip()
                 
-                print(f"🔍 ¿Es saludo? {is_greeting}")
+                # Es saludo simple si contiene SOLO una palabra de saludo o es muy corto
+                is_simple_greeting = (message_lower in only_greeting_keywords or 
+                                     any(message_lower.startswith(kw) for kw in only_greeting_keywords) and len(message.strip()) < 15)
                 
-                # Si es un saludo inicial, mostrar mensaje de bienvenida
-                if is_greeting:
-                    welcome_message = """¡Hola! 🐾 Bienvenido a MiauMarket.
-Soy tu asistente para todo lo que tu perro necesita 🐕
-
-Puedo ayudarte con:
-• Productos recomendados
-• Cuidado y alimentación
-• Comportamiento y razas
-
-¡Cuéntame sobre tu mascota y empecemos! 🦴"""
-                    
-                    print(f"📤 Devolviendo mensaje de bienvenida")
+                print(f"🔍 ¿Es saludo simple? {is_simple_greeting}")
+                
+                # Si es solo un saludo simple, no responder (ya el chatbot saludó al abrir)
+                # Solo continuar con la conversación
+                if is_simple_greeting:
+                    print(f"📤 Es solo un saludo - respondiendo mínimamente")
                     return Response({
                         'success': True,
-                        'response': welcome_message,
-                        'status': 'Mensaje de bienvenida'
+                        'response': '¿En qué te puedo ayudar? 😊',
+                        'status': 'Saludo confirmado'
                     }, status=status.HTTP_200_OK)
                 
                 # Detectar si pide recomendaciones o solo conversación
@@ -82,11 +80,12 @@ Puedo ayudarte con:
                 if is_recommendation_request and (dog_type or age or size):
                     print(f"📝 Generando recomendaciones de productos...")
                     response_data = get_product_recommendations(
-                        dog_type=dog_type or 'Perro genérico',
+                        dog_type=dog_type or 'Gato genérico',
                         age=age or 5,
                         size=size or 'mediano',
                         health_conditions=health_conditions,
-                        budget=budget
+                        budget=budget,
+                        user_message=message
                     )
                     print(f"✅ Recomendaciones generadas: {response_data['status']}")
                     return Response(response_data, status=status.HTTP_200_OK)
@@ -97,7 +96,8 @@ Puedo ayudarte con:
                     context = {
                         'dog_type': dog_type,
                         'age': age,
-                        'size': size
+                        'size': size,
+                        'conversation_history': conversation_history
                     }
                     response_data = chatbot_response(message, context)
                     print(f"✅ Respuesta generada: {response_data['status']}")

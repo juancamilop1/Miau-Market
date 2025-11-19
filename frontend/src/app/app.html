@@ -1,41 +1,135 @@
 <header class="app-header">
-  <div class="header-left">
-    <a class="brand" routerLink="/login">
+  <!-- MOBILE HEADER -->
+  <div class="mobile-header" *ngIf="isMobile()">
+    <button class="mobile-menu-btn" (click)="toggleMobileMenu()" *ngIf="auth.isLogged()">
+      <span class="hamburger-icon">☰</span>
+    </button>
+    <div class="brand">
       <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
-    </a>
-
-    <!-- Usuario y cerrar sesión a la izquierda cuando está logueado -->
-    <ng-container *ngIf="auth.isLogged()">
-      <span class="user-name">{{ auth.user()?.name }}</span>
-      <button class="btn btn-ghost" (click)="auth.logout()">Cerrar sesión</button>
-    </ng-container>
-    
-    <!-- Navegación cuando NO está logueado -->
-    <ng-container *ngIf="!auth.isLogged()">
-      <a class="nav-link" routerLink="/login" routerLinkActive="active">Iniciar sesión</a>
-      <a class="nav-link" routerLink="/register" routerLinkActive="active">Registrarse</a>
-    </ng-container>
-  </div>
-
-  <div class="header-center">
-    <div class="header-search" *ngIf="auth.isLogged()">
-      <input class="input" placeholder="Buscar productos..." [value]="auth.search()" (input)="auth.search.set($any($event.target).value)" />
+    </div>
+    <div class="mobile-header-actions" *ngIf="auth.isLogged()">
+      <a class="cart-link-mobile" routerLink="/cart">
+        🛒
+        <span class="cart-badge-mobile" *ngIf="auth.cartCount() > 0">{{ auth.cartCount() }}</span>
+      </a>
+      <app-notifications-bell></app-notifications-bell>
+    </div>
+    <!-- Botones de Login/Register cuando NO está logueado -->
+    <div class="mobile-header-actions" *ngIf="!auth.isLogged()">
+      <a class="mobile-nav-btn" routerLink="/login">Iniciar sesión</a>
+      <a class="mobile-nav-btn primary" routerLink="/register">Registrarse</a>
     </div>
   </div>
 
-  <div class="header-right">
-    <!-- Tienda y Carrito a la derecha cuando está logueado -->
-    <ng-container *ngIf="auth.isLogged()">
-      <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
-      <a class="nav-link" routerLink="/cart" routerLinkActive="active">Carrito</a>
-    </ng-container>
-    
-    <!-- Botón de tema siempre visible -->
-    <button class="btn btn-ghost theme-toggle" type="button" (click)="toggleTheme()" title="Cambiar tema">
-      🌓 <span class="sr-only">Alternar modo oscuro</span>
-    </button>
+  <!-- MOBILE MENU OVERLAY -->
+  <div *ngIf="showMobileMenu()" class="mobile-menu-overlay" (click)="closeMobileMenu()">
+    <div class="mobile-menu" (click)="$event.stopPropagation()">
+      <div class="mobile-menu-header">
+        <h2>Menú</h2>
+        <button class="close-btn" (click)="closeMobileMenu()">✕</button>
+      </div>
+      
+      <div class="mobile-user-info" *ngIf="auth.isLogged()">
+        <div class="user-avatar">{{ auth.user()?.name?.charAt(0) }}{{ auth.user()?.Apellido?.charAt(0) }}</div>
+        <div class="user-details">
+          <span class="user-name">{{ auth.user()?.name }} {{ auth.user()?.Apellido }}</span>
+          <span class="user-email">{{ auth.user()?.email }}</span>
+        </div>
+      </div>
+      
+      <div class="mobile-menu-items">
+        <a class="mobile-menu-item" routerLink="/shop" (click)="closeMobileMenu()">
+          <span class="item-icon">🏪</span>
+          <span class="item-text">Tienda</span>
+        </a>
+        
+        <a class="mobile-menu-item" routerLink="/cart" (click)="closeMobileMenu()">
+          <span class="item-icon">🛒</span>
+          <span class="item-text">Carrito</span>
+          <span class="item-badge" *ngIf="auth.cartCount() > 0">{{ auth.cartCount() }}</span>
+        </a>
+        
+        <a class="mobile-menu-item" routerLink="/my-orders" (click)="closeMobileMenu()">
+          <span class="item-icon">📦</span>
+          <span class="item-text">Mis Pedidos</span>
+        </a>
+        
+        <a class="mobile-menu-item" routerLink="/profile" (click)="closeMobileMenu()">
+          <span class="item-icon">👤</span>
+          <span class="item-text">Mi Perfil</span>
+        </a>
+        
+        <a *ngIf="auth.user()?.is_staff" class="mobile-menu-item admin-item" routerLink="/admin" (click)="closeMobileMenu()">
+          <span class="item-icon">⚙️</span>
+          <span class="item-text">Administración</span>
+        </a>
+        
+        <div class="mobile-menu-divider"></div>
+        
+        <button class="mobile-menu-item" (click)="toggleTheme()">
+          <span class="item-icon">🌓</span>
+          <span class="item-text">Cambiar Tema</span>
+        </button>
+        
+        <button class="mobile-menu-item logout-item" (click)="logout(); closeMobileMenu()">
+          <span class="item-icon">🚪</span>
+          <span class="item-text">Cerrar Sesión</span>
+        </button>
+      </div>
+    </div>
   </div>
 
+  <!-- DESKTOP HEADER -->
+  <div class="desktop-header" *ngIf="!isMobile()">
+    <div class="header-left">
+      <div class="brand">
+        <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
+      </div>
+
+      <!-- Usuario y cerrar sesión a la izquierda cuando está logueado -->
+      <ng-container *ngIf="auth.isLogged()">
+        <a routerLink="/profile" class="user-name user-name-link" routerLinkActive="user-name-active">
+          👤 {{ auth.user()?.name }} {{ auth.user()?.Apellido }}
+        </a>
+        <button class="btn btn-ghost" (click)="logout()">Cerrar sesión</button>
+      </ng-container>
+      
+      <!-- Navegación cuando NO está logueado -->
+      <ng-container *ngIf="!auth.isLogged()">
+        <a class="nav-link" routerLink="/login" routerLinkActive="active">Iniciar sesión</a>
+        <a class="nav-link" routerLink="/register" routerLinkActive="active">Registrarse</a>
+      </ng-container>
+    </div>
+
+    <div class="header-center">
+      <div class="header-search" *ngIf="auth.isLogged() && showSearch()">
+        <input class="input" placeholder="Buscar productos..." [value]="auth.search()" (input)="auth.search.set($any($event.target).value)" />
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Tienda y Carrito a la derecha cuando está logueado -->
+      <ng-container *ngIf="auth.isLogged()">
+        <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
+        <a class="nav-link" routerLink="/my-orders" routerLinkActive="active">Mis Pedidos</a>
+        <a class="nav-link cart-link" routerLink="/cart" routerLinkActive="active">
+          Carrito
+          <span class="cart-badge" *ngIf="auth.cartCount() > 0">{{ auth.cartCount() }}</span>
+        </a>
+        <!-- Campana de notificaciones -->
+        <app-notifications-bell></app-notifications-bell>
+        <!-- Botón de Administración solo para admins -->
+        <a class="nav-link admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.user()?.is_staff">
+          Administración
+        </a>
+      </ng-container>
+      
+      <!-- Botón de tema siempre visible -->
+      <button class="btn btn-ghost theme-toggle" type="button" (click)="toggleTheme()" title="Cambiar tema">
+        🌓 <span class="sr-only">Alternar modo oscuro</span>
+      </button>
+    </div>
+  </div>
 </header>
 
 <main class="app-main">
@@ -43,5 +137,5 @@
   <!-- El contenido de login/register aparece aquí -->
 </main>
 
-<!-- Chatbot flotante global -->
-<mm-chatbot *ngIf="auth.isLogged()"></mm-chatbot>
+<!-- Chatbot flotante global (oculto en admin) -->
+<mm-chatbot *ngIf="auth.isLogged() && !isAdminPage()"></mm-chatbot>

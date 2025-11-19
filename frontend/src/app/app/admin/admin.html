@@ -1,0 +1,761 @@
+<div class="admin-container">
+  <!-- HEADER MOBILE -->
+  <div class="mobile-header">
+    <button class="mobile-menu-btn" (click)="toggleMobileMenu()">
+      <span class="hamburger-icon">☰</span>
+    </button>
+    <h1 *ngIf="!showMobileMenu()">Admin Panel</h1>
+    <div class="mobile-tab-indicator" *ngIf="!showMobileMenu()">
+      {{ activeTab() === 'productos' ? '📦' : activeTab() === 'pedidos' ? '🛒' : activeTab() === 'usuarios' ? '👥' : '📊' }}
+    </div>
+  </div>
+
+  <!-- MENU MOBILE OVERLAY -->
+  <div *ngIf="showMobileMenu()" class="mobile-menu-overlay" (click)="closeMobileMenu()">
+    <div class="mobile-menu" (click)="$event.stopPropagation()">
+      <div class="mobile-menu-header">
+        <h2>Menú</h2>
+        <button class="close-btn" (click)="closeMobileMenu()">✕</button>
+      </div>
+      
+      <div class="mobile-menu-items">
+        <button 
+          class="mobile-menu-item" 
+          [class.active]="activeTab() === 'productos'"
+          (click)="changeTab('productos')"
+        >
+          <span class="item-icon">📦</span>
+          <span class="item-text">Productos</span>
+        </button>
+        
+        <button 
+          class="mobile-menu-item" 
+          [class.active]="activeTab() === 'pedidos'"
+          (click)="changeTab('pedidos')"
+        >
+          <span class="item-icon">🛒</span>
+          <span class="item-text">Pedidos</span>
+        </button>
+        
+        <button 
+          class="mobile-menu-item" 
+          [class.active]="activeTab() === 'usuarios'"
+          (click)="changeTab('usuarios')"
+        >
+          <span class="item-icon">👥</span>
+          <span class="item-text">Usuarios</span>
+        </button>
+        
+        <a 
+          class="mobile-menu-item" 
+          routerLink="/dashboard"
+          (click)="closeMobileMenu()"
+        >
+          <span class="item-icon">📊</span>
+          <span class="item-text">Dashboard</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER DESKTOP -->
+  <div class="admin-header">
+    <h1>Panel de Administración</h1>
+    
+    <!-- Tabs de navegación -->
+    <div class="admin-tabs">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'productos'"
+        (click)="activeTab.set('productos')"
+      >
+        📦 Productos
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'pedidos'"
+        (click)="activeTab.set('pedidos'); loadOrders()"
+      >
+        🛒 Pedidos
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'usuarios'"
+        (click)="activeTab.set('usuarios'); loadUsers()"
+      >
+        👥 Usuarios
+      </button>
+      <a 
+        class="tab-btn dashboard-btn" 
+        routerLink="/dashboard"
+      >
+        📊 Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="alert alert-success" *ngIf="successMessage()">
+    {{ successMessage() }}
+  </div>
+  <div class="alert alert-error" *ngIf="errorMessage()" (click)="errorMessage.set('')" style="cursor: pointer;">
+    {{ errorMessage() }} (Haz clic para cerrar)
+  </div>
+
+  <!-- PESTAÑA DE PRODUCTOS -->
+  <div *ngIf="activeTab() === 'productos'">
+    <div class="section-header">
+      <button class="btn btn-primary" (click)="openForm()" *ngIf="!showForm()">
+        + Agregar Producto
+      </button>
+    </div>
+
+  <!-- Formulario -->
+  <div class="admin-form" *ngIf="showForm()">
+    <h2>{{ editingId() ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
+    
+    <div class="form-group">
+      <label>Título</label>
+      <input 
+        class="input"
+        type="text" 
+        [(ngModel)]="newProduct().Titulo"
+        placeholder="Nombre del producto"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Descripción</label>
+      <textarea 
+        class="input"
+        [(ngModel)]="newProduct().Descripcion"
+        placeholder="Descripción del producto"
+        rows="4"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Categoría</label>
+      <select 
+        class="input"
+        [(ngModel)]="newProduct().Categoria"
+      >
+        <option value="">Selecciona una categoría</option>
+        <option *ngFor="let cat of categorias" [value]="cat">
+          {{ cat }}
+        </option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Precio</label>
+        <input 
+          class="input"
+          type="number" 
+          [(ngModel)]="newProduct().Precio"
+          placeholder="Precio"
+          step="0.01"
+          min="0"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Stock</label>
+        <input 
+          class="input"
+          type="number" 
+          [(ngModel)]="newProduct().Stock"
+          placeholder="Stock"
+          min="0"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Fecha de Caducidad *</label>
+      <input 
+        class="input"
+        type="date" 
+        [(ngModel)]="newProduct().Fecha_Caducidad"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Imagen</label>
+      <div class="image-upload">
+        <input 
+          class="input"
+          type="file"
+          accept="image/*"
+          (change)="onImageSelect($event)"
+          #imageInput
+        />
+        <div class="image-preview" *ngIf="imagePreviewUrl() || (newProduct().Imagen && typeof newProduct().Imagen === 'string')">
+          <img 
+            [src]="imagePreviewUrl() || newProduct().Imagen" 
+            alt="Preview"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" (click)="saveProduct()" [disabled]="loading()">
+        {{ loading() ? 'Guardando...' : (editingId() ? 'Actualizar' : 'Crear') }}
+      </button>
+      <button class="btn btn-ghost" (click)="closeForm()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Lista de productos -->
+  <div class="products-grid" *ngIf="!showForm()">
+    <div *ngIf="loading() && products().length === 0" class="loading">
+      Cargando productos...
+    </div>
+
+    <div *ngIf="products().length === 0 && !loading()" class="empty-state">
+      <p>No hay productos registrados</p>
+    </div>
+
+    <div class="product-card" *ngFor="let product of products()">
+      <div class="product-image">
+        <img 
+          *ngIf="product.Imagen" 
+          [src]="product.Imagen" 
+          alt="{{ product.Titulo }}"
+        />
+        <div *ngIf="!product.Imagen" class="no-image">
+          📦
+        </div>
+      </div>
+
+      <div class="product-info">
+        <h3>{{ product.Titulo }}</h3>
+        <p class="description">{{ product.Descripcion }}</p>
+        <p class="category">{{ product.Categoria }}</p>
+        <p class="expiry-date">Caduca: {{ product.Fecha_Caducidad }}</p>
+        <div class="product-stats">
+          <span class="price">COP {{ product.Precio | number:'1.0-0' }}</span>
+          <span class="stock">Stock: {{ product.Stock }}</span>
+        </div>
+      </div>
+
+      <div class="product-actions">
+        <button class="btn btn-secondary" (click)="openForm(product)">
+          ✏️ Editar
+        </button>
+        <button class="btn btn-danger" (click)="deleteProduct(product.Id_Products); $event.preventDefault()">
+          🗑️ Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- PESTAÑA DE PEDIDOS -->
+  <div *ngIf="activeTab() === 'pedidos'" class="orders-section">
+    <h2>Gestión de Pedidos</h2>
+
+    <div *ngIf="loadingOrders()" class="loading">
+      Cargando pedidos...
+    </div>
+
+    <div *ngIf="orders().length === 0 && !loadingOrders()" class="empty-state">
+      <p>No hay pedidos registrados</p>
+    </div>
+
+    <div class="orders-list">
+      <div class="order-card" *ngFor="let order of orders()">
+        <div class="order-header">
+          <div class="order-info">
+            <h3>Pedido #{{ order.Id_Factura }}</h3>
+            <p class="order-date">{{ order.Fecha }}</p>
+          </div>
+          <div class="order-status">
+            <span 
+              class="status-badge" 
+              [class.status-pendiente]="order.Estado === 'Pendiente'"
+              [class.status-enviado]="order.Estado === 'Enviado'"
+              [class.status-entregado]="order.Estado === 'Entregado'"
+              [class.status-devuelto]="order.Estado === 'Devuelto'"
+            >
+              {{ order.Estado }}
+            </span>
+          </div>
+        </div>
+
+        <div class="order-details">
+          <div class="detail-row">
+            <strong>Cliente:</strong> {{ order.usuario_nombre }} ({{ order.usuario_email }})
+          </div>
+          <div class="detail-row">
+            <strong>Teléfono:</strong> {{ order.Telefono_Envio || 'No especificado' }}
+          </div>
+          <div class="detail-row">
+            <strong>Dirección:</strong> {{ order.Direccion_Envio || 'No especificada' }}
+          </div>
+          <div class="detail-row">
+            <strong>Total:</strong> <span class="order-total">COP {{ order.Total | number:'1.0-0' }}</span>
+          </div>
+          <div class="detail-row">
+            <strong>Método de pago:</strong> {{ order.Metodo_Pago }}
+          </div>
+        </div>
+
+        <!-- Productos del pedido -->
+        <div class="order-products" *ngIf="order.productos && order.productos.length > 0">
+          <h4>Productos:</h4>
+          <div class="product-list">
+            <div class="product-item" *ngFor="let producto of order.productos">
+              <div class="product-info">
+                <strong>{{ producto.Titulo }}</strong>
+                <span class="product-quantity">Cantidad: {{ producto.Cantidad }}</span>
+              </div>
+              <div class="product-prices">
+                <span class="product-unit-price">COP {{ producto.Precio_Unitario | number:'1.0-0' }} c/u</span>
+                <strong class="product-subtotal">COP {{ producto.Subtotal | number:'1.0-0' }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-actions">
+          <label for="estado-{{ order.Id_Factura }}"><strong>Cambiar estado:</strong></label>
+          <select 
+            id="estado-{{ order.Id_Factura }}"
+            class="status-select"
+            [value]="order.Estado"
+            (change)="updateOrderStatus(order.Id_Factura, $any($event.target).value)"
+          >
+            <option value="Pendiente">Pendiente</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Entregado">Entregado</option>
+            <option value="Devuelto">Devuelto</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECCIÓN DE USUARIOS ==================== -->
+  <div *ngIf="activeTab() === 'usuarios'" class="users-section">
+    <!-- HEADER DESKTOP -->
+    <div class="users-header desktop-only">
+      <h2>Gestión de Usuarios</h2>
+      
+      <!-- Botones de acción -->
+      <div class="header-actions">
+        <button class="btn btn-icon" (click)="toggleViewMode()" title="Cambiar vista">
+          {{ viewMode() === 'table' ? '📋 Vista Tabla' : '🎴 Vista Tarjetas' }}
+        </button>
+        
+        <button 
+          class="btn btn-secondary" 
+          (click)="openBulkActions()"
+          [disabled]="selectedUsers().size === 0"
+        >
+          ⚡ Acciones Masivas ({{ selectedUsers().size }})
+        </button>
+        
+        <div class="export-dropdown">
+          <button class="btn btn-success">📥 Exportar</button>
+          <div class="export-menu">
+            <button (click)="exportUsers()">👥 Lista de Usuarios</button>
+            <button (click)="exportOrders()">🛒 Lista de Pedidos</button>
+            <button (click)="exportSalesReport()">📊 Reporte de Ventas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEADER MOBILE -->
+    <div class="users-header-mobile mobile-only">
+      <h2>👥 Usuarios</h2>
+      <button class="btn-filter-mobile" (click)="toggleMobileFilters()">
+        🔍 Filtros
+      </button>
+    </div>
+
+    <!-- Barra de búsqueda y selector de cantidad -->
+    <div class="users-controls" [class.mobile-filters-open]="showMobileFilters()">
+      <div class="search-bar">
+        <input 
+          type="text"
+          class="search-input"
+          placeholder="🔍 Buscar..."
+          [(ngModel)]="searchUser"
+        />
+        <span *ngIf="searchUser()" class="search-results">
+          {{ filteredUsers().length }} resultado{{ filteredUsers().length !== 1 ? 's' : '' }}
+        </span>
+      </div>
+      
+      <div class="items-per-page">
+        <label>Mostrar:</label>
+        <select 
+          class="page-size-select"
+          [value]="itemsPerPage()"
+          (change)="changeItemsPerPage(+$any($event.target).value)"
+        >
+          <option [value]="10">10</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+        <span>por página</span>
+      </div>
+    </div>
+
+    <div *ngIf="loadingUsers()" class="loading-users">
+      Cargando usuarios...
+    </div>
+
+    <div *ngIf="!loadingUsers() && filteredUsers().length === 0 && !searchUser()" class="empty-users">
+      No hay usuarios registrados
+    </div>
+
+    <div *ngIf="!loadingUsers() && filteredUsers().length === 0 && searchUser()" class="empty-users">
+      No se encontraron usuarios que coincidan con "{{ searchUser() }}"
+    </div>
+
+    <!-- VISTA DE TABLA -->
+    <table *ngIf="!loadingUsers() && filteredUsers().length > 0 && viewMode() === 'table'" class="users-table">
+      <thead>
+        <tr>
+          <th class="checkbox-cell">
+            <input 
+              type="checkbox" 
+              [checked]="selectAll()"
+              (change)="toggleSelectAll()"
+              class="checkbox-input"
+            />
+          </th>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Rol</th>
+          <th>Pedidos</th>
+          <th>Total Gastado</th>
+          <th>Fecha Registro</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of paginatedUsers()">
+          <td class="checkbox-cell">
+            <input 
+              type="checkbox" 
+              [checked]="isUserSelected(user.Id_User)"
+              (change)="toggleUserSelection(user.Id_User)"
+              class="checkbox-input"
+            />
+          </td>
+          <td>{{ user.Id_User }}</td>
+          <td>
+            {{ user.Nombre }} {{ user.Apellido }}
+            <span *ngIf="user.Id_User === auth.user()?.id" class="badge-you">Tú</span>
+          </td>
+          <td>{{ user.Email }}</td>
+          <td>{{ user.Telefono }}</td>
+          <td>
+            <span class="role-badge" 
+                  [class.superuser]="user.is_superuser"
+                  [class.staff]="user.is_staff && !user.is_superuser"
+                  [class.user]="!user.is_staff && !user.is_superuser">
+              {{ user.is_superuser ? 'Superusuario' : (user.is_staff ? 'Administrador' : 'Usuario') }}
+            </span>
+          </td>
+          <td>{{ user.Total_Pedidos }}</td>
+          <td>{{ formatearMoneda(user.Total_Gastado) }}</td>
+          <td>{{ formatearFecha(user.FechaRegistro) }}</td>
+          <td>
+            <div class="action-buttons">
+              <!-- Botón Hacer/Quitar Admin: solo visible para superusuarios y no para sí mismos ni otros superusuarios -->
+              <button 
+                *ngIf="esSuperusuario() && !user.is_superuser && user.Id_User !== auth.user()?.id"
+                class="btn"
+                [class.btn-warning]="!user.is_staff"
+                [class.btn-success]="user.is_staff"
+                [disabled]="processingUser() === user.Id_User"
+                (click)="toggleAdmin(user)"
+              >
+                {{ user.is_staff ? 'Quitar Admin' : 'Hacer Admin' }}
+              </button>
+
+              <!-- Botón Eliminar: visible según permisos -->
+              <button 
+                *ngIf="user.Id_User !== auth.user()?.id && (!user.is_superuser || esSuperusuario())"
+                class="btn btn-danger"
+                [disabled]="processingUser() === user.Id_User"
+                (click)="openDeleteModal(user)"
+              >
+                Eliminar
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- VISTA DE TARJETAS -->
+    <div *ngIf="!loadingUsers() && filteredUsers().length > 0 && viewMode() === 'cards'" class="users-cards-grid">
+      <div *ngFor="let user of paginatedUsers()" class="user-card" [class.selected]="isUserSelected(user.Id_User)">
+        <div class="card-checkbox">
+          <input 
+            type="checkbox" 
+            [checked]="isUserSelected(user.Id_User)"
+            (change)="toggleUserSelection(user.Id_User)"
+            class="checkbox-input"
+          />
+        </div>
+        
+        <div class="card-header">
+          <div class="user-avatar">{{ user.Nombre.charAt(0) }}{{ user.Apellido.charAt(0) }}</div>
+          <div class="user-basic-info">
+            <h3>
+              {{ user.Nombre }} {{ user.Apellido }}
+              <span *ngIf="user.Id_User === auth.user()?.id" class="badge-you">Tú</span>
+            </h3>
+            <p class="user-email">{{ user.Email }}</p>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="icon">📱</span>
+              <div>
+                <div class="label">Teléfono</div>
+                <div class="value">{{ user.Telefono }}</div>
+              </div>
+            </div>
+            
+            <div class="info-item">
+              <span class="icon">🛒</span>
+              <div>
+                <div class="label">Pedidos</div>
+                <div class="value">{{ user.Total_Pedidos }}</div>
+              </div>
+            </div>
+            
+            <div class="info-item">
+              <span class="icon">💰</span>
+              <div>
+                <div class="label">Total Gastado</div>
+                <div class="value">{{ formatearMoneda(user.Total_Gastado) }}</div>
+              </div>
+            </div>
+            
+            <div class="info-item">
+              <span class="icon">📅</span>
+              <div>
+                <div class="label">Registro</div>
+                <div class="value">{{ formatearFecha(user.FechaRegistro) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-role">
+            <span class="role-badge" 
+                  [class.superuser]="user.is_superuser"
+                  [class.staff]="user.is_staff && !user.is_superuser"
+                  [class.user]="!user.is_staff && !user.is_superuser">
+              {{ user.is_superuser ? 'Superusuario' : (user.is_staff ? 'Administrador' : 'Usuario') }}
+            </span>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <button 
+            *ngIf="esSuperusuario() && !user.is_superuser && user.Id_User !== auth.user()?.id"
+            class="btn btn-small"
+            [class.btn-warning]="!user.is_staff"
+            [class.btn-success]="user.is_staff"
+            [disabled]="processingUser() === user.Id_User"
+            (click)="toggleAdmin(user)"
+          >
+            {{ user.is_staff ? '🔻 Quitar Admin' : '⬆️ Hacer Admin' }}
+          </button>
+
+          <button 
+            *ngIf="user.Id_User !== auth.user()?.id && (!user.is_superuser || esSuperusuario())"
+            class="btn btn-small btn-danger"
+            [disabled]="processingUser() === user.Id_User"
+            (click)="openDeleteModal(user)"
+          >
+            🗑️ Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controles de paginación -->
+    <div *ngIf="!loadingUsers() && filteredUsers().length > 0" class="pagination">
+      <div class="pagination-info">
+        Mostrando {{ (currentPage() - 1) * itemsPerPage() + 1 }} - 
+        {{ Math.min(currentPage() * itemsPerPage(), filteredUsers().length) }} 
+        de {{ filteredUsers().length }} usuarios
+      </div>
+      
+      <div class="pagination-controls">
+        <button 
+          class="pagination-btn"
+          [disabled]="currentPage() === 1"
+          (click)="previousPage()"
+        >
+          ← Anterior
+        </button>
+        
+        <button 
+          *ngIf="pageNumbers()[0] > 1"
+          class="pagination-btn"
+          (click)="goToPage(1)"
+        >
+          1
+        </button>
+        
+        <span *ngIf="pageNumbers()[0] > 2" class="pagination-ellipsis">...</span>
+        
+        <button 
+          *ngFor="let page of pageNumbers()"
+          class="pagination-btn"
+          [class.active]="page === currentPage()"
+          (click)="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        
+        <span *ngIf="pageNumbers()[pageNumbers().length - 1] < totalPages() - 1" class="pagination-ellipsis">...</span>
+        
+        <button 
+          *ngIf="pageNumbers()[pageNumbers().length - 1] < totalPages()"
+          class="pagination-btn"
+          (click)="goToPage(totalPages())"
+        >
+          {{ totalPages() }}
+        </button>
+        
+        <button 
+          class="pagination-btn"
+          [disabled]="currentPage() === totalPages()"
+          (click)="nextPage()"
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTÓN FLOTANTE MÓVIL (Solo en usuarios) -->
+  <div *ngIf="activeTab() === 'usuarios' && isMobile()" class="mobile-fab-container">
+    <button 
+      *ngIf="selectedUsers().size > 0"
+      class="mobile-fab"
+      (click)="openBulkActions()"
+    >
+      <span class="fab-badge">{{ selectedUsers().size }}</span>
+      <span class="fab-icon">⚡</span>
+    </button>
+    
+    <button class="mobile-fab secondary" (click)="exportUsers()">
+      📥
+    </button>
+  </div>
+
+  <!-- ==================== MODAL DE ACCIONES MASIVAS ==================== -->
+  <div *ngIf="showBulkActions()" class="modal-overlay" (click)="closeBulkActions()">
+    <div class="modal-content bulk-actions-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>⚡ Acciones Masivas</h2>
+        <p class="subtitle">{{ selectedUsers().size }} usuario{{ selectedUsers().size !== 1 ? 's' : '' }} seleccionado{{ selectedUsers().size !== 1 ? 's' : '' }}</p>
+      </div>
+      
+      <div class="modal-body">
+        <div class="bulk-action-grid">
+          <button class="bulk-action-btn danger" (click)="bulkDeleteUsers()">
+            <span class="action-icon">🗑️</span>
+            <div class="action-info">
+              <h3>Eliminar Usuarios</h3>
+              <p>Eliminar permanentemente los usuarios seleccionados</p>
+            </div>
+          </button>
+
+          <button class="bulk-action-btn warning" (click)="bulkMakeAdmin()" *ngIf="esSuperusuario()">
+            <span class="action-icon">👑</span>
+            <div class="action-info">
+              <h3>Hacer Administradores</h3>
+              <p>Convertir usuarios seleccionados en administradores</p>
+            </div>
+          </button>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeBulkActions()">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ==================== -->
+  <div *ngIf="showDeleteModal()" class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="warning-icon">⚠️</div>
+        <h2>Confirmar Eliminación</h2>
+      </div>
+      
+      <div class="modal-body">
+        <p class="warning-text">
+          Esta acción es <strong>permanente</strong> y no se puede deshacer.
+        </p>
+        
+        <div class="user-info-card" *ngIf="userToDelete()">
+          <div class="info-row">
+            <span class="label">Usuario:</span>
+            <span class="value">{{ userToDelete()!.Nombre }} {{ userToDelete()!.Apellido }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Email:</span>
+            <span class="value">{{ userToDelete()!.Email }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Pedidos realizados:</span>
+            <span class="value">{{ userToDelete()!.Total_Pedidos }}</span>
+          </div>
+        </div>
+        
+        <div class="confirmation-input">
+          <label>
+            Para confirmar, escribe el nombre completo del usuario:
+            <strong>{{ userToDelete()!.Nombre }} {{ userToDelete()!.Apellido }}</strong>
+          </label>
+          <input 
+            type="text"
+            class="input confirm-input"
+            placeholder="Escribe el nombre completo..."
+            [(ngModel)]="deleteConfirmationName"
+            (keyup.enter)="confirmDelete()"
+          />
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeDeleteModal()">
+          Cancelar
+        </button>
+        <button 
+          class="btn btn-danger-solid"
+          [disabled]="!deleteConfirmationName()"
+          (click)="confirmDelete()"
+        >
+          Eliminar Usuario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

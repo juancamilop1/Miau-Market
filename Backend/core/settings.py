@@ -27,7 +27,8 @@ SECRET_KEY = 'django-insecure-f!@l69jw)!i7kvfj@)@!3t_f$wx-mqw92ewy88s9=rk@yr&$ye
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Permitir conexiones desde cualquier host en la red local (solo para desarrollo)
+ALLOWED_HOSTS = ['*']  # En producción, especifica tu dominio real
 
 
 # Application definition
@@ -57,9 +58,13 @@ MIDDLEWARE = [
 ]
 
 # CORS Configuration
+# Permitir conexiones desde localhost y red local (solo para desarrollo)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
+    # Agregará automáticamente tu IP local cuando ejecutes run_network.bat
 ]
+# Permitir CUALQUIER origen en desarrollo (comentar en producción)
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'core.urls'
@@ -90,7 +95,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'miau_market',
         'USER': 'root',
-        'PASSWORD': '1234',  # Tu contraseña actual
+        'PASSWORD': '1234',  # Sin contraseña
         'HOST': 'localhost',
         'PORT': '3306',
         'OPTIONS': {
@@ -140,6 +145,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -154,7 +161,7 @@ REST_FRAMEWORK = {
 }
 
 # Gemini API Configuration
-GEMINI_API_KEY = 'AIzaSyAx4J7jhdOLut_2RrGuVmkx-jnH2acUQsQ'
+GEMINI_API_KEY = 'AIzaSyABKSSaexHIyYGfDq-peFlGbvkAt-7igUE'
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
 

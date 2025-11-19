@@ -1,0 +1,127 @@
+<section class="checkout-hero">
+  <h1>Confirmar Pedido</h1>
+  <p class="checkout-subtitle">Pago contra entrega - Revisa tu información antes de confirmar</p>
+</section>
+
+<!-- Overlay de procesamiento -->
+<div class="processing-overlay" *ngIf="loading() || confirmando()">
+  <div class="processing-content">
+    <div class="spinner-large"></div>
+    <h2>Procesando tu pedido...</h2>
+    <p>Por favor espera, estamos confirmando tu compra</p>
+    <div class="progress-bar-animated">
+      <div class="progress-fill-animated"></div>
+    </div>
+  </div>
+</div>
+
+<section class="checkout-container">
+  <!-- Mensajes -->
+  <div class="alert alert-success" *ngIf="successMessage()">
+    ✓ {{ successMessage() }}
+  </div>
+  <div class="alert alert-error" *ngIf="errorMessage()">
+    ✗ {{ errorMessage() }}
+  </div>
+
+  <div class="checkout-content">
+    <!-- Formulario de confirmación -->
+    <div class="checkout-form-section">
+      <h2>Información de Envío</h2>
+      
+      <div class="form-group">
+        <label for="email">Correo Electrónico</label>
+        <input 
+          id="email"
+          type="email" 
+          class="input"
+          [value]="email()"
+          disabled
+        />
+        <small class="form-hint">Este es tu correo registrado</small>
+      </div>
+
+      <div class="form-group">
+        <label for="direccion">Dirección de Entrega *</label>
+        <textarea 
+          id="direccion"
+          class="input"
+          [(ngModel)]="direccion"
+          placeholder="Calle, número, apartamento, referencias..."
+          rows="3"
+          required
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="telefono">Teléfono de Contacto *</label>
+        <input 
+          id="telefono"
+          type="tel" 
+          class="input"
+          [(ngModel)]="telefono"
+          placeholder="Ej: 3001234567"
+          required
+        />
+        <small class="form-hint">Te contactaremos para confirmar la entrega</small>
+      </div>
+
+      <div class="payment-info">
+        <h3>💵 Método de Pago</h3>
+        <div class="payment-badge">
+          <strong>Pago Contra Entrega</strong>
+          <p>Pagarás en efectivo o nequi cuando recibas tu pedido</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen del pedido -->
+    <div class="checkout-summary">
+      <h2>Resumen del Pedido</h2>
+      
+      <div class="order-items">
+        <div *ngFor="let item of cart()" class="order-item">
+          <img 
+            *ngIf="item.product.imagen" 
+            [src]="item.product.imagen" 
+            [alt]="item.product.name"
+            class="order-item-image"
+          />
+          <div class="order-item-info">
+            <p class="order-item-name">{{ item.product.name }}</p>
+            <p class="order-item-quantity">Cantidad: {{ item.quantity }}</p>
+            <p class="order-item-price">COP {{ (item.product.price * item.quantity) | number:'1.0-0' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-divider"></div>
+
+      <div class="summary-row">
+        <span>Subtotal:</span>
+        <strong>COP {{ cartTotal() | number:'1.0-0' }}</strong>
+      </div>
+      <div class="summary-row">
+        <span>Envío:</span>
+        <strong>Gratis</strong>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-row summary-total">
+        <span>Total a Pagar:</span>
+        <strong>COP {{ cartTotal() | number:'1.0-0' }}</strong>
+      </div>
+
+      <div class="checkout-buttons">
+        <button 
+          class="btn btn-primary btn-large btn-block" 
+          (click)="confirmarPedido()"
+          [disabled]="loading() || confirmando() || !direccion || !telefono"
+        >
+          {{ loading() ? 'Procesando...' : 'Confirmar Pedido' }}
+        </button>
+
+        <a class="btn btn-ghost btn-block" routerLink="/cart">← Volver al carrito</a>
+      </div>
+    </div>
+  </div>
+</section>

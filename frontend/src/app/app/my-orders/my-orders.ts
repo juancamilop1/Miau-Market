@@ -1,0 +1,124 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../auth.service';
+import { EnvironmentService } from '../../services/environment.service';
+
+interface Producto {
+  Id_Products: number;
+  Cantidad: number;
+  Precio_Unitario: number;
+  Titulo: string;
+  Imagen: string | null;
+}
+
+interface Pedido {
+  Id_Factura: number;
+  Total: number;
+  Fecha_Compra: string;
+  Estado: string;
+  Direccion_Envio: string;
+  Telefono_Envio: string;
+  productos: Producto[];
+}
+
+@Component({
+  selector: 'app-my-orders',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './my-orders.html',
+  styleUrl: './my-orders.css'
+})
+export class MyOrders implements OnInit {
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+  private envService = inject(EnvironmentService);
+  
+  pedidos = signal<Pedido[]>([]);
+  cargando = signal(true);
+  error = signal('');
+  
+  ngOnInit() {
+    if (!this.auth.user()) {
+      this.router.navigate(['/login']);
+      return;
+    }
+    
+    this.cargarPedidos();
+  }
+  
+  cargarPedidos() {
+    this.cargando.set(true);
+    this.error.set('');
+    
+    this.api.get<Pedido[]>('/usuarios/mis-pedidos/').subscribe({
+      next: (data) => {
+        console.log('Pedidos recibidos:', data);
+        // Asegurarse de que data sea un array
+        if (Array.isArray(data)) {
+          this.pedidos.set(data);
+        } else {
+          this.pedidos.set([]);
+        }
+        this.cargando.set(false);
+      },
+      error: (err) => {
+        console.error('Error cargando pedidos:', err);
+        // Solo mostrar error si realmente hay un problema (no cuando la lista está vacía)
+        if (err.status === 0) {
+          this.error.set('No se pudo conectar con el servidor. Verifica tu conexión.');
+        } else if (err.status === 401) {
+          this.error.set('Sesión expirada. Por favor inicia sesión nuevamente.');
+          this.router.navigate(['/login']);
+        } else if (err.status === 500) {
+          this.error.set('Error en el servidor. Por favor intenta de nuevo más tarde.');
+        } else {
+          this.error.set('Error al cargar tus pedidos. Por favor intenta de nuevo.');
+        }
+        this.pedidos.set([]);
+        this.cargando.set(false);
+      }
+    });
+  }
+  
+  getEstadoClase(estado: string): string {
+    const clases: { [key: string]: string } = {
+      'Pendiente': 'estado-pendiente',
+      'Enviado': 'estado-enviado',
+      'Entregado': 'estado-entregado',
+      'Devuelto': 'estado-devuelto'
+    };
+    return clases[estado] || 'estado-pendiente';
+  }
+  
+  getEstadoIcono(estado: string): string {
+    const iconos: { [key: string]: string } = {
+      'Pendiente': '⏳',
+      'Enviado': '📦',
+      'Entregado': '✅',
+      'Devuelto': '↩️'
+    };
+    return iconos[estado] || '📋';
+  }
+  
+  formatearFecha(fecha: string): string {
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  
+  getImagenUrl(imagen: string | null): string {
+    return this.envService.getImageUrl(imagen);
+  }
+  
+  volverATienda() {
+    this.router.navigate(['/shop']);
+  }
+}

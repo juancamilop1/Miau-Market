@@ -3,20 +3,513 @@
     <h1>Bienvenido a MiauMarket</h1>
     <p>Encuentra todo para consentir a tu gato: juguetes, comida, accesorios y más.</p>
   </div>
+  
+  <!-- Mobile search bar -->
+  <div class="mobile-search-bar">
+    <input 
+      class="search-input-mobile" 
+      placeholder="🔍 Buscar productos..." 
+      [value]="auth.search()" 
+      (input)="auth.search.set($any($event.target).value)" 
+    />
+  </div>
 </section>
 
-<section class="products">
-  <h2>Productos destacados</h2>
-  <!-- Search moved to header; results filtered by auth.search() -->
-  <div class="product-grid">
-    <div class="product-card" *ngFor="let p of filtered(); let idx = index">
-      <div class="product-media"></div>
-      <div class="product-body">
-        <h3>{{p.name}}</h3>
-        <p class="muted">{{p.description}}</p>
-        <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-        <button class="btn btn-primary" (click)="add(idx + 1); $event.preventDefault()">Agregar al carrito</button>
+<!-- Resultados de búsqueda - UN SOLO PRODUCTO (grande y horizontal) -->
+<section class="products" *ngIf="auth.search() && filtered().length === 1">
+  <div class="carousel-header">
+    <h2>Resultado de búsqueda: "{{ auth.search() }}"</h2>
+  </div>
+  <div class="single-product-container">
+    <div class="single-product-card" *ngFor="let p of filtered()">
+      <div class="single-product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7); font-size: 4rem;">
+          📦
+        </div>
+      </div>
+      <div class="single-product-body">
+        <h2 class="single-product-title">{{p.name}}</h2>
+        <p class="single-product-description">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto-large">
+          {{ getEstadoFrescura(p) }}
+        </p>
+        <div class="single-product-footer">
+          <p class="single-product-price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="single-product-stock">Stock: {{ p.stock }}</p>
+        </div>
+        <button class="btn btn-primary btn-large" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Resultados de búsqueda - MÚLTIPLES PRODUCTOS -->
+<section class="products" *ngIf="auth.search() && filtered().length > 1">
+  <div class="carousel-header">
+    <h2>Resultados de búsqueda: "{{ auth.search() }}" ({{ filtered().length }})</h2>
+  </div>
+  <div class="product-grid highlighted-grid">
+    <div class="product-card" *ngFor="let p of filtered()">
+      <div class="product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+          
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+          📦
+        </div>
+      </div>
+      <div class="product-body">
+        <h3>{{p.name}}</h3>
+        <p class="muted">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+          {{ getEstadoFrescura(p) }}
+        </p>
+        <div class="product-footer">
+          <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="stock">Stock: {{ p.stock }}</p>
+        </div>
+        <div class="product-actions">
+          <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Mensaje sin resultados de búsqueda -->
+<div *ngIf="auth.search() && filtered().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
+  <p>No se encontraron productos que coincidan con "{{ auth.search() }}"</p>
+</div>
+
+<!-- Productos Destacados SIN CARRUSEL (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && highlighted().length > 0">
+  <div class="carousel-header">
+    <h2>Productos Destacados</h2>
+  </div>
+  <div class="product-grid highlighted-grid">
+    <div class="product-card" *ngFor="let p of highlighted()">
+      <div class="product-media">
+        <img 
+          *ngIf="p.imagen" 
+          [src]="p.imagen" 
+          [alt]="p.name"
+          
+        />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+          📦
+        </div>
+      </div>
+      <div class="product-body">
+        <h3>{{p.name}}</h3>
+        <p class="muted">{{p.description}}</p>
+        <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+          {{ getEstadoFrescura(p) }}
+        </p>
+        <div class="product-footer">
+          <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="stock">Stock: {{ p.stock }}</p>
+        </div>
+        <div class="product-actions">
+          <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Comida de Gato (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && comidaGato().length > 0">
+  <div class="carousel-header">
+    <h2>🐱 Comida de Gato</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaGato(), comidaGatoIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Comida de Perro (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && comidaPerro().length > 0">
+  <div class="carousel-header">
+    <h2>🐶 Comida de Perro</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaPerro(), comidaPerroIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Juguetes (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && juguetes().length > 0">
+  <div class="carousel-header">
+    <h2>Juguetes</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('juguetes')" [disabled]="juguetes().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(juguetes(), juguetesIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('juguetes')" [disabled]="juguetes().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Servicios (solo si no hay búsqueda) -->
+<section class="products" *ngIf="!auth.search() && servicios().length > 0">
+  <div class="carousel-header">
+    <h2>Productos utiles</h2>
+  </div>
+  <div class="carousel-container">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('servicios')" [disabled]="servicios().length <= 4">
+      ❮
+    </button>
+    <div class="product-grid">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(servicios(), serviciosIndex())">
+        <div class="product-media">
+          <img 
+            *ngIf="p.imagen" 
+            [src]="p.imagen" 
+            [alt]="p.name"
+            
+          />
+          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+            📦
+          </div>
+        </div>
+        <div class="product-body">
+          <h3>{{p.name}}</h3>
+          <p class="muted">{{p.description}}</p>
+          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
+            {{ getEstadoFrescura(p) }}
+          </p>
+          <div class="product-footer">
+            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+            <p class="stock">Stock: {{ p.stock }}</p>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('servicios')" [disabled]="servicios().length <= 4">
+      ❯
+    </button>
+  </div>
+</section>
+
+<!-- Sin resultados ni búsqueda -->
+<div *ngIf="!auth.search() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
+  <p>No hay productos disponibles</p>
+</div>
+
+<!-- Modal de detalles del producto -->
+<div class="modal-overlay" *ngIf="mostrarModal()" (click)="cerrarModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()" *ngIf="productoSeleccionado()">
+    
+    <div class="modal-body">
+      <!-- Columna izquierda: Imagen y Reseñas -->
+      <div class="modal-left-column">
+        <div class="modal-image">
+          <img 
+            *ngIf="productoSeleccionado()?.imagen" 
+            [src]="productoSeleccionado()!.imagen" 
+            [alt]="productoSeleccionado()!.name"
+          />
+          <div *ngIf="!productoSeleccionado()?.imagen" class="modal-placeholder">
+            📦
+          </div>
+        </div>
+
+        <!-- Sección de Reseñas -->
+        <div class="reviews-section">
+          <h3>Reseñas y Calificaciones</h3>
+
+          <!-- Resumen de calificaciones -->
+          <div class="rating-summary" *ngIf="productRating() && productRating()!.Total_Reviews > 0">
+            <div class="rating-average">
+              <span class="rating-number">{{ productRating()!.Rating_Promedio.toFixed(1) }}</span>
+              <app-star-rating 
+                [rating]="productRating()!.Rating_Promedio" 
+                [readonly]="true"
+                size="medium">
+              </app-star-rating>
+              <span class="total-reviews">({{ productRating()!.Total_Reviews }} {{ productRating()!.Total_Reviews === 1 ? 'reseña' : 'reseñas' }})</span>
+            </div>
+
+            <!-- Distribución de estrellas -->
+            <div class="rating-distribution">
+              <div class="rating-bar" *ngFor="let i of [5, 4, 3, 2, 1]">
+                <span class="star-label">{{ i }} ★</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" 
+                       [style.width.%]="getPercentaje(
+                         i === 5 ? productRating()!.Reviews_5_Estrellas :
+                         i === 4 ? productRating()!.Reviews_4_Estrellas :
+                         i === 3 ? productRating()!.Reviews_3_Estrellas :
+                         i === 2 ? productRating()!.Reviews_2_Estrellas :
+                         productRating()!.Reviews_1_Estrella,
+                         productRating()!.Total_Reviews
+                       )">
+                  </div>
+                </div>
+                <span class="count">{{ 
+                  i === 5 ? productRating()!.Reviews_5_Estrellas :
+                  i === 4 ? productRating()!.Reviews_4_Estrellas :
+                  i === 3 ? productRating()!.Reviews_3_Estrellas :
+                  i === 2 ? productRating()!.Reviews_2_Estrellas :
+                  productRating()!.Reviews_1_Estrella
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario para nueva reseña o editar (si el usuario está autenticado) -->
+          <div class="review-form" *ngIf="auth.isLogged() && (!miReview() || editandoReview())">
+            <h4>{{ miReview() ? 'Editar mi reseña' : 'Deja tu reseña' }}</h4>
+            <div class="form-group">
+              <label>Calificación:</label>
+              <app-star-rating 
+                [rating]="nuevaCalificacion()" 
+                [readonly]="false"
+                size="large"
+                (ratingChange)="onRatingChange($event)">
+              </app-star-rating>
+            </div>
+            <div class="form-group">
+              <label>Comentario (opcional):</label>
+              <textarea 
+                [(ngModel)]="nuevoComentario"
+                placeholder="Comparte tu experiencia..."
+                maxlength="1000"
+                rows="4">
+              </textarea>
+              <small>{{ nuevoComentario.length }}/1000 caracteres</small>
+            </div>
+            <div class="form-actions">
+              <button 
+                class="btn btn-primary" 
+                (click)="enviarReview()"
+                [disabled]="enviandoReview() || nuevaCalificacion() === 0">
+                {{ enviandoReview() ? 'Enviando...' : (miReview() ? 'Actualizar reseña' : 'Enviar reseña') }}
+              </button>
+              <button 
+                class="btn btn-secondary" 
+                (click)="cancelarEdicion()"
+                *ngIf="miReview() && editandoReview()">
+                Cancelar
+              </button>
+            </div>
+          </div>
+
+          <!-- Mostrar reseña existente del usuario (modo lectura) -->
+          <div class="my-review" *ngIf="auth.isLogged() && miReview() && !editandoReview()">
+            <h4>Mi reseña</h4>
+            <div class="review-item own-review">
+              <div class="review-header">
+                <app-star-rating 
+                  [rating]="miReview()!.Rating" 
+                  [readonly]="true"
+                  size="small">
+                </app-star-rating>
+                <span class="review-date">{{ formatearFechaReview(miReview()!.Fecha) }}</span>
+              </div>
+              <p class="review-comment" *ngIf="miReview()!.Comentario">{{ miReview()!.Comentario }}</p>
+              <div class="review-actions">
+                <button class="btn btn-sm btn-secondary" (click)="editarMiReview()">Editar</button>
+                <button class="btn btn-sm btn-danger" (click)="eliminarMiReview()">Eliminar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje para usuarios no autenticados -->
+          <div class="login-prompt" *ngIf="!auth.isLogged()">
+            <p>💬 <a routerLink="/login" (click)="cerrarModal()">Inicia sesión</a> para dejar una reseña</p>
+          </div>
+
+          <!-- Lista de reseñas -->
+          <div class="reviews-list" *ngIf="reviews().length > 0">
+            <h4>Todas las reseñas</h4>
+            <div class="review-item" *ngFor="let review of reviews()">
+              <div class="review-header">
+                <div class="reviewer-info">
+                  <span class="reviewer-name">{{ review.Nombre }} {{ review.Apellido }}</span>
+                  <app-star-rating 
+                    [rating]="review.Rating" 
+                    [readonly]="true"
+                    size="small">
+                  </app-star-rating>
+                </div>
+                <span class="review-date">{{ formatearFechaReview(review.Fecha) }}</span>
+              </div>
+              <p class="review-comment" *ngIf="review.Comentario">{{ review.Comentario }}</p>
+            </div>
+          </div>
+
+          <!-- Sin reseñas -->
+          <div class="no-reviews" *ngIf="!loadingReviews() && reviews().length === 0 && (!productRating() || productRating()!.Total_Reviews === 0)">
+            <p>Este producto aún no tiene reseñas. ¡Sé el primero en dejar una!</p>
+          </div>
+
+          <!-- Cargando reseñas -->
+          <div class="loading-reviews" *ngIf="loadingReviews()">
+            <p>Cargando reseñas...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Información del producto -->
+      <div class="modal-info">
+        <h2 class="modal-title">{{ productoSeleccionado()!.name }}</h2>
+        <p class="modal-category">{{ productoSeleccionado()!.categoria }}</p>
+        
+        <div class="modal-description">
+          <h3>Descripción</h3>
+          <p>{{ productoSeleccionado()!.description }}</p>
+        </div>
+
+        <div class="modal-details">
+          <div class="detail-item">
+            <span class="detail-label">Precio:</span>
+            <span class="detail-value price-large">COP {{ productoSeleccionado()!.price | number:'1.0-0' }}</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Stock disponible:</span>
+            <span class="detail-value">{{ productoSeleccionado()!.stock }} unidades</span>
+          </div>
+
+          <div class="detail-item" *ngIf="productoSeleccionado()!.fechaCaducidad">
+            <span class="detail-label">Fecha de caducidad:</span>
+            <span class="detail-value">{{ formatearFecha(productoSeleccionado()!.fechaCaducidad) }}</span>
+          </div>
+
+          <div class="detail-item" *ngIf="getEstadoFrescura(productoSeleccionado()!)">
+            <span class="detail-label">Estado:</span>
+            <span [ngClass]="getEstadoClass(productoSeleccionado()!)" class="detail-value estado-badge">
+              {{ getEstadoFrescura(productoSeleccionado()!) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-primary btn-large" (click)="agregarDesdeModal()">
+            Agregar al carrito
+          </button>
+          <button class="btn btn-secondary btn-large" (click)="cerrarModal()">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,50 @@
+<div class="notifications-container">
+  <button class="bell-button" (click)="togglePanel()">
+    <span class="bell-icon">🔔</span>
+    <span class="badge" *ngIf="notifService.noLeidas() > 0">
+      {{ notifService.noLeidas() }}
+    </span>
+  </button>
+
+  <div class="notifications-panel" *ngIf="showPanel()" (click)="$event.stopPropagation()">
+    <div class="panel-header">
+      <h3>Notificaciones</h3>
+      <button 
+        class="mark-all-btn" 
+        *ngIf="notifService.noLeidas() > 0"
+        (click)="marcarTodasLeidas($event)"
+      >
+        Marcar todas como leídas
+      </button>
+    </div>
+
+    <div class="notifications-list">
+      <div 
+        *ngFor="let notif of notifService.notificaciones()"
+        class="notification-item"
+        [class.unread]="!notif.Leida"
+        [class.clickable]="notif.Tipo !== 'producto_caducado' || auth.user()?.is_staff"
+        (click)="clickNotificacion(notif, $event)"
+      >
+        <div class="notif-icon">{{ getIconoTipo(notif.Tipo) }}</div>
+        <div class="notif-content">
+          <h4>{{ notif.Titulo }}</h4>
+          <p>{{ notif.Mensaje }}</p>
+          <span class="notif-time">{{ formatearFecha(notif.Fecha_Creacion) }}</span>
+        </div>
+        <div class="notif-actions">
+          <div class="notif-indicator" *ngIf="!notif.Leida"></div>
+          <span class="notif-arrow" *ngIf="notif.Tipo !== 'producto_caducado' || auth.user()?.is_staff">→</span>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="notifService.notificaciones().length === 0">
+        <span class="empty-icon">📭</span>
+        <p>No tienes notificaciones</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay para cerrar el panel al hacer clic fuera -->
+<div class="overlay" *ngIf="showPanel()" (click)="togglePanel()"></div>

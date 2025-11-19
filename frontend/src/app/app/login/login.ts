@@ -21,6 +21,13 @@ export class Login {
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
 
+  ngOnInit() {
+    // Si el usuario ya está logueado, redirigir a la tienda
+    if (this.auth.isLogged()) {
+      this.router.navigate(['/shop']);
+    }
+  }
+
   submit(ev: Event) {
     ev.preventDefault();
     
@@ -37,11 +44,23 @@ export class Login {
     this.api.login({ Email: this.email, password: this.password }).subscribe({
       next: (response) => {
         if (response.success) {
+          // Guardar token
+          if (response.token) {
+            this.auth.setToken(response.token);
+          }
+          
           // Login exitoso
           this.auth.login({
             id: response.user.id,
-            name: response.user.nombre,
-            email: response.user.email
+            name: response.user.name || response.user.nombre || '', // Soporte para ambos
+            email: response.user.email,
+            is_staff: response.user.is_staff,
+            is_superuser: response.user.is_superuser,
+            Address: response.user.Address,
+            Telefono: response.user.Telefono,
+            Ciudad: response.user.Ciudad,
+            Edad: response.user.Edad,
+            Apellido: response.user.Apellido
           });
           this.router.navigate(['/shop']);
         }

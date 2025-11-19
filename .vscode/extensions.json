@@ -1,0 +1,31 @@
+{
+  "recommendations": [
+    // Python / Django
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "batisteo.vscode-django",
+    "wholroyd.jinja",
+    "cstrap.python-snippets",
+    
+    // Angular / TypeScript
+    "angular.ng-template",
+    "johnpapa.angular2",
+    "cyrilletuzi.angular-schematics",
+    
+    // JavaScript / Web
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "formulahendry.auto-rename-tag",
+    "naumovs.color-highlight",
+    
+    // Base de Datos
+    "mysql.mysql-shell",
+    "weijan.database-client",
+    
+    // Utilidades
+    "christian-kohler.path-intellisense",
+    "eamodio.gitlens",
+    "streetsidesoftware.code-spell-checker",
+    "streetsidesoftware.code-spell-checker-spanish"
+  ]
+}
