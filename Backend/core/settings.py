@@ -94,11 +94,11 @@ import os
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('MYSQLDATABASE', 'miau_market'),
+        'NAME': os.environ.get('MYSQLDATABASE', 'railway'),
         'USER': os.environ.get('MYSQLUSER', 'root'),
-        'PASSWORD': os.environ.get('MYSQLPASSWORD', ''),
-        'HOST': os.environ.get('MYSQLHOST', 'localhost'),
-        'PORT': os.environ.get('MYSQLPORT', '3306'),
+        'PASSWORD': os.environ.get('MYSQLPASSWORD', 'ACdtidgOZtuELGuQUkRnFnUNDBRPolel'),
+        'HOST': os.environ.get('MYSQLHOST', 'metro.proxy.rlwy.net'),
+        'PORT': os.environ.get('MYSQLPORT', '18982'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'use_unicode': True,

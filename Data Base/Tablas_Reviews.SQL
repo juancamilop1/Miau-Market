@@ -2,7 +2,7 @@
 -- Ejecutar esto en tu base de datos MariaDB
 
 -- Seleccionar la base de datos (cambia 'miau_market' por el nombre de tu base de datos)
-USE miau_market;
+USE railway;
 
 CREATE TABLE IF NOT EXISTS Product_Reviews (
     Id_Review INT AUTO_INCREMENT PRIMARY KEY,
