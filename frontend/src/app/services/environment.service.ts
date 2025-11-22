@@ -14,15 +14,8 @@ export class EnvironmentService {
    * Determina la URL del backend según el hostname actual
    */
   private getBackendUrl(): string {
-    if (typeof window !== 'undefined') {
-      const currentHost = window.location.hostname;
-      // Si accedes desde la red (no localhost), usa la misma IP del frontend pero sin puerto y con https
-      if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-        return `https://${currentHost}`;
-      }
-    }
-    // Por defecto, usa la URL pública de Railway
-    return 'https://adaptable-exploration-production-77dc.up.railway.app';
+    // Siempre usar la URL pública del backend Django en Railway
+    return 'https://miau-market-production.up.railway.app';
   }
 
   /**
