@@ -16,12 +16,12 @@ export class EnvironmentService {
   private getBackendUrl(): string {
     if (typeof window !== 'undefined') {
       const currentHost = window.location.hostname;
-      // Si accedes desde la red (no localhost), usa la misma IP del frontend
+      // Si accedes desde la red (no localhost), usa la misma IP del frontend pero sin puerto y con https
       if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-        return `http://${currentHost}:8000`;
+        return `https://${currentHost}`;
       }
     }
-    // Por defecto, usa localhost
+    // Por defecto, usa la URL pública de Railway
     return 'https://adaptable-exploration-production-77dc.up.railway.app';
   }
 
