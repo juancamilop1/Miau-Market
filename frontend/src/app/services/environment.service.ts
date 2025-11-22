@@ -22,7 +22,7 @@ export class EnvironmentService {
       }
     }
     // Por defecto, usa localhost
-    return 'http://localhost:8000';
+    return 'https://adaptable-exploration-production-77dc.up.railway.app';
   }
 
   /**

@@ -97,7 +97,7 @@ export class Chatbot {
       console.error('❌ Error calling chatbot API:', error);
       console.error('Error type:', typeof error);
       console.error('Error message:', (error as any)?.message);
-      this.addBotMessage('❌ Error de conexión. Asegúrate de que el servidor esté ejecutándose en http://localhost:8000');
+      this.addBotMessage('❌ Error de conexión. Asegúrate de que el servidor esté ejecutándose en https://adaptable-exploration-production-77dc.up.railway.app');
     }
   }
 
