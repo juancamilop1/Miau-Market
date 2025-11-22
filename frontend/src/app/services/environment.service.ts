@@ -15,7 +15,7 @@ export class EnvironmentService {
    */
   private getBackendUrl(): string {
     // Siempre usar la URL pública del backend Django en Railway
-    return 'https://miau-market-production.up.railway.app';
+    return 'https://adaptable-exploration-production-77dc.up.railway.app';
   }
 
   /**
