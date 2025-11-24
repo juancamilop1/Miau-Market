@@ -1,10 +1,9 @@
 import google.generativeai as genai
-from django.conf import settings
+import os
 from .models import Producto
 import json
 
-# Configurar la API de Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
+genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 
 def get_products_from_db():

@@ -162,8 +162,6 @@ REST_FRAMEWORK = {
 }
 
 # Gemini API Configuration
-GEMINI_API_KEY = 'AIzaSyABKSSaexHIyYGfDq-peFlGbvkAt-7igUE'
-
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
 
