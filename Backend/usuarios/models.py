@@ -1,4 +1,5 @@
 from django.db import models
+from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 
@@ -51,7 +52,7 @@ class Producto(models.Model):
     Categoria = models.CharField(max_length=100, null=True, blank=True)
     Precio = models.IntegerField()
     Stock = models.IntegerField(default=0)
-    Imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
+    Imagen = CloudinaryField('image', blank=True, null=True)
     Fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='Fecha_creacion')
     Fecha_Caducidad = models.DateField(db_column='Fecha_Caducidad', default='2025-12-31')  # Campo obligatorio para fecha de caducidad
     created_by = models.ForeignKey(Usuario, null=True, blank=True, on_delete=models.SET_NULL, db_column='created_by')
