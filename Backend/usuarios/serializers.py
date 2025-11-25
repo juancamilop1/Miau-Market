@@ -82,16 +82,12 @@ class ProductoSerializer(serializers.ModelSerializer):
         if imagen and not imagen.startswith('http'):
             cloud_name = 'defz61gzx'  # Cambia por tu cloud_name si es diferente
             data['Imagen'] = f'https://res.cloudinary.com/{cloud_name}/{imagen}'
+        # Renombrar 'id' a 'Id_Products'
+        data['Id_Products'] = data.pop('id')
         return data
 
     class Meta:
         model = Producto
         fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by')
         read_only_fields = ('id', 'Fecha_creacion', 'created_by')
-    
-    def to_representation(self, instance):
-        """Cambiar 'id' a 'Id_Products' en la respuesta"""
-        data = super().to_representation(instance)
-        data['Id_Products'] = data.pop('id')
-        return data
 
