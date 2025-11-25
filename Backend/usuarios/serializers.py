@@ -76,6 +76,14 @@ class RegistroSerializer(serializers.ModelSerializer):
 
 
 class ProductoSerializer(serializers.ModelSerializer):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        imagen = data.get('Imagen', '')
+        if imagen and not imagen.startswith('http'):
+            cloud_name = 'defz61gzx'  # Cambia por tu cloud_name si es diferente
+            data['Imagen'] = f'https://res.cloudinary.com/{cloud_name}/{imagen}'
+        return data
+
     class Meta:
         model = Producto
         fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by')
