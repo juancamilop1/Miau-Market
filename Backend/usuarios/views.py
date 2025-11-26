@@ -756,13 +756,12 @@ class MisPedidosView(APIView):
                 
                 productos_columns = [col[0] for col in cursor.description]
                 productos = [dict(zip(productos_columns, prod_row)) for prod_row in cursor.fetchall()]
-                
-                    # Procesar la URL de la imagen para cada producto
-                    for producto in productos:
-                        imagen = producto.get('Imagen', '')
-                        if imagen and not imagen.startswith('http'):
-                            cloud_name = 'defz61gzx'  # Cambia por tu cloud_name si es diferente
-                            producto['Imagen'] = f'https://res.cloudinary.com/{cloud_name}/{imagen}'
+                # Procesar la URL de la imagen para cada producto
+                for producto in productos:
+                    imagen = producto.get('Imagen', '')
+                    if imagen and not imagen.startswith('http'):
+                        cloud_name = 'defz61gzx'  # Cambia por tu cloud_name si es diferente
+                        producto['Imagen'] = f'https://res.cloudinary.com/{cloud_name}/{imagen}'
                 orders.append({
                     'Id_Factura': row['Id_Factura'],
                     'Total': row['Total'],
