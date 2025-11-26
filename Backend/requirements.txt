@@ -5,5 +5,5 @@ django-cors-headers>=4.3.0
 pymysql>=1.1.0
 google-generativeai>=0.7.0
 Pillow>=10.0.0
-cloudinary    
+cloudinary 
 django-cloudinary-storage   
