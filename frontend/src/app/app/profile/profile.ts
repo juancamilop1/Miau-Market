@@ -41,38 +41,33 @@ export class Profile implements OnInit {
   error = signal('');
 
   ciudadesColombia = [
-    'Bogota',
-    'Medellin',
+    'Bogotá D.C.',
+    'Medellín',
     'Cali',
     'Barranquilla',
     'Cartagena',
-    'Cucuta',
+    'Cúcuta',
     'Bucaramanga',
     'Pereira',
     'Santa Marta',
-    'Ibague',
+    'Ibagué',
     'Pasto',
     'Manizales',
     'Neiva',
     'Villavicencio',
     'Armenia',
     'Valledupar',
-    'Monteria',
+    'Montería',
+    'Popayán',
     'Sincelejo',
-    'Popayan',
     'Tunja',
     'Florencia',
     'Riohacha',
+    'Quibdó',
     'Yopal',
-    'Quibdo',
-    'Leticia',
     'Mocoa',
-    'San Andres',
     'Arauca',
-    'Puerto Carreno',
-    'San Jose del Guaviare',
-    'Mitu',
-    'Inirida',
+    'San Andrés',
     'Palmira'
   ];
 
@@ -196,9 +191,9 @@ export class Profile implements OnInit {
         // Actualizar el usuario en el auth service
         const user = this.auth.user();
         if (user) {
-          this.auth.user.set({
-            ...user,
+          this.auth.updateUser({
             name: this.nombre,
+            Apellido: this.apellido,
             Telefono: this.telefono,
             Address: this.direccion,
             Ciudad: this.ciudad,

@@ -36,9 +36,9 @@ interface OrderProduct {
 }
 
 interface User {
-  id: number;
-  name: string;
-  email: string;
+  Id_User: number;
+  Nombre: string;
+  Email: string;
 }
 
 interface EstadisticaCategoria {
@@ -262,9 +262,9 @@ export class Dashboard implements OnInit, AfterViewInit {
     );
 
     // Cargar usuarios (si hay endpoint disponible)
-    this.api.get<User[]>('/usuarios/usuarios/').subscribe(
-      (data: any) => {
-        this.users.set(data || []);
+    this.api.get<{ usuarios: User[]; total: number }>('/usuarios/gestion/usuarios/').subscribe(
+      (data) => {
+        this.users.set(data.usuarios || []);
         this.verificarCargaCompleta();
       },
       (error: any) => {

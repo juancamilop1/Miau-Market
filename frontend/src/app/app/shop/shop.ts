@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService, Product } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { EnvironmentService } from '../../services/environment.service';
 import { StarRating } from '../star-rating/star-rating';
 
 interface ProductFromDB {
@@ -62,6 +63,7 @@ interface ProductRating {
 export class Shop implements OnInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
+  private env = inject(EnvironmentService);
 
   // Todos los productos
   allProducts = signal<ProductDisplay[]>([]);
@@ -118,7 +120,7 @@ export class Shop implements OnInit {
             name: p.Titulo,
             price: p.Precio,
             description: p.Descripcion,
-            imagen: p.Imagen,
+            imagen: p.Imagen ? this.env.getImageUrl(p.Imagen) : undefined,
             stock: p.Stock,
             dbId: p.Id_Products,
             categoria: p.Categoria,

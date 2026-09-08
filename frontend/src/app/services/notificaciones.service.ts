@@ -1,8 +1,8 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { ApiService } from './api.service';
+import { AuthService } from '../auth.service';
 import { interval } from 'rxjs';
-import { switchMap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { switchMap, catchError, filter } from 'rxjs/operators';
 
 export interface Notificacion {
   id: number;
@@ -20,21 +20,26 @@ export interface Notificacion {
 })
 export class NotificacionesService {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
   
   notificaciones = signal<Notificacion[]>([]);
   noLeidas = signal<number>(0);
   
   constructor() {
-    // Actualizar notificaciones cada 30 segundos
+    effect(() => {
+      if (this.auth.isLogged()) {
+        this.cargarNotificaciones();
+      } else {
+        this.notificaciones.set([]);
+        this.noLeidas.set(0);
+      }
+    });
+
     interval(30000).pipe(
-      switchMap(() => {
-        // Verificar productos caducados antes de obtener notificaciones
-        return this.api.post('/usuarios/notificaciones/verificar-caducados/', {}).pipe(
-          switchMap(() => this.api.get<Notificacion[]>('/usuarios/notificaciones/')),
-          // Si falla la verificación, continuar con las notificaciones
-          catchError(() => this.api.get<Notificacion[]>('/usuarios/notificaciones/'))
-        );
-      })
+      filter(() => this.auth.isLogged()),
+      switchMap(() => this.api.post('/usuarios/notificaciones/verificar-caducados/', {})),
+      switchMap(() => this.api.get<Notificacion[]>('/usuarios/notificaciones/')),
+      catchError(() => this.api.get<Notificacion[]>('/usuarios/notificaciones/'))
     ).subscribe({
       next: (data: Notificacion[]) => {
         this.notificaciones.set(data);
@@ -45,16 +50,11 @@ export class NotificacionesService {
   }
   
   cargarNotificaciones() {
-    // Primero verificar productos caducados (solo para admins)
+    if (!this.auth.isLogged()) return;
+
     this.api.post('/usuarios/notificaciones/verificar-caducados/', {}).subscribe({
-      next: () => {
-        // Después cargar notificaciones
-        this.obtenerNotificaciones();
-      },
-      error: () => {
-        // Si falla la verificación, igual cargar notificaciones
-        this.obtenerNotificaciones();
-      }
+      next: () => this.obtenerNotificaciones(),
+      error: () => this.obtenerNotificaciones()
     });
   }
   

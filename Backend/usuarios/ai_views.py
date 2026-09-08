@@ -1,117 +1,135 @@
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from .ai_serializers import ChatbotSerializer
-from .ai_service import get_product_recommendations, chatbot_response
+from .models import MiauBotAprendizaje
+from .services.miaubot_service import procesar_mensaje, obtener_mensaje_bienvenida
+from .services.miaubot_aprendizaje import aprobar_aprendizaje
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class ChatbotView(generics.GenericAPIView):
-    """
-    Chatbot inteligente para productos y cuidado de perros.
-    
-    POST:
-    - message: La pregunta o mensaje del usuario
-    - dog_type: (opcional) Raza o tipo de perro
-    - age: (opcional) Edad del perro
-    - size: (opcional) Tamaño (pequeño, mediano, grande, extra grande)
-    - health_conditions: (opcional) Condiciones de salud especiales
-    - budget: (opcional) Rango de presupuesto
-    
-    El endpoint detecta automáticamente si el usuario quiere:
-    - Recomendaciones de productos específicas
-    - Conversación general sobre cuidado de perros
-    """
+    """MiauBot 100% local — productos reales + conocimiento en BD."""
     serializer_class = ChatbotSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        print("\n" + "="*60)
-        print("🤖 CHATBOT REQUEST RECIBIDO")
-        print(f"📨 Datos recibidos: {request.data}")
-        
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                message = serializer.validated_data.get('message', '')
-                conversation_history = serializer.validated_data.get('conversation_history', [])
-                dog_type = serializer.validated_data.get('dog_type')
-                age = serializer.validated_data.get('age')
-                size = serializer.validated_data.get('size')
-                health_conditions = serializer.validated_data.get('health_conditions')
-                budget = serializer.validated_data.get('budget')
-                
-                print(f"✅ Mensaje validado: '{message}'")
-                print(f"   - Historial: {len(conversation_history)} mensajes anteriores")
-                print(f"   - dog_type: {dog_type}")
-                print(f"   - age: {age}")
-                print(f"   - size: {size}")
-                
-                # Detectar si es SOLO un saludo sin contexto (evitar saludo doble)
-                # Palabras que indican solo saludo
-                only_greeting_keywords = ['hola', 'hello', 'hi', 'saludos', 'buenos', 'buenas', 'hey', 'ey', 'q tal', 'qué tal']
-                message_lower = message.lower().strip()
-                
-                # Es saludo simple si contiene SOLO una palabra de saludo o es muy corto
-                is_simple_greeting = (message_lower in only_greeting_keywords or 
-                                     any(message_lower.startswith(kw) for kw in only_greeting_keywords) and len(message.strip()) < 15)
-                
-                print(f"🔍 ¿Es saludo simple? {is_simple_greeting}")
-                
-                # Si es solo un saludo simple, no responder (ya el chatbot saludó al abrir)
-                # Solo continuar con la conversación
-                if is_simple_greeting:
-                    print(f"📤 Es solo un saludo - respondiendo mínimamente")
-                    return Response({
-                        'success': True,
-                        'response': '¿En qué te puedo ayudar? 😊',
-                        'status': 'Saludo confirmado'
-                    }, status=status.HTTP_200_OK)
-                
-                # Detectar si pide recomendaciones o solo conversación
-                keywords = ['recomend', 'product', 'compr', 'qué', 'cual', 'mejor', 'need', 'want']
-                is_recommendation_request = any(keyword in message.lower() for keyword in keywords)
-                
-                print(f"🔍 ¿Pide recomendaciones? {is_recommendation_request}")
-                
-                # Si tiene datos del perro y pide recomendaciones
-                if is_recommendation_request and (dog_type or age or size):
-                    print(f"📝 Generando recomendaciones de productos...")
-                    response_data = get_product_recommendations(
-                        dog_type=dog_type or 'Gato genérico',
-                        age=age or 5,
-                        size=size or 'mediano',
-                        health_conditions=health_conditions,
-                        budget=budget,
-                        user_message=message
-                    )
-                    print(f"✅ Recomendaciones generadas: {response_data['status']}")
-                    return Response(response_data, status=status.HTTP_200_OK)
-                
-                # Si no, responder conversacionalmente
-                else:
-                    print(f"💬 Generando respuesta conversacional...")
-                    context = {
-                        'dog_type': dog_type,
-                        'age': age,
-                        'size': size,
-                        'conversation_history': conversation_history
-                    }
-                    response_data = chatbot_response(message, context)
-                    print(f"✅ Respuesta generada: {response_data['status']}")
-                    return Response(response_data, status=status.HTTP_200_OK)
-                    
-            except Exception as e:
-                print(f"❌ ERROR: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                return Response({
-                    'success': False,
-                    'error': str(e),
-                    'status': 'Error al procesar el mensaje'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        print(f"❌ VALIDACION FALLIDA: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            message = serializer.validated_data.get('message', '')
+            conversation_history = serializer.validated_data.get('conversation_history', [])
+
+            user = request.user if request.user.is_authenticated else None
+            context = {
+                'user_name': user.Nombre if user else None,
+                'user_id': user.id if user else None,
+                'animal': serializer.validated_data.get('dog_type') or None,
+                'conversation_history': conversation_history,
+            }
+
+            result = procesar_mensaje(message, conversation_history, context)
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error en chatbot')
+            return Response({
+                'success': False,
+                'error': str(e),
+                'response': 'Hubo un problema. Intenta de nuevo en un momento.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ChatbotConfigView(APIView):
+    """Configuracion publica del bot (bienvenida, nombre, modo IA)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+        user = request.user if request.user.is_authenticated else None
+        nombre = user.Nombre if user else None
+        user_id = user.id if user else None
+        ia_activa = bool(getattr(settings, 'GEMINI_API_KEY', ''))
+        return Response({
+            'success': True,
+            'nombre_bot': 'MiauBot',
+            'mensaje_bienvenida': obtener_mensaje_bienvenida(nombre, user_id),
+            'ia_activa': ia_activa,
+        })
+
+
+class MiauBotAprendizajeListView(APIView):
+    """Lista propuestas de aprendizaje del chatbot (solo admin)."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        estado = request.query_params.get('estado', 'pendiente')
+        qs = MiauBotAprendizaje.objects.all()
+        if estado and estado != 'todos':
+            qs = qs.filter(estado=estado)
+
+        items = [{
+            'id': i.id,
+            'pregunta': i.pregunta,
+            'respuesta': i.respuesta,
+            'palabras_clave': i.palabras_clave,
+            'animal': i.animal,
+            'usuario_id': i.usuario_id,
+            'estado': i.estado,
+            'veces_usada': i.veces_usada,
+            'Fecha_Creacion': i.Fecha_Creacion.isoformat(),
+        } for i in qs[:200]]
+
+        pendientes = MiauBotAprendizaje.objects.filter(estado='pendiente').count()
+        return Response({
+            'success': True,
+            'total': len(items),
+            'pendientes': pendientes,
+            'items': items,
+        })
+
+
+class MiauBotAprendizajeDetailView(APIView):
+    """Editar, aprobar o rechazar una propuesta de aprendizaje."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def _get_item(self, pk):
+        try:
+            return MiauBotAprendizaje.objects.get(pk=pk)
+        except MiauBotAprendizaje.DoesNotExist:
+            return None
+
+    def put(self, request, pk):
+        item = self._get_item(pk)
+        if not item:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if 'respuesta' in request.data:
+            item.respuesta = request.data['respuesta']
+            item.save(update_fields=['respuesta'])
+        if 'pregunta' in request.data:
+            item.pregunta = request.data['pregunta']
+            item.save(update_fields=['pregunta'])
+
+        return Response({'success': True, 'message': 'Actualizado'})
+
+    def post(self, request, pk):
+        item = self._get_item(pk)
+        if not item:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        accion = request.data.get('accion', 'aprobar')
+        if accion == 'aprobar':
+            aprobar_aprendizaje(item)
+            return Response({'success': True, 'message': 'Aprendizaje aprobado y agregado al conocimiento'})
+        if accion == 'rechazar':
+            item.estado = 'rechazado'
+            item.save(update_fields=['estado'])
+            return Response({'success': True, 'message': 'Aprendizaje rechazado'})
+
+        return Response({'error': 'Accion invalida'}, status=status.HTTP_400_BAD_REQUEST)

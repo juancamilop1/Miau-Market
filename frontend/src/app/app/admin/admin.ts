@@ -1,9 +1,10 @@
 import { Component, OnInit, signal, computed, effect, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { EnvironmentService } from '../../services/environment.service';
 
 interface Product {
   Id_Products?: number;
@@ -40,17 +41,47 @@ interface OrderProduct {
 
 interface User {
   Id_User: number;
+  Username: string;
   Nombre: string;
   Apellido: string;
   Email: string;
   Telefono: string;
   Address: string;
+  City: string;
+  BirthDate: string;
   is_staff: boolean;
   is_superuser: boolean;
   is_active: boolean;
   FechaRegistro: string;
   Total_Pedidos: number;
   Total_Gastado: number;
+}
+
+interface UserEditForm {
+  Username: string;
+  Nombre: string;
+  Apellido: string;
+  Email: string;
+  Telefono: string;
+  Address: string;
+  City: string;
+  BirthDate: string;
+  is_staff: boolean;
+  is_superuser: boolean;
+  is_active: boolean;
+  password: string;
+}
+
+interface MiauBotAprendizaje {
+  id: number;
+  pregunta: string;
+  respuesta: string;
+  palabras_clave: string;
+  animal: string;
+  usuario_id: number | null;
+  estado: 'pendiente' | 'aprobado' | 'rechazado';
+  veces_usada: number;
+  Fecha_Creacion: string;
 }
 
 @Component({
@@ -69,9 +100,19 @@ export class Admin implements OnInit {
   imagePreviewUrl = signal<string | null>(null);
   
   // Pedidos
-  activeTab = signal<'productos' | 'pedidos' | 'usuarios'>('productos');
+  activeTab = signal<'productos' | 'pedidos' | 'usuarios' | 'miaubot'>('productos');
   orders = signal<Order[]>([]);
   loadingOrders = signal(false);
+
+  // MiauBot aprendizaje
+  aprendizajes = signal<MiauBotAprendizaje[]>([]);
+  loadingAprendizaje = signal(false);
+  pendientesCount = signal(0);
+  filtroAprendizaje = signal<'pendiente' | 'aprobado' | 'rechazado' | 'todos'>('pendiente');
+  showAprendizajeModal = signal(false);
+  aprendizajeEdit = signal<MiauBotAprendizaje | null>(null);
+  respuestaEditada = signal('');
+  processingAprendizaje = signal<number | null>(null);
 
   // Usuarios
   users = signal<User[]>([]);
@@ -83,6 +124,12 @@ export class Admin implements OnInit {
   showDeleteModal = signal(false);
   userToDelete = signal<User | null>(null);
   deleteConfirmationName = signal('');
+
+  // Modal de edición de usuario
+  showEditModal = signal(false);
+  userToEdit = signal<User | null>(null);
+  editFormData: UserEditForm = this.emptyEditForm();
+  savingUser = signal(false);
   
   // Vista y selección de usuarios
   viewMode = signal<'table' | 'cards'>('table');
@@ -105,10 +152,11 @@ export class Admin implements OnInit {
     if (!search) {
       return this.users();
     }
-    return this.users().filter(user => 
+    return this.users().filter(user =>
       user.Nombre.toLowerCase().includes(search) ||
       user.Apellido.toLowerCase().includes(search) ||
       user.Email.toLowerCase().includes(search) ||
+      user.Username?.toLowerCase().includes(search) ||
       `${user.Nombre} ${user.Apellido}`.toLowerCase().includes(search)
     );
   });
@@ -170,7 +218,9 @@ export class Admin implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object,
     public auth: AuthService, 
     private api: ApiService,
-    private route: ActivatedRoute
+    private env: EnvironmentService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {
     // Efecto para resetear la página cuando cambia la búsqueda
     effect(() => {
@@ -186,6 +236,12 @@ export class Admin implements OnInit {
   }
 
   ngOnInit() {
+    const user = this.auth.user();
+    if (!user?.is_staff) {
+      this.router.navigate(['/shop']);
+      return;
+    }
+
     // Forzar detección móvil después de que el componente se inicialice
     if (isPlatformBrowser(this.platformId)) {
       setTimeout(() => this.checkIfMobile(), 0);
@@ -251,6 +307,34 @@ export class Admin implements OnInit {
     this.imagePreviewUrl.set(null);
   }
 
+  getImageUrl(imagen?: string | File | null): string {
+    if (this.imagePreviewUrl()) {
+      return this.imagePreviewUrl()!;
+    }
+    if (!imagen || imagen instanceof File) {
+      return 'assets/placeholder-product.png';
+    }
+    return this.env.getImageUrl(imagen);
+  }
+
+  private formatApiError(error: any, fallback: string): string {
+    if (error?.status === 403) {
+      return 'No tienes permisos de administrador. Cierra sesión y vuelve a entrar.';
+    }
+    if (error?.status === 401) {
+      return 'Sesión expirada. Inicia sesión nuevamente.';
+    }
+    const detail = error?.error?.detail || error?.error?.error;
+    if (typeof detail === 'string') return detail;
+    if (error?.error && typeof error.error === 'object') {
+      const firstKey = Object.keys(error.error)[0];
+      const firstError = error.error[firstKey];
+      if (Array.isArray(firstError)) return String(firstError[0]);
+      if (typeof firstError === 'string') return firstError;
+    }
+    return fallback;
+  }
+
   saveProduct() {
     const product = this.newProduct();
     
@@ -286,7 +370,7 @@ export class Admin implements OnInit {
           this.loadProducts();
         },
         (error: any) => {
-          this.errorMessage.set('Error al actualizar el producto');
+          this.errorMessage.set(this.formatApiError(error, 'Error al actualizar el producto'));
           console.error(error);
           this.loading.set(false);
         }
@@ -301,7 +385,7 @@ export class Admin implements OnInit {
           this.loadProducts();
         },
         (error: any) => {
-          this.errorMessage.set('Error al crear el producto');
+          this.errorMessage.set(this.formatApiError(error, 'Error al crear el producto'));
           console.error(error);
           this.loading.set(false);
         }
@@ -402,6 +486,72 @@ export class Admin implements OnInit {
 
   esSuperusuario(): boolean {
     return this.auth.user()?.is_superuser || false;
+  }
+
+  private emptyEditForm(): UserEditForm {
+    return {
+      Username: '', Nombre: '', Apellido: '', Email: '', Telefono: '',
+      Address: '', City: '', BirthDate: '', is_staff: false,
+      is_superuser: false, is_active: true, password: '',
+    };
+  }
+
+  openEditModal(user: User) {
+    this.userToEdit.set(user);
+    this.editFormData = {
+      Username: user.Username || '',
+      Nombre: user.Nombre,
+      Apellido: user.Apellido,
+      Email: user.Email,
+      Telefono: user.Telefono,
+      Address: user.Address || '',
+      City: user.City || '',
+      BirthDate: user.BirthDate ? String(user.BirthDate).substring(0, 10) : '',
+      is_staff: user.is_staff,
+      is_superuser: user.is_superuser,
+      is_active: user.is_active,
+      password: '',
+    };
+    this.showEditModal.set(true);
+  }
+
+  closeEditModal() {
+    this.showEditModal.set(false);
+    this.userToEdit.set(null);
+    this.editFormData = this.emptyEditForm();
+  }
+
+  saveUserEdit() {
+    const user = this.userToEdit();
+    if (!user) return;
+
+    this.savingUser.set(true);
+    const payload: Record<string, unknown> = { ...this.editFormData };
+    if (!payload['password']) {
+      delete payload['password'];
+    }
+
+    this.api.put(`/usuarios/gestion/usuarios/${user.Id_User}/`, payload).subscribe({
+      next: (response: any) => {
+        this.successMessage.set(response.message || 'Usuario actualizado');
+        this.closeEditModal();
+        this.loadUsers();
+        this.savingUser.set(false);
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      error: (error: any) => {
+        const err = error.error?.errors || error.error?.error;
+        this.errorMessage.set(typeof err === 'string' ? err : 'Error al guardar usuario');
+        this.savingUser.set(false);
+        setTimeout(() => this.errorMessage.set(''), 4000);
+      },
+    });
+  }
+
+  canEditUser(user: User): boolean {
+    if (user.Id_User === this.auth.user()?.id) return true;
+    if (user.is_superuser && !this.esSuperusuario()) return false;
+    return true;
   }
 
   toggleAdmin(user: User) {
@@ -767,7 +917,7 @@ export class Admin implements OnInit {
     this.showMobileFilters.set(!this.showMobileFilters());
   }
 
-  changeTab(tab: 'productos' | 'pedidos' | 'usuarios') {
+  changeTab(tab: 'productos' | 'pedidos' | 'usuarios' | 'miaubot') {
     this.activeTab.set(tab);
     this.closeMobileMenu();
     
@@ -775,6 +925,136 @@ export class Admin implements OnInit {
       this.loadOrders();
     } else if (tab === 'usuarios') {
       this.loadUsers();
+    } else if (tab === 'miaubot') {
+      this.loadAprendizajes();
     }
+  }
+
+  // ==================== MIAUBOT APRENDIZAJE ====================
+
+  loadAprendizajes() {
+    this.loadingAprendizaje.set(true);
+    const estado = this.filtroAprendizaje();
+    this.api.get<{ items: MiauBotAprendizaje[]; pendientes: number }>(
+      `/usuarios/gestion/miaubot/aprendizaje/?estado=${estado}`
+    ).subscribe({
+      next: (data) => {
+        this.aprendizajes.set(data.items || []);
+        this.pendientesCount.set(data.pendientes || 0);
+        this.loadingAprendizaje.set(false);
+      },
+      error: (error: any) => {
+        console.error('Error cargando aprendizajes:', error);
+        this.errorMessage.set('Error al cargar aprendizajes de MiauBot');
+        this.loadingAprendizaje.set(false);
+        setTimeout(() => this.errorMessage.set(''), 3000);
+      },
+    });
+  }
+
+  cambiarFiltroAprendizaje(estado: 'pendiente' | 'aprobado' | 'rechazado' | 'todos') {
+    this.filtroAprendizaje.set(estado);
+    this.loadAprendizajes();
+  }
+
+  abrirEditarAprendizaje(item: MiauBotAprendizaje) {
+    this.aprendizajeEdit.set(item);
+    this.respuestaEditada.set(item.respuesta);
+    this.showAprendizajeModal.set(true);
+  }
+
+  cerrarAprendizajeModal() {
+    this.showAprendizajeModal.set(false);
+    this.aprendizajeEdit.set(null);
+    this.respuestaEditada.set('');
+  }
+
+  guardarRespuestaAprendizaje() {
+    const item = this.aprendizajeEdit();
+    if (!item) return;
+
+    this.processingAprendizaje.set(item.id);
+    this.api.put(`/usuarios/gestion/miaubot/aprendizaje/${item.id}/`, {
+      respuesta: this.respuestaEditada(),
+    }).subscribe({
+      next: () => {
+        this.successMessage.set('Respuesta actualizada');
+        this.cerrarAprendizajeModal();
+        this.loadAprendizajes();
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      error: () => {
+        this.errorMessage.set('Error al guardar respuesta');
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.errorMessage.set(''), 3000);
+      },
+    });
+  }
+
+  aprobarAprendizaje(id: number) {
+    this.processingAprendizaje.set(id);
+    this.api.post(`/usuarios/gestion/miaubot/aprendizaje/${id}/`, { accion: 'aprobar' }).subscribe({
+      next: (res: any) => {
+        this.successMessage.set(res.message || 'Aprendizaje aprobado');
+        this.loadAprendizajes();
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      error: () => {
+        this.errorMessage.set('Error al aprobar');
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.errorMessage.set(''), 3000);
+      },
+    });
+  }
+
+  rechazarAprendizaje(id: number) {
+    if (!confirm('¿Rechazar esta propuesta de aprendizaje?')) return;
+
+    this.processingAprendizaje.set(id);
+    this.api.post(`/usuarios/gestion/miaubot/aprendizaje/${id}/`, { accion: 'rechazar' }).subscribe({
+      next: (res: any) => {
+        this.successMessage.set(res.message || 'Aprendizaje rechazado');
+        this.loadAprendizajes();
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.successMessage.set(''), 3000);
+      },
+      error: () => {
+        this.errorMessage.set('Error al rechazar');
+        this.processingAprendizaje.set(null);
+        setTimeout(() => this.errorMessage.set(''), 3000);
+      },
+    });
+  }
+
+  aprobarYGuardarAprendizaje() {
+    const item = this.aprendizajeEdit();
+    if (!item) return;
+
+    this.processingAprendizaje.set(item.id);
+    this.api.put(`/usuarios/gestion/miaubot/aprendizaje/${item.id}/`, {
+      respuesta: this.respuestaEditada(),
+    }).subscribe({
+      next: () => {
+        this.api.post(`/usuarios/gestion/miaubot/aprendizaje/${item.id}/`, { accion: 'aprobar' }).subscribe({
+          next: (res: any) => {
+            this.successMessage.set(res.message || 'Aprobado con respuesta corregida');
+            this.cerrarAprendizajeModal();
+            this.loadAprendizajes();
+            this.processingAprendizaje.set(null);
+            setTimeout(() => this.successMessage.set(''), 3000);
+          },
+          error: () => {
+            this.errorMessage.set('Error al aprobar');
+            this.processingAprendizaje.set(null);
+          },
+        });
+      },
+      error: () => {
+        this.errorMessage.set('Error al guardar respuesta');
+        this.processingAprendizaje.set(null);
+      },
+    });
   }
 }

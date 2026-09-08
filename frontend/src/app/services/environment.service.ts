@@ -61,4 +61,8 @@ export class EnvironmentService {
   getChatbotUrl(): string {
     return `${this.backendUrl}/api/usuarios/chatbot/`;
   }
+
+  getChatbotConfigUrl(): string {
+    return `${this.backendUrl}/api/usuarios/chatbot/config/`;
+  }
 }

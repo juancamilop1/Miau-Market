@@ -4,11 +4,12 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
-from django.db import transaction
-from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer
+from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer, AdminUsuarioUpdateSerializer
 from .pedidos_serializers import CrearPedidoSerializer
 from .notificaciones_serializers import NotificacionSerializer
-from .models import Producto, Notificacion
+from django.db.models import Sum, Count
+from .models import Producto, Notificacion, Pedido
+from .services import pedidos_service, ratings_service
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 
@@ -43,8 +44,7 @@ from .login_serializer import LoginSerializer
 
 class LoginView(generics.GenericAPIView):
     """
-    Vista para iniciar sesión usando Email.
-    Solo requiere Email y password.
+    Inicio de sesion con correo o nombre de usuario (sin distinguir mayusculas).
     """
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
@@ -52,27 +52,28 @@ class LoginView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['Email']
+            login = serializer.validated_data['login']
             password = serializer.validated_data['password']
-            
-            # Autenticar usuario
-            user = authenticate(request, Email=email, password=password)
-            
+
+            user = authenticate(request, login=login, password=password)
+
             if user:
-                # Obtener o crear token
                 token, created = Token.objects.get_or_create(user=user)
-                
-                # Calcular edad a partir de fecha de nacimiento
+
                 from datetime import date
-                today = date.today()
-                edad = today.year - user.BirthDate.year - ((today.month, today.day) < (user.BirthDate.month, user.BirthDate.day))
-                
-                # Devolvemos la información del usuario con token e is_staff
+                edad = None
+                if user.BirthDate:
+                    today = date.today()
+                    edad = today.year - user.BirthDate.year - (
+                        (today.month, today.day) < (user.BirthDate.month, user.BirthDate.day)
+                    )
+
                 return Response({
                     'success': True,
                     'token': token.key,
                     'user': {
                         'id': user.id,
+                        'username': user.Username,
                         'email': user.Email,
                         'name': user.Nombre,
                         'Apellido': user.Apellido,
@@ -86,18 +87,22 @@ class LoginView(generics.GenericAPIView):
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({
-                    'error': 'Email o contraseña incorrectos'
+                    'error': 'Usuario, correo o contrasena incorrectos'
                 }, status=status.HTTP_401_UNAUTHORIZED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UsuarioListView(generics.ListCreateAPIView):
     """
-    Lista todos los usuarios o crea uno nuevo.
+    Lista todos los usuarios o crea uno nuevo (solo admin).
     """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
 
 class UsuarioDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -134,19 +139,26 @@ class GestionUsuariosView(APIView):
             
             usuarios = []
             for usuario in usuarios_qs:
+                stats = Pedido.objects.filter(usuario_id=usuario.id).aggregate(
+                    total=Count('id'),
+                    gastado=Sum('Total'),
+                )
                 usuarios.append({
                     'Id_User': usuario.id,
+                    'Username': usuario.Username,
                     'Nombre': usuario.Nombre,
                     'Apellido': usuario.Apellido,
                     'Email': usuario.Email,
                     'Telefono': usuario.Telefono,
                     'Address': usuario.Address,
+                    'City': usuario.City,
+                    'BirthDate': usuario.BirthDate,
                     'is_staff': usuario.is_staff,
                     'is_superuser': usuario.is_superuser,
                     'is_active': usuario.is_active,
                     'FechaRegistro': usuario.FechaRegistro,
-                    'Total_Pedidos': 0,  # Por ahora en 0, se puede agregar después
-                    'Total_Gastado': 0   # Por ahora en 0, se puede agregar después
+                    'Total_Pedidos': stats['total'] or 0,
+                    'Total_Gastado': float(stats['gastado'] or 0),
                 })
             
             return Response({
@@ -214,6 +226,75 @@ class ConvertirAdministradorView(APIView):
             return Response({
                 'error': 'Error al modificar el usuario'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActualizarUsuarioAdminView(APIView):
+    """Actualiza toda la informacion y roles de un usuario (solo staff)."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def put(self, request, user_id):
+        return self._update(request, user_id)
+
+    def patch(self, request, user_id):
+        return self._update(request, user_id)
+
+    def _update(self, request, user_id):
+        try:
+            usuario = Usuario.objects.get(id=user_id)
+        except Usuario.DoesNotExist:
+            return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if usuario.id == request.user.id and (
+            'is_staff' in request.data or 'is_superuser' in request.data or 'is_active' in request.data
+        ):
+            return Response(
+                {'error': 'No puedes modificar tus propios permisos'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if 'is_superuser' in request.data and not request.user.is_superuser:
+            return Response(
+                {'error': 'Solo superusuarios pueden asignar rol de superusuario'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if usuario.is_superuser and not request.user.is_superuser:
+            return Response(
+                {'error': 'No puedes modificar a un superusuario'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = AdminUsuarioUpdateSerializer(usuario, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        usuario = serializer.save()
+        stats = Pedido.objects.filter(usuario_id=usuario.id).aggregate(
+            total=Count('id'),
+            gastado=Sum('Total'),
+        )
+
+        return Response({
+            'success': True,
+            'message': 'Usuario actualizado correctamente',
+            'usuario': {
+                'Id_User': usuario.id,
+                'Username': usuario.Username,
+                'Nombre': usuario.Nombre,
+                'Apellido': usuario.Apellido,
+                'Email': usuario.Email,
+                'Telefono': usuario.Telefono,
+                'Address': usuario.Address,
+                'City': usuario.City,
+                'BirthDate': usuario.BirthDate,
+                'is_staff': usuario.is_staff,
+                'is_superuser': usuario.is_superuser,
+                'is_active': usuario.is_active,
+                'FechaRegistro': usuario.FechaRegistro,
+                'Total_Pedidos': stats['total'] or 0,
+                'Total_Gastado': float(stats['gastado'] or 0),
+            },
+        }, status=status.HTTP_200_OK)
 
 
 class EliminarUsuarioView(APIView):
@@ -393,14 +474,11 @@ class ProductoListView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated()]
+            return [IsAdminUser()]
         return [AllowAny()]
 
     def create(self, request, *args, **kwargs):
-        print("Datos recibidos:", request.data)
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            print("Errores de validación:", serializer.errors)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
@@ -446,65 +524,7 @@ class CrearPedidoView(APIView):
             }, status=status.HTTP_403_FORBIDDEN)
         
         try:
-            from django.db import connection
-            with connection.cursor() as cursor:
-                # Obtener pedidos
-                cursor.execute("""
-                    SELECT 
-                        p.Id_Factura,
-                        p.Id_User,
-                        p.Fecha,
-                        p.Total,
-                        p.Metodo_Pago,
-                        p.Estado,
-                        p.Direccion_Envio,
-                        p.Telefono_Envio,
-                        u.Nombre,
-                        u.Apellido,
-                        u.Email
-                    FROM PaymentOrders p
-                    LEFT JOIN Users u ON p.Id_User = u.Id_User
-                    ORDER BY p.Fecha DESC
-                """)
-                
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                
-                # Formatear datos para el frontend
-                orders = []
-                for row in results:
-                    # Obtener productos de este pedido
-                    cursor.execute("""
-                        SELECT 
-                            od.Id_Products,
-                            od.Cantidad,
-                            od.Precio_Unitario,
-                            od.Subtotal,
-                            pr.Titulo
-                        FROM Orders_Details od
-                        LEFT JOIN Products pr ON od.Id_Products = pr.Id_Products
-                        WHERE od.Id_Factura = %s
-                    """, [row['Id_Factura']])
-                    
-                    productos_cols = [col[0] for col in cursor.description]
-                    productos = [dict(zip(productos_cols, prod)) for prod in cursor.fetchall()]
-                    
-                    orders.append({
-                        'Id_Factura': row['Id_Factura'],
-                        'Id_User': row['Id_User'],
-                        'Fecha': row['Fecha'],
-                        'Total': row['Total'],
-                        'Metodo_Pago': row['Metodo_Pago'],
-                        'Estado': row['Estado'],
-                        'Direccion_Envio': row['Direccion_Envio'],
-                        'Telefono_Envio': row['Telefono_Envio'],
-                        'usuario_nombre': f"{row['Nombre']} {row['Apellido']}" if row['Nombre'] else 'N/A',
-                        'usuario_email': row['Email'] or 'N/A',
-                        'productos': productos
-                    })
-                
-                return Response(orders, status=status.HTTP_200_OK)
-        
+            return Response(pedidos_service.listar_pedidos_admin(), status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 'success': False,
@@ -521,107 +541,19 @@ class CrearPedidoView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            with transaction.atomic():
-                # Obtener datos validados
-                data = serializer.validated_data
-                
-                # Crear la orden de pago
-                from django.db import connection
-                with connection.cursor() as cursor:
-                    # Primero verificar que hay suficiente stock para todos los productos
-                    for producto in data['productos']:
-                        cursor.execute("""
-                            SELECT Stock FROM Products WHERE Id_Products = %s
-                        """, [producto['Id_Products']])
-                        
-                        result = cursor.fetchone()
-                        if not result:
-                            return Response({
-                                'success': False,
-                                'error': f'Producto con ID {producto["Id_Products"]} no encontrado'
-                            }, status=status.HTTP_404_NOT_FOUND)
-                        
-                        stock_disponible = result[0]
-                        if stock_disponible < producto['Cantidad']:
-                            return Response({
-                                'success': False,
-                                'error': f'Stock insuficiente para el producto ID {producto["Id_Products"]}. Disponible: {stock_disponible}, Solicitado: {producto["Cantidad"]}'
-                            }, status=status.HTTP_400_BAD_REQUEST)
-                    
-                    # Si hay suficiente stock, proceder con la creación del pedido
-                    # Insertar en PaymentOrders con dirección y teléfono
-                    cursor.execute("""
-                        INSERT INTO PaymentOrders (Id_User, Fecha, Total, Metodo_Pago, Estado, Direccion_Envio, Telefono_Envio)
-                        VALUES (%s, NOW(), %s, %s, 'Pendiente', %s, %s)
-                    """, [
-                        data['Id_User'],
-                        data['Total'],
-                        data['Metodo_Pago'],
-                        data['direccion_envio'],
-                        data['telefono_envio']
-                    ])
-                    
-                    # Obtener el ID de la factura recién creada
-                    cursor.execute("SELECT LAST_INSERT_ID()")
-                    id_factura = cursor.fetchone()[0]
-                    
-                    # Insertar los detalles de cada producto y restar del stock
-                    for producto in data['productos']:
-                        subtotal = producto['Cantidad'] * producto['Precio_Unitario']
-                        
-                        # Insertar detalle del pedido
-                        cursor.execute("""
-                            INSERT INTO Orders_Details 
-                            (Id_Factura, Id_Products, Cantidad, Precio_Unitario, Subtotal)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, [
-                            id_factura,
-                            producto['Id_Products'],
-                            producto['Cantidad'],
-                            producto['Precio_Unitario'],
-                            subtotal
-                        ])
-                        
-                        # Restar del stock
-                        cursor.execute("""
-                            UPDATE Products 
-                            SET Stock = Stock - %s 
-                            WHERE Id_Products = %s
-                        """, [
-                            producto['Cantidad'],
-                            producto['Id_Products']
-                        ])
-                
-                # Crear notificación para todos los admins
-                admins = Usuario.objects.filter(is_staff=True)
-                for admin in admins:
-                    Notificacion.objects.create(
-                        Id_User=admin.id,
-                        Titulo='Nuevo Pedido Recibido',
-                        Mensaje=f'Se ha confirmado un nuevo pedido #{id_factura} por COP {data["Total"]}',
-                        Tipo='nuevo_pedido',
-                        Id_Factura=id_factura
-                    )
-                    
-                    # Limpiar notificaciones antiguas del admin (mantener solo las últimas 10)
-                    notifs_admin = Notificacion.objects.filter(Id_User=admin.id).order_by('-Fecha_Creacion')
-                    if notifs_admin.count() > 10:
-                        ids_mantener = list(notifs_admin.values_list('id', flat=True)[:10])
-                        Notificacion.objects.filter(Id_User=admin.id).exclude(id__in=ids_mantener).delete()
-                
-                return Response({
-                    'success': True,
-                    'message': 'Pedido creado exitosamente',
-                    'id_factura': id_factura,
-                    'direccion_envio': data['direccion_envio'],
-                    'telefono_envio': data['telefono_envio']
-                }, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
+            pedido = pedidos_service.crear_pedido(request.user, serializer.validated_data)
             return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'success': True,
+                'message': 'Pedido creado exitosamente',
+                'id_factura': pedido.id,
+                'total': pedido.Total,
+                'direccion_envio': pedido.Direccion_Envio,
+                'telefono_envio': pedido.Telefono_Envio
+            }, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ActualizarPedidoView(APIView):
@@ -648,66 +580,15 @@ class ActualizarPedidoView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            from django.db import connection
-            with connection.cursor() as cursor:
-                # Obtener información del pedido y usuario
-                cursor.execute("""
-                    SELECT Id_User, Total FROM PaymentOrders WHERE Id_Factura = %s
-                """, [pk])
-                
-                pedido_info = cursor.fetchone()
-                if not pedido_info:
-                    return Response({
-                        'success': False,
-                        'error': 'Pedido no encontrado'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-                id_user, total = pedido_info
-                
-                # Actualizar estado del pedido
-                cursor.execute("""
-                    UPDATE PaymentOrders 
-                    SET Estado = %s 
-                    WHERE Id_Factura = %s
-                """, [nuevo_estado, pk])
-            
-            # Crear notificación para el usuario
-            mensajes = {
-                'Pendiente': f'Tu pedido #{pk} está pendiente de procesamiento.',
-                'Enviado': f'¡Tu pedido #{pk} ha sido enviado! Pronto llegará a tu dirección.',
-                'Entregado': f'Tu pedido #{pk} ha sido entregado. ¡Gracias por tu compra!',
-                'Devuelto': f'Tu pedido #{pk} ha sido devuelto.'
-            }
-            
-            try:
-                usuario = Usuario.objects.get(id=id_user)
-                Notificacion.objects.create(
-                    Id_User=usuario.id,
-                    Titulo=f'Pedido {nuevo_estado}',
-                    Mensaje=mensajes[nuevo_estado],
-                    Tipo=nuevo_estado.lower(),
-                    Id_Factura=pk
-                )
-                
-                # Limpiar notificaciones antiguas del usuario (mantener solo las últimas 7)
-                notifs_usuario = Notificacion.objects.filter(Id_User=usuario.id).order_by('-Fecha_Creacion')
-                if notifs_usuario.count() > 7:
-                    ids_mantener = list(notifs_usuario.values_list('id', flat=True)[:7])
-                    Notificacion.objects.filter(Id_User=usuario.id).exclude(id__in=ids_mantener).delete()
-                    
-            except Usuario.DoesNotExist:
-                pass  # Si no se encuentra el usuario, continuar sin crear notificación
-            
+            pedidos_service.actualizar_estado_pedido(pk, nuevo_estado)
             return Response({
                 'success': True,
                 'message': f'Pedido actualizado a {nuevo_estado}'
             }, status=status.HTTP_200_OK)
-        
+        except ValueError as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MisPedidosView(APIView):
@@ -718,65 +599,12 @@ class MisPedidosView(APIView):
 
     def get(self, request):
         try:
-            from django.db import connection
-            
-            cursor = connection.cursor()
-            
-            # Obtener pedidos del usuario autenticado
-            cursor.execute("""
-                SELECT 
-                    po.Id_Factura,
-                    po.Total,
-                    po.Fecha,
-                    po.Estado,
-                    po.Direccion_Envio,
-                    po.Telefono_Envio
-                FROM PaymentOrders po
-                WHERE po.Id_User = %s
-                ORDER BY po.Fecha DESC
-            """, [request.user.id])
-            
-            columns = [col[0] for col in cursor.description]
-            pedidos_data = [dict(zip(columns, row)) for row in cursor.fetchall()]
-            
-            # Para cada pedido, obtener sus productos
-            orders = []
-            for row in pedidos_data:
-                cursor.execute("""
-                    SELECT 
-                        od.Id_Products,
-                        od.Cantidad,
-                        od.Precio_Unitario,
-                        p.Titulo,
-                        p.Imagen
-                    FROM Orders_Details od
-                    INNER JOIN Products p ON od.Id_Products = p.Id_Products
-                    WHERE od.Id_Factura = %s
-                """, [row['Id_Factura']])
-                
-                productos_columns = [col[0] for col in cursor.description]
-                productos = [dict(zip(productos_columns, prod_row)) for prod_row in cursor.fetchall()]
-                
-                orders.append({
-                    'Id_Factura': row['Id_Factura'],
-                    'Total': row['Total'],
-                    'Fecha_Compra': row['Fecha'],
-                    'Estado': row['Estado'],
-                    'Direccion_Envio': row['Direccion_Envio'],
-                    'Telefono_Envio': row['Telefono_Envio'],
-                    'productos': productos
-                })
-            
-            return Response(orders, status=status.HTTP_200_OK)
-        
+            return Response(
+                pedidos_service.listar_pedidos_usuario(request.user.id),
+                status=status.HTTP_200_OK
+            )
         except Exception as e:
-            import traceback
-            print("Error en MisPedidosView:")
-            print(traceback.format_exc())
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class NotificacionesView(APIView):
@@ -792,7 +620,7 @@ class NotificacionesView(APIView):
         
         # Obtener todas las notificaciones del usuario ordenadas por fecha
         todas_notificaciones = Notificacion.objects.filter(
-            Id_User=request.user.id
+            usuario_id=request.user.id
         ).order_by('-Fecha_Creacion')
         
         # Contar cuántas tiene
@@ -805,7 +633,7 @@ class NotificacionesView(APIView):
             
             # Eliminar las que no están en la lista de mantener
             Notificacion.objects.filter(
-                Id_User=request.user.id
+                usuario_id=request.user.id
             ).exclude(id__in=ids_mantener).delete()
             
             # Obtener las notificaciones actualizadas
@@ -828,7 +656,7 @@ class MarcarNotificacionLeidaView(APIView):
         try:
             notificacion = Notificacion.objects.get(
                 id=pk,
-                Id_User=request.user.id
+                usuario_id=request.user.id
             )
             notificacion.Leida = True
             notificacion.save()
@@ -853,7 +681,7 @@ class MarcarTodasLeidasView(APIView):
 
     def put(self, request):
         Notificacion.objects.filter(
-            Id_User=request.user.id,
+            usuario_id=request.user.id,
             Leida=False
         ).update(Leida=True)
         
@@ -894,7 +722,7 @@ class VerificarProductosCaducadosView(APIView):
                     for admin in admins:
                         # Verificar si ya existe una notificación para este producto
                         notif_existe = Notificacion.objects.filter(
-                            Id_User=admin.id,
+                            usuario_id=admin.id,
                             Tipo='producto_caducado',
                             Mensaje__contains=f'ID {producto.id}'
                         ).exists()
@@ -911,18 +739,18 @@ class VerificarProductosCaducadosView(APIView):
                                 mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) caducó hace {dias_caducado} días.'
                             
                             Notificacion.objects.create(
-                                Id_User=admin.id,
-                                Titulo='⚠️ Producto Caducado',
+                                usuario=admin,
+                                Titulo='Producto Caducado',
                                 Mensaje=mensaje,
                                 Tipo='producto_caducado'
                             )
                             notificaciones_creadas += 1
                             
                             # Limpiar notificaciones antiguas del admin
-                            notifs_admin = Notificacion.objects.filter(Id_User=admin.id).order_by('-Fecha_Creacion')
+                            notifs_admin = Notificacion.objects.filter(usuario_id=admin.id).order_by('-Fecha_Creacion')
                             if notifs_admin.count() > 10:
                                 ids_mantener = list(notifs_admin.values_list('id', flat=True)[:10])
-                                Notificacion.objects.filter(Id_User=admin.id).exclude(id__in=ids_mantener).delete()
+                                Notificacion.objects.filter(usuario_id=admin.id).exclude(id__in=ids_mantener).delete()
                 
                 return Response({
                     'success': True,
@@ -1031,8 +859,10 @@ class ActualizarPerfilView(APIView):
 
 
 # ==================== VISTAS DE RESEÑAS DE PRODUCTOS ====================
-from .reviews_serializers import CrearReviewSerializer, ReviewSerializer, ProductoConCalificacionSerializer
-from django.db import connection
+from .reviews_serializers import (
+    CrearReviewSerializer, ActualizarReviewSerializer,
+    ReviewSerializer, ProductoConCalificacionSerializer
+)
 
 class ProductReviewsView(APIView):
     """
@@ -1042,47 +872,16 @@ class ProductReviewsView(APIView):
     """
     
     def get(self, request, product_id):
-        """Obtener todas las reseñas de un producto específico"""
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        r.Id_Review,
-                        r.Id_Products,
-                        r.Id_User,
-                        u.Nombre,
-                        u.Apellido,
-                        r.Rating,
-                        r.Comentario,
-                        r.Fecha
-                    FROM Product_Reviews r
-                    INNER JOIN Users u ON r.Id_User = u.Id_User
-                    WHERE r.Id_Products = %s
-                    ORDER BY r.Fecha DESC
-                """, [product_id])
-                
-                columns = [col[0] for col in cursor.description]
-                reviews = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                
-            return Response({
-                'reviews': reviews,
-                'total': len(reviews)
-            }, status=status.HTTP_200_OK)
-            
+            reviews = ratings_service.listar_resenas_producto(product_id)
+            return Response({'reviews': reviews, 'total': len(reviews)}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error al obtener reseñas: {str(e)}")
-            return Response({
-                'error': 'Error al obtener reseñas'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al obtener reseñas'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def post(self, request, product_id):
-        """Crear una nueva reseña para un producto"""
         if not request.user.is_authenticated:
-            return Response({
-                'error': 'Debes iniciar sesión para dejar una reseña'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'Debes iniciar sesión para dejar una reseña'}, status=status.HTTP_401_UNAUTHORIZED)
         
-        # Agregar el product_id y user_id a los datos
         data = request.data.copy()
         data['Id_Products'] = product_id
         
@@ -1091,176 +890,73 @@ class ProductReviewsView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            with connection.cursor() as cursor:
-                # Verificar si el usuario ya dejó una reseña para este producto
-                cursor.execute("""
-                    SELECT Id_Review FROM Product_Reviews 
-                    WHERE Id_User = %s AND Id_Products = %s
-                """, [request.user.id, product_id])
-                
-                existing_review = cursor.fetchone()
-                
-                if existing_review:
-                    return Response({
-                        'error': 'Ya has dejado una reseña para este producto'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Insertar nueva reseña
-                cursor.execute("""
-                    INSERT INTO Product_Reviews (Id_Products, Id_User, Rating, Comentario)
-                    VALUES (%s, %s, %s, %s)
-                """, [
-                    product_id,
-                    request.user.id,
-                    serializer.validated_data['Rating'],
-                    serializer.validated_data.get('Comentario', '')
-                ])
-                
-            return Response({
-                'message': 'Reseña creada exitosamente'
-            }, status=status.HTTP_201_CREATED)
-            
+            ratings_service.crear_resena(
+                request.user.id,
+                product_id,
+                serializer.validated_data['Rating'],
+                serializer.validated_data.get('Comentario', ''),
+            )
+            return Response({'message': 'Reseña creada exitosamente'}, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"Error al crear reseña: {str(e)}")
-            return Response({
-                'error': 'Error al crear la reseña'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al crear la reseña'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class UserReviewView(APIView):
     """
     Vista para gestionar la reseña propia del usuario
-    GET: Obtener la reseña del usuario para un producto
-    PUT: Actualizar la reseña del usuario
-    DELETE: Eliminar la reseña del usuario
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request, product_id):
-        """Obtener la reseña del usuario para un producto específico"""
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT Id_Review, Id_Products, Id_User, Rating, Comentario, Fecha
-                    FROM Product_Reviews
-                    WHERE Id_User = %s AND Id_Products = %s
-                """, [request.user.id, product_id])
-                
-                row = cursor.fetchone()
-                if not row:
-                    return Response({
-                        'review': None
-                    }, status=status.HTTP_200_OK)
-                
-                columns = [col[0] for col in cursor.description]
-                review = dict(zip(columns, row))
-                
-            return Response({
-                'review': review
-            }, status=status.HTTP_200_OK)
-            
+            review = ratings_service.obtener_resena_usuario(request.user.id, product_id)
+            return Response({'review': review}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error al obtener reseña del usuario: {str(e)}")
-            return Response({
-                'error': 'Error al obtener la reseña'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al obtener la reseña'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def put(self, request, product_id):
-        """Actualizar la reseña del usuario"""
-        serializer = CrearReviewSerializer(data=request.data)
+        serializer = ActualizarReviewSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE Product_Reviews
-                    SET Rating = %s, Comentario = %s
-                    WHERE Id_User = %s AND Id_Products = %s
-                """, [
-                    serializer.validated_data['Rating'],
-                    serializer.validated_data.get('Comentario', ''),
-                    request.user.id,
-                    product_id
-                ])
-                
-                if cursor.rowcount == 0:
-                    return Response({
-                        'error': 'No se encontró la reseña'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-            return Response({
-                'message': 'Reseña actualizada exitosamente'
-            }, status=status.HTTP_200_OK)
-            
+            ratings_service.actualizar_resena(
+                request.user.id,
+                product_id,
+                serializer.validated_data['Rating'],
+                serializer.validated_data.get('Comentario', ''),
+            )
+            return Response({'message': 'Reseña actualizada exitosamente'}, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Error al actualizar reseña: {str(e)}")
-            return Response({
-                'error': 'Error al actualizar la reseña'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al actualizar la reseña'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def delete(self, request, product_id):
-        """Eliminar la reseña del usuario"""
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    DELETE FROM Product_Reviews
-                    WHERE Id_User = %s AND Id_Products = %s
-                """, [request.user.id, product_id])
-                
-                if cursor.rowcount == 0:
-                    return Response({
-                        'error': 'No se encontró la reseña'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-            return Response({
-                'message': 'Reseña eliminada exitosamente'
-            }, status=status.HTTP_204_NO_CONTENT)
-            
+            ratings_service.eliminar_resena(request.user.id, product_id)
+            return Response({'message': 'Reseña eliminada exitosamente'}, status=status.HTTP_204_NO_CONTENT)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Error al eliminar reseña: {str(e)}")
-            return Response({
-                'error': 'Error al eliminar la reseña'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al eliminar la reseña'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProductRatingsView(APIView):
     """
     Vista para obtener estadísticas de calificación de productos
-    GET: Obtener calificación promedio y distribución de estrellas
     """
     
     def get(self, request, product_id=None):
-        """Obtener estadísticas de calificación"""
         try:
-            with connection.cursor() as cursor:
-                if product_id:
-                    # Obtener rating de un producto específico
-                    cursor.execute("""
-                        SELECT * FROM Product_Ratings
-                        WHERE Id_Products = %s
-                    """, [product_id])
-                else:
-                    # Obtener ratings de todos los productos
-                    cursor.execute("SELECT * FROM Product_Ratings")
-                
-                columns = [col[0] for col in cursor.description]
-                rows = cursor.fetchall()
-                ratings = [dict(zip(columns, row)) for row in rows]
-                
             if product_id:
-                return Response({
-                    'rating': ratings[0] if ratings else None
-                }, status=status.HTTP_200_OK)
-            else:
-                return Response({
-                    'ratings': ratings
-                }, status=status.HTTP_200_OK)
-                
+                rating = ratings_service.obtener_rating_producto(product_id)
+                return Response({'rating': rating}, status=status.HTTP_200_OK)
+            ratings = ratings_service.obtener_ratings_todos()
+            return Response({'ratings': ratings}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error al obtener ratings: {str(e)}")
-            return Response({
-                'error': 'Error al obtener calificaciones'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error al obtener calificaciones'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

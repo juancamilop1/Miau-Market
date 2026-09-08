@@ -2,6 +2,7 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
+import { EnvironmentService } from '../../services/environment.service';
 
 @Component({
   standalone: true,
@@ -13,11 +14,16 @@ import { AuthService } from '../../auth.service';
 export class Cart {
   auth = inject(AuthService);
   router = inject(Router);
+  private env = inject(EnvironmentService);
   
   // Set para mantener los IDs de productos seleccionados
   selectedItems = signal<Set<string>>(new Set());
 
   cart() { return this.auth.cart(); }
+
+  getImageUrl(imagen?: string): string {
+    return this.env.getImageUrl(imagen);
+  }
   
   // Calcular total solo de items seleccionados
   cartTotal() { 
@@ -91,13 +97,6 @@ export class Cart {
   clear() { 
     this.auth.clearCart();
     this.selectedItems.set(new Set());
-  }
-  
-  // Método para obtener solo items seleccionados (usar en checkout)
-  getSelectedItems() {
-    const cart = this.cart();
-    const selected = this.selectedItems();
-    return cart.filter(item => selected.has(item.product.id));
   }
   
   proceedToCheckout(event: Event) {

@@ -1,30 +1,34 @@
--- Tabla de Reseñas y Calificaciones de Productos
--- Ejecutar esto en tu base de datos MariaDB
+-- Resenas y vista de calificaciones
+-- Requiere Users, Products (Django migrate) y PaymentOrders (Tables.sql o migrate)
 
--- Seleccionar la base de datos (cambia 'miau_market' por el nombre de tu base de datos)
+SET NAMES utf8mb4;
+
 USE miau_market;
 
 CREATE TABLE IF NOT EXISTS Product_Reviews (
     Id_Review INT AUTO_INCREMENT PRIMARY KEY,
     Id_Products INT NOT NULL,
     Id_User INT NOT NULL,
-    Rating TINYINT NOT NULL CHECK (Rating >= 1 AND Rating <= 5),
+    Rating TINYINT NOT NULL,
     Comentario TEXT,
     Fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_Products) REFERENCES Products(Id_Products) ON DELETE CASCADE,
-    FOREIGN KEY (Id_User) REFERENCES Users(Id_User) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_product (Id_User, Id_Products)
+    CONSTRAINT fk_reviews_product
+        FOREIGN KEY (Id_Products) REFERENCES Products(Id_Products)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_reviews_user
+        FOREIGN KEY (Id_User) REFERENCES Users(Id_User)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT uk_reviews_user_product UNIQUE (Id_User, Id_Products),
+    CONSTRAINT chk_reviews_rating CHECK (Rating >= 1 AND Rating <= 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Índices para mejorar rendimiento
-CREATE INDEX idx_product_reviews ON Product_Reviews(Id_Products);
-CREATE INDEX idx_user_reviews ON Product_Reviews(Id_User);
-CREATE INDEX idx_rating ON Product_Reviews(Rating);
-CREATE INDEX idx_fecha ON Product_Reviews(Fecha DESC);
+CREATE INDEX idx_product_reviews_product ON Product_Reviews(Id_Products);
+CREATE INDEX idx_product_reviews_user ON Product_Reviews(Id_User);
+CREATE INDEX idx_product_reviews_rating ON Product_Reviews(Rating);
+CREATE INDEX idx_product_reviews_fecha ON Product_Reviews(Fecha DESC);
 
--- Vista para obtener calificación promedio por producto
 CREATE OR REPLACE VIEW Product_Ratings AS
-SELECT 
+SELECT
     p.Id_Products,
     p.Titulo,
     COUNT(r.Id_Review) AS Total_Reviews,

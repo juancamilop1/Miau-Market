@@ -11,14 +11,15 @@
 		</div>
 
 		<div class="field">
-			<label for="email">Correo electrónico</label>
+			<label for="login">Correo o usuario</label>
 			<input 
-				id="email" 
-				type="email" 
+				id="login" 
+				type="text" 
 				class="input" 
 				placeholder="tu@email.com" 
-				[(ngModel)]="email"
-				name="email"
+				autocomplete="username"
+				[(ngModel)]="login"
+				name="login"
 				required 
 				[disabled]="isLoading()"
 			/>

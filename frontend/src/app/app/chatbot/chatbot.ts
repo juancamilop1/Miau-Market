@@ -1,7 +1,22 @@
-import { Component, NgZone, signal, inject } from '@angular/core';
+import { Component, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { EnvironmentService } from '../../services/environment.service';
+import { AuthService } from '../../auth.service';
+
+interface ChatAction {
+  label: string;
+  route: string;
+  style: 'primary' | 'secondary';
+}
+
+interface ChatMessage {
+  type: 'user' | 'bot' | 'auth';
+  text: string;
+  timestamp: Date;
+  actions?: ChatAction[];
+}
 
 @Component({
   standalone: true,
@@ -12,112 +27,171 @@ import { EnvironmentService } from '../../services/environment.service';
 })
 export class Chatbot {
   private envService = inject(EnvironmentService);
-  
+  auth = inject(AuthService);
+  private router = inject(Router);
+
   open = false;
   currentMessage = '';
   isLoading = signal(false);
-  messages = signal<any[]>([]);
+  messages = signal<ChatMessage[]>([]);
   private hasShownGreeting = false;
-  
+  private wasLoggedIn = false;
+
   private apiUrl = this.envService.getChatbotUrl();
 
-  constructor(private ngZone: NgZone) {
-    // No agregar saludo aquí - se agregará cuando el usuario abre el chat
+  constructor() {
+    this.wasLoggedIn = this.auth.isLogged();
+
+    effect(() => {
+      const logged = this.auth.isLogged();
+      if (logged && !this.wasLoggedIn) {
+        this.onLogin();
+      }
+      if (!logged && this.wasLoggedIn) {
+        this.messages.set([]);
+        this.hasShownGreeting = false;
+      }
+      this.wasLoggedIn = logged;
+    });
   }
 
-  toggle() { 
+  /** Mensajes visibles: oculta avisos de login si ya hay sesion */
+  visibleMessages = () => {
+    if (this.auth.isLogged()) {
+      return this.messages().filter(m => m.type !== 'auth');
+    }
+    return this.messages();
+  };
+
+  toggle() {
     this.open = !this.open;
-    // Solo mostrar saludo la primera vez que abre
     if (this.open && !this.hasShownGreeting) {
       this.hasShownGreeting = true;
-      this.addBotMessage('¡Hola! 🐾 Bienvenido a MiauMarket.\nSoy tu asistente para todo lo que tu gato necesita 🐱\n\nPuedo ayudarte con:\n• Productos recomendados\n• Cuidado y alimentación\n• Comportamiento de gatos\n\n¡Cuéntame sobre tu gato y empecemos! 😸');
+      if (this.auth.isLogged()) {
+        this.addWelcomeMessage();
+      } else {
+        this.addAuthMessage();
+      }
     }
   }
 
   sendMessage() {
     if (!this.currentMessage.trim() || this.isLoading()) return;
 
-    // Agregar mensaje del usuario
+    if (!this.auth.isLogged()) {
+      this.addUserMessage(this.currentMessage);
+      this.currentMessage = '';
+      this.addAuthMessage();
+      return;
+    }
+
     this.addUserMessage(this.currentMessage);
-    
     const messageToSend = this.currentMessage;
     this.currentMessage = '';
     this.isLoading.set(true);
-
-    // Enviar a la API usando fetch
     this.callChatbotAPI(messageToSend);
   }
 
-  private async callChatbotAPI(message: string) {
-    // Construir historial de conversación
-    const conversationHistory = this.messages().map(msg => ({
-      role: msg.type === 'user' ? 'user' : 'assistant',
-      content: msg.text
-    }));
+  private onLogin() {
+    const hadAuthPrompt = this.messages().some(m => m.type === 'auth');
+    this.messages.update(msgs => msgs.filter(m => m.type !== 'auth'));
 
-    const payload = {
-      message: message,
-      conversation_history: conversationHistory
-    };
+    if (hadAuthPrompt || this.open) {
+      this.hasShownGreeting = true;
+      this.addWelcomeMessage(true);
+    }
+  }
+
+  private addWelcomeMessage(returning = false) {
+    this.fetchWelcomeFromServer();
+  }
+
+  private async fetchWelcomeFromServer() {
+    try {
+      const headers: Record<string, string> = {};
+      const token = this.auth.getToken();
+      if (token) headers['Authorization'] = `Token ${token}`;
+
+      const res = await fetch(this.envService.getChatbotConfigUrl(), { headers });
+      const data = await res.json();
+      if (data.success && data.mensaje_bienvenida) {
+        this.addBotMessage(data.mensaje_bienvenida);
+        return;
+      }
+    } catch { /* fallback local */ }
+
+    const name = this.auth.user()?.name?.trim();
+    const fallback = name
+      ? `Hola ${name}! Cuéntame de tu mascota y te recomiendo productos de MiauMarket.`
+      : 'Hola! Cuéntame de tu mascota (gato o perro) y te ayudo con productos y consejos.';
+    this.addBotMessage(fallback);
+  }
+
+  private addAuthMessage() {
+    this.messages.update(msgs => [...msgs, {
+      type: 'auth',
+      text: 'Para usar MiauBot necesitas iniciar sesion o crear una cuenta. Asi podre darte recomendaciones personalizadas para tu gato.',
+      timestamp: new Date(),
+      actions: [
+        { label: 'Iniciar sesion', route: '/login', style: 'primary' },
+        { label: 'Registrarse', route: '/register', style: 'secondary' },
+      ],
+    }]);
+    this.scrollToBottom();
+  }
+
+  private async callChatbotAPI(message: string) {
+    const conversationHistory = this.messages()
+      .filter(msg => msg.type !== 'auth')
+      .map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.text,
+      }));
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = this.auth.getToken();
+    if (token) {
+      headers['Authorization'] = `Token ${token}`;
+    }
 
     try {
-      console.log('📤 Enviando mensaje al chatbot con historial:', payload);
-      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+        headers,
+        body: JSON.stringify({ message, conversation_history: conversationHistory }),
       });
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response ok:', response.ok);
-
       const data = await response.json();
-      console.log('✅ Datos recibidos:', data);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       if (data.success) {
-        const botMessage = data.response || data.recommendations || 'Lo siento, no pude generar una respuesta.';
-        console.log('🤖 Mensaje del bot:', botMessage);
-        this.addBotMessage(botMessage);
+        const text = data.response || data.recommendations || 'No pude generar una respuesta.';
+        this.addBotMessage(text);
       } else {
-        const errorMsg = `Error: ${data.error || 'No se pudo procesar tu mensaje'}`;
-        console.error('❌ Error del servidor:', errorMsg);
-        this.addBotMessage(errorMsg);
+        this.addBotMessage(`Error: ${data.error || 'No se pudo procesar tu mensaje'}`);
       }
-      
+    } catch {
+      this.addBotMessage('Error de conexion con el servidor. Verifica que el backend este activo.');
+    } finally {
       this.isLoading.set(false);
-    } catch (error) {
-      this.isLoading.set(false);
-      console.error('❌ Error calling chatbot API:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error message:', (error as any)?.message);
-      this.addBotMessage('❌ Error de conexión. Asegúrate de que el servidor esté ejecutándose en http://localhost:8000');
     }
   }
 
+  navigateAction(route: string) {
+    this.open = false;
+    this.router.navigate([route]);
+  }
+
   private addUserMessage(text: string) {
-    const currentMessages = this.messages();
-    this.messages.set([...currentMessages, {
-      type: 'user',
-      text: text,
-      timestamp: new Date()
-    }]);
+    this.messages.update(msgs => [...msgs, { type: 'user', text, timestamp: new Date() }]);
     this.scrollToBottom();
   }
 
   private addBotMessage(text: string) {
-    const currentMessages = this.messages();
-    this.messages.set([...currentMessages, {
-      type: 'bot',
-      text: text,
-      timestamp: new Date()
-    }]);
+    this.messages.update(msgs => [...msgs, { type: 'bot', text, timestamp: new Date() }]);
     this.scrollToBottom();
   }
 

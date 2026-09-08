@@ -1,0 +1,38 @@
+---
+description: Convenciones de base de datos Miau Market (estilo ROADEX)
+globs: Data Base/**/*.sql,Backend/**/*.py
+alwaysApply: false
+---
+
+# Base de datos Miau Market
+
+## Principios
+
+- Credenciales solo en `Backend/.env` (plantilla: `.env.example`). Nunca hardcodear passwords, SECRET_KEY ni API keys.
+- Instalacion recomendada: **Django-first** (`python manage.py migrate`), no mezclar con `Tablas_V3.SQL` obsoleto.
+- SQL scripts en `Data Base/sql/`: `00_database.sql`, `Tables.sql`, `Reviews.sql`.
+- Documentar cambios en `Data Base/ESQUEMA_BD.md`.
+
+## Capas de persistencia
+
+| Dato | Usar |
+|------|------|
+| Users, Products, Notificaciones | Django ORM + migraciones |
+| PaymentOrders, Orders_Details, Product_Reviews | SQL parametrizado en views (migraciones 0008/0009) |
+
+## Convenciones SQL
+
+- Charset: `utf8mb4`, engine `InnoDB`
+- Indices: `idx_<tabla>_<columna>`
+- FK: `fk_<tabla>_<ref>`, unique: `uk_<tabla>_<cols>`
+- Migraciones incrementales: `alter_<feature>.sql` (idempotentes, `IF NOT EXISTS`)
+- Consultas en Python: siempre parametros `%s`, nunca concatenar input del usuario
+
+## Products.Precio
+
+Entero en COP (Django `IntegerField`). No usar DECIMAL en ORM.
+
+## Antes de commit
+
+- No incluir `.env`, `__pycache__`, `media/`, `node_modules/`
+- Verificar: `python scripts/verificar_conexion.py`

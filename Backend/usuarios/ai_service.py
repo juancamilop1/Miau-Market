@@ -3,8 +3,8 @@ from django.conf import settings
 from .models import Producto
 import json
 
-# Configurar la API de Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
+if settings.GEMINI_API_KEY:
+    genai.configure(api_key=settings.GEMINI_API_KEY)
 
 
 def get_products_from_db():
@@ -56,26 +56,13 @@ def format_products_for_ai(products):
 
 def get_product_ratings():
     """
-    Obtiene los ratings promedio de los productos desde la tabla Product_Ratings.
-    Retorna un diccionario con product_id como clave y rating_promedio como valor.
+    Obtiene los ratings promedio de los productos via ORM.
     """
     try:
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT Id_Products, Rating_Promedio, Total_Reviews 
-                FROM Product_Ratings
-            """)
-            ratings = {}
-            for row in cursor.fetchall():
-                product_id, rating_avg, total_reviews = row
-                ratings[product_id] = {
-                    'promedio': float(rating_avg) if rating_avg else 0,
-                    'total': int(total_reviews) if total_reviews else 0
-                }
-        return ratings
+        from .services.ratings_service import obtener_ratings_dict
+        return obtener_ratings_dict()
     except Exception as e:
-        print(f"⚠️ Error obteniendo ratings: {str(e)}")
+        print(f"Error obteniendo ratings: {str(e)}")
         return {}
 
 

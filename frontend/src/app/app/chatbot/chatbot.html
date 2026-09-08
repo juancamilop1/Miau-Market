@@ -1,53 +1,65 @@
 <div class="chat-wrapper" [class.open]="open">
-	<button class="chat-button" (click)="toggle()">
-		<img src="/miauMarket.png" alt="Chat" />
+	<button class="chat-button" (click)="toggle()" aria-label="Abrir chat MiauBot">
+		<img src="/miauMarket.png" alt="MiauBot" />
+		<span class="chat-pulse"></span>
 	</button>
 
 	<div class="chat-panel" *ngIf="open">
 		<header class="chat-header">
-			<strong>MiauBot 🐕</strong>
-			<button class="btn btn-ghost" (click)="toggle()">✕</button>
+			<div class="chat-header-info">
+				<span class="chat-avatar">🐱</span>
+				<div>
+					<strong>MiauBot</strong>
+					<small>Asistente felino</small>
+				</div>
+			</div>
+			<button class="btn-close" (click)="toggle()" aria-label="Cerrar">✕</button>
 		</header>
-		
+
 		<div class="chat-body">
-			<!-- Mensajes del chat -->
 			<div class="messages-container">
-				<div *ngFor="let msg of messages()" 
-					 [class]="msg.type === 'user' ? 'message user-message' : 'message bot-message'">
+				<div *ngFor="let msg of visibleMessages()"
+					 [class]="'message ' + (msg.type === 'user' ? 'user-message' : msg.type === 'auth' ? 'auth-message' : 'bot-message')">
 					<div class="message-content">
-						<span *ngIf="msg.type === 'bot'" class="bot-avatar">🤖</span>
-						{{ msg.text }}
+						<span *ngIf="msg.type !== 'user'" class="bot-avatar">🐱</span>
+						<div class="message-text">{{ msg.text }}</div>
 						<span *ngIf="msg.type === 'user'" class="user-avatar">👤</span>
+					</div>
+					<div *ngIf="msg.actions?.length" class="message-actions">
+						<button *ngFor="let action of msg.actions"
+								class="action-btn"
+								[class.primary]="action.style === 'primary'"
+								(click)="navigateAction(action.route)">
+							{{ action.label }}
+						</button>
 					</div>
 					<small class="message-time">{{ msg.timestamp | date:'HH:mm' }}</small>
 				</div>
 			</div>
-			
-			<!-- Estado de carga -->
+
 			<div *ngIf="isLoading()" class="message bot-message">
 				<div class="message-content">
-					<span class="bot-avatar">🤖</span>
-					<span class="typing-indicator">Escribiendo...</span>
+					<span class="bot-avatar">🐱</span>
+					<span class="typing-indicator">Escribiendo</span>
 				</div>
 			</div>
 		</div>
-		
+
 		<footer class="chat-footer">
 			<div class="input-group">
-				<input 
-					class="input" 
+				<input
+					class="input"
 					[(ngModel)]="currentMessage"
 					(keyup.enter)="sendMessage()"
-					placeholder="Escribe un mensaje..."
+					[placeholder]="auth.isLogged() ? 'Escribe tu mensaje...' : 'Inicia sesion para chatear...'"
 					[disabled]="isLoading()" />
-				<button 
-					class="btn btn-primary" 
+				<button
+					class="btn-send"
 					(click)="sendMessage()"
 					[disabled]="isLoading() || !currentMessage.trim()">
-					{{ isLoading() ? '...' : 'Enviar' }}
+					➤
 				</button>
 			</div>
 		</footer>
 	</div>
 </div>
-

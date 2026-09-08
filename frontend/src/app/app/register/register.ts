@@ -19,6 +19,7 @@ export class Register {
   // Campos del formulario
   nombre = '';
   apellido = '';
+  username = '';
   email = '';
   password = '';
   password2 = '';
@@ -41,7 +42,8 @@ export class Register {
     ev.preventDefault();
     
     // Validación básica
-    if (!this.nombre || !this.apellido || !this.email || !this.password || !this.password2) {
+    if (!this.nombre || !this.apellido || !this.username || !this.email || !this.password || !this.password2 ||
+        !this.telefono || !this.address || !this.city || !this.birthDate) {
       this.errorMessage.set('Por favor completa todos los campos requeridos');
       return;
     }
@@ -68,25 +70,27 @@ export class Register {
 
     // Llamada real a la API
     const registerData = {
+      Username: this.username,
       Nombre: this.nombre,
       Apellido: this.apellido,
       Email: this.email,
       password: this.password,
       password2: this.password2,
-      Telefono: this.telefono || undefined,
-      Address: this.address || undefined,
-      City: this.city || undefined,
-      BirthDate: this.birthDate || undefined
+      Telefono: this.telefono,
+      Address: this.address,
+      City: this.city,
+      BirthDate: this.birthDate
     };
 
     this.api.register(registerData).subscribe({
       next: (response) => {
         console.log('Registro exitoso:', response);
         // Registro exitoso, ahora hacer login automático
-        this.api.login({ Email: this.email, password: this.password }).subscribe({
+        this.api.login({ login: this.username || this.email, password: this.password }).subscribe({
           next: (loginResponse) => {
             console.log('Login automático exitoso:', loginResponse);
-            if (loginResponse.success) {
+            if (loginResponse.success && loginResponse.token) {
+              this.auth.setToken(loginResponse.token);
               this.auth.login({
                 id: loginResponse.user.id,
                 name: loginResponse.user.name || loginResponse.user.nombre || '',
@@ -98,7 +102,12 @@ export class Register {
                 Edad: loginResponse.user.Edad,
                 Apellido: loginResponse.user.Apellido
               });
+              this.isLoading.set(false);
               this.router.navigate(['/shop']);
+            } else {
+              this.isLoading.set(false);
+              this.errorMessage.set('Registro exitoso, pero no se pudo iniciar sesión automáticamente.');
+              this.router.navigate(['/login']);
             }
           },
           error: (error) => {

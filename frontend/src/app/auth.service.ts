@@ -181,6 +181,18 @@ export class AuthService {
     }
   }
 
+  updateUser(updates: Partial<User>) {
+    const current = this._user();
+    if (!current) return;
+
+    const updated = { ...current, ...updates };
+    this._user.set(updated);
+
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('user', JSON.stringify(updated));
+    }
+  }
+
   setToken(token: string) {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('token', token);

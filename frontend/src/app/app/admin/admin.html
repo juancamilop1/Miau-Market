@@ -6,7 +6,7 @@
     </button>
     <h1 *ngIf="!showMobileMenu()">Admin Panel</h1>
     <div class="mobile-tab-indicator" *ngIf="!showMobileMenu()">
-      {{ activeTab() === 'productos' ? '📦' : activeTab() === 'pedidos' ? '🛒' : activeTab() === 'usuarios' ? '👥' : '📊' }}
+      {{ activeTab() === 'productos' ? '📦' : activeTab() === 'pedidos' ? '🛒' : activeTab() === 'usuarios' ? '👥' : activeTab() === 'miaubot' ? '🤖' : '📊' }}
     </div>
   </div>
 
@@ -45,6 +45,16 @@
           <span class="item-icon">👥</span>
           <span class="item-text">Usuarios</span>
         </button>
+
+        <button 
+          class="mobile-menu-item" 
+          [class.active]="activeTab() === 'miaubot'"
+          (click)="changeTab('miaubot')"
+        >
+          <span class="item-icon">🤖</span>
+          <span class="item-text">MiauBot</span>
+          <span class="badge-count" *ngIf="pendientesCount() > 0">{{ pendientesCount() }}</span>
+        </button>
         
         <a 
           class="mobile-menu-item" 
@@ -60,7 +70,10 @@
 
   <!-- HEADER DESKTOP -->
   <div class="admin-header">
-    <h1>Panel de Administración</h1>
+    <div>
+      <h1>Panel de Administracion</h1>
+      <p class="admin-subtitle">Gestiona productos, pedidos y usuarios de MiauMarket</p>
+    </div>
     
     <!-- Tabs de navegación -->
     <div class="admin-tabs">
@@ -84,6 +97,14 @@
         (click)="activeTab.set('usuarios'); loadUsers()"
       >
         👥 Usuarios
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'miaubot'"
+        (click)="activeTab.set('miaubot'); loadAprendizajes()"
+      >
+        🤖 MiauBot
+        <span class="tab-badge" *ngIf="pendientesCount() > 0">{{ pendientesCount() }}</span>
       </button>
       <a 
         class="tab-btn dashboard-btn" 
@@ -194,7 +215,7 @@
         />
         <div class="image-preview" *ngIf="imagePreviewUrl() || (newProduct().Imagen && typeof newProduct().Imagen === 'string')">
           <img 
-            [src]="imagePreviewUrl() || newProduct().Imagen" 
+            [src]="getImageUrl(newProduct().Imagen)" 
             alt="Preview"
           />
         </div>
@@ -223,7 +244,7 @@
       <div class="product-image">
         <img 
           *ngIf="product.Imagen" 
-          [src]="product.Imagen" 
+          [src]="getImageUrl(product.Imagen)" 
           alt="{{ product.Titulo }}"
         />
         <div *ngIf="!product.Imagen" class="no-image">
@@ -435,6 +456,7 @@
           <th>ID</th>
           <th>Nombre</th>
           <th>Email</th>
+          <th>Usuario</th>
           <th>Teléfono</th>
           <th>Rol</th>
           <th>Pedidos</th>
@@ -459,6 +481,7 @@
             <span *ngIf="user.Id_User === auth.user()?.id" class="badge-you">Tú</span>
           </td>
           <td>{{ user.Email }}</td>
+          <td>{{ user.Username }}</td>
           <td>{{ user.Telefono }}</td>
           <td>
             <span class="role-badge" 
@@ -473,19 +496,13 @@
           <td>{{ formatearFecha(user.FechaRegistro) }}</td>
           <td>
             <div class="action-buttons">
-              <!-- Botón Hacer/Quitar Admin: solo visible para superusuarios y no para sí mismos ni otros superusuarios -->
-              <button 
-                *ngIf="esSuperusuario() && !user.is_superuser && user.Id_User !== auth.user()?.id"
-                class="btn"
-                [class.btn-warning]="!user.is_staff"
-                [class.btn-success]="user.is_staff"
-                [disabled]="processingUser() === user.Id_User"
-                (click)="toggleAdmin(user)"
+              <button
+                *ngIf="canEditUser(user)"
+                class="btn btn-edit"
+                (click)="openEditModal(user)"
               >
-                {{ user.is_staff ? 'Quitar Admin' : 'Hacer Admin' }}
+                Editar
               </button>
-
-              <!-- Botón Eliminar: visible según permisos -->
               <button 
                 *ngIf="user.Id_User !== auth.user()?.id && (!user.is_superuser || esSuperusuario())"
                 class="btn btn-danger"
@@ -569,17 +586,13 @@
         </div>
 
         <div class="card-footer">
-          <button 
-            *ngIf="esSuperusuario() && !user.is_superuser && user.Id_User !== auth.user()?.id"
-            class="btn btn-small"
-            [class.btn-warning]="!user.is_staff"
-            [class.btn-success]="user.is_staff"
-            [disabled]="processingUser() === user.Id_User"
-            (click)="toggleAdmin(user)"
+          <button
+            *ngIf="canEditUser(user)"
+            class="btn btn-small btn-edit"
+            (click)="openEditModal(user)"
           >
-            {{ user.is_staff ? '🔻 Quitar Admin' : '⬆️ Hacer Admin' }}
+            ✏️ Editar
           </button>
-
           <button 
             *ngIf="user.Id_User !== auth.user()?.id && (!user.is_superuser || esSuperusuario())"
             class="btn btn-small btn-danger"
@@ -645,6 +658,69 @@
         >
           Siguiente →
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA MIAUBOT APRENDIZAJE -->
+  <div *ngIf="activeTab() === 'miaubot'" class="miaubot-section">
+    <div class="section-header miaubot-header">
+      <div>
+        <h2>Aprendizaje de MiauBot</h2>
+        <p class="section-desc">Revisa las conversaciones del chatbot. Aprueba las buenas respuestas para que el bot las aprenda.</p>
+      </div>
+      <div class="filter-pills">
+        <button class="pill" [class.active]="filtroAprendizaje() === 'pendiente'" (click)="cambiarFiltroAprendizaje('pendiente')">
+          Pendientes ({{ pendientesCount() }})
+        </button>
+        <button class="pill" [class.active]="filtroAprendizaje() === 'aprobado'" (click)="cambiarFiltroAprendizaje('aprobado')">Aprobados</button>
+        <button class="pill" [class.active]="filtroAprendizaje() === 'rechazado'" (click)="cambiarFiltroAprendizaje('rechazado')">Rechazados</button>
+        <button class="pill" [class.active]="filtroAprendizaje() === 'todos'" (click)="cambiarFiltroAprendizaje('todos')">Todos</button>
+      </div>
+    </div>
+
+    <div *ngIf="loadingAprendizaje()" class="loading-state">Cargando propuestas...</div>
+
+    <div *ngIf="!loadingAprendizaje() && aprendizajes().length === 0" class="empty-state">
+      <span class="empty-icon">🤖</span>
+      <p>No hay propuestas {{ filtroAprendizaje() === 'pendiente' ? 'pendientes' : '' }}.</p>
+      <p class="empty-hint">Las conversaciones del chatbot aparecerán aquí para que las revises.</p>
+    </div>
+
+    <div class="aprendizaje-list" *ngIf="!loadingAprendizaje() && aprendizajes().length > 0">
+      <div class="aprendizaje-card" *ngFor="let item of aprendizajes()" [class]="'estado-' + item.estado">
+        <div class="aprendizaje-meta">
+          <span class="estado-badge" [class]="item.estado">{{ item.estado }}</span>
+          <span class="animal-tag">{{ item.animal }}</span>
+          <span class="fecha-tag">{{ formatearFecha(item.Fecha_Creacion) }}</span>
+          <span class="uso-tag" *ngIf="item.veces_usada > 0">Usada {{ item.veces_usada }}x</span>
+        </div>
+
+        <div class="aprendizaje-content">
+          <div class="qa-block">
+            <label>Pregunta del usuario</label>
+            <p class="pregunta-text">{{ item.pregunta }}</p>
+          </div>
+          <div class="qa-block">
+            <label>Respuesta de MiauBot</label>
+            <p class="respuesta-text">{{ item.respuesta }}</p>
+          </div>
+          <div class="keywords" *ngIf="item.palabras_clave">
+            <span class="kw" *ngFor="let k of item.palabras_clave.split(', ')">{{ k }}</span>
+          </div>
+        </div>
+
+        <div class="aprendizaje-actions" *ngIf="item.estado === 'pendiente'">
+          <button class="btn btn-ghost btn-sm" (click)="abrirEditarAprendizaje(item)" [disabled]="processingAprendizaje() === item.id">
+            ✏️ Corregir respuesta
+          </button>
+          <button class="btn btn-danger-ghost btn-sm" (click)="rechazarAprendizaje(item.id)" [disabled]="processingAprendizaje() === item.id">
+            Rechazar
+          </button>
+          <button class="btn btn-primary-solid btn-sm" (click)="aprobarAprendizaje(item.id)" [disabled]="processingAprendizaje() === item.id">
+            ✓ Aprobar
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -754,6 +830,118 @@
           (click)="confirmDelete()"
         >
           Eliminar Usuario
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR USUARIO -->
+  <div *ngIf="showEditModal()" class="modal-overlay" (click)="closeEditModal()">
+    <div class="modal-content edit-user-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header edit-header">
+        <div>
+          <h2>Editar usuario</h2>
+          <p *ngIf="userToEdit()">{{ userToEdit()!.Nombre }} {{ userToEdit()!.Apellido }}</p>
+        </div>
+        <button class="close-btn" (click)="closeEditModal()">✕</button>
+      </div>
+
+      <form class="edit-user-form" (submit)="$event.preventDefault(); saveUserEdit()">
+        <div class="form-grid">
+          <div class="field">
+            <label>Usuario</label>
+            <input class="input" [(ngModel)]="editFormData.Username" name="Username" required />
+          </div>
+          <div class="field">
+            <label>Correo</label>
+            <input class="input" type="email" [(ngModel)]="editFormData.Email" name="Email" required />
+          </div>
+          <div class="field">
+            <label>Nombre</label>
+            <input class="input" [(ngModel)]="editFormData.Nombre" name="Nombre" required />
+          </div>
+          <div class="field">
+            <label>Apellido</label>
+            <input class="input" [(ngModel)]="editFormData.Apellido" name="Apellido" required />
+          </div>
+          <div class="field">
+            <label>Telefono</label>
+            <input class="input" [(ngModel)]="editFormData.Telefono" name="Telefono" required />
+          </div>
+          <div class="field">
+            <label>Ciudad</label>
+            <input class="input" [(ngModel)]="editFormData.City" name="City" required />
+          </div>
+          <div class="field full-width">
+            <label>Direccion</label>
+            <input class="input" [(ngModel)]="editFormData.Address" name="Address" required />
+          </div>
+          <div class="field">
+            <label>Fecha nacimiento</label>
+            <input class="input" type="date" [(ngModel)]="editFormData.BirthDate" name="BirthDate" required />
+          </div>
+          <div class="field">
+            <label>Nueva contrasena (opcional)</label>
+            <input class="input" type="password" [(ngModel)]="editFormData.password" name="password" placeholder="Dejar vacio para no cambiar" />
+          </div>
+        </div>
+
+        <div class="roles-section" *ngIf="userToEdit()?.Id_User !== auth.user()?.id">
+          <h3>Roles y estado</h3>
+          <div class="role-toggles">
+            <label class="toggle-item">
+              <input type="checkbox" [(ngModel)]="editFormData.is_active" name="is_active" />
+              <span>Cuenta activa</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" [(ngModel)]="editFormData.is_staff" name="is_staff" />
+              <span>Administrador</span>
+            </label>
+            <label class="toggle-item" *ngIf="esSuperusuario()">
+              <input type="checkbox" [(ngModel)]="editFormData.is_superuser" name="is_superuser" />
+              <span>Superusuario</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" (click)="closeEditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary-solid" [disabled]="savingUser()">
+            {{ savingUser() ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CORREGIR APRENDIZAJE MIAUBOT -->
+  <div *ngIf="showAprendizajeModal()" class="modal-overlay" (click)="cerrarAprendizajeModal()">
+    <div class="modal-content aprendizaje-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header edit-header">
+        <div>
+          <h2>Corregir respuesta</h2>
+          <p *ngIf="aprendizajeEdit()">{{ aprendizajeEdit()!.pregunta }}</p>
+        </div>
+        <button class="close-btn" (click)="cerrarAprendizajeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <label>Respuesta corregida (esta es la que aprenderá MiauBot)</label>
+        <textarea
+          class="input textarea-aprendizaje"
+          rows="6"
+          [ngModel]="respuestaEditada()"
+          (ngModelChange)="respuestaEditada.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="cerrarAprendizajeModal()">Cancelar</button>
+        <button class="btn btn-ghost" (click)="guardarRespuestaAprendizaje()" [disabled]="processingAprendizaje() !== null">
+          Solo guardar
+        </button>
+        <button class="btn btn-primary-solid" (click)="aprobarYGuardarAprendizaje()" [disabled]="processingAprendizaje() !== null">
+          Guardar y aprobar
         </button>
       </div>
     </div>

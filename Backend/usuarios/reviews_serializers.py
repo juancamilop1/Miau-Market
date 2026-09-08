@@ -1,7 +1,12 @@
 from rest_framework import serializers
 
 class CrearReviewSerializer(serializers.Serializer):
-    Id_Products = serializers.IntegerField()
+    Id_Products = serializers.IntegerField(required=False)
+    Rating = serializers.IntegerField(min_value=1, max_value=5)
+    Comentario = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class ActualizarReviewSerializer(serializers.Serializer):
     Rating = serializers.IntegerField(min_value=1, max_value=5)
     Comentario = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 

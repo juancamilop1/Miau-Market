@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { EnvironmentService } from '../../services/environment.service';
 
 interface OrderData {
-  Id_User: number;
   Total: number;
   Metodo_Pago: string;
   productos: {
@@ -29,6 +29,7 @@ export class Checkout implements OnInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
   private router = inject(Router);
+  private env = inject(EnvironmentService);
 
   loading = signal(false);
   errorMessage = signal('');
@@ -62,18 +63,23 @@ export class Checkout implements OnInit {
       return;
     }
 
-    // Pre-llenar datos del usuario
     const user = this.auth.user();
-    if (user) {
-      this.email.set(user.email);
-      // Autocompletar dirección y teléfono desde los datos del usuario
-      if (user.Address) {
-        this.direccion = user.Address;
-      }
-      if (user.Telefono) {
-        this.telefono = user.Telefono;
-      }
+    if (!user) {
+      this.router.navigate(['/login']);
+      return;
     }
+
+    this.email.set(user.email);
+    if (user.Address) {
+      this.direccion = user.Address;
+    }
+    if (user.Telefono) {
+      this.telefono = user.Telefono;
+    }
+  }
+
+  getImageUrl(imagen?: string): string {
+    return this.env.getImageUrl(imagen);
   }
 
   cart() {
@@ -119,7 +125,6 @@ export class Checkout implements OnInit {
 
     // Preparar datos del pedido
     const orderData: OrderData = {
-      Id_User: user.id,
       Total: this.cartTotal(),
       Metodo_Pago: 'Contra Entrega',
       productos: this.cart().map(item => ({
@@ -157,7 +162,10 @@ export class Checkout implements OnInit {
         console.error('Error status:', error.status);
         console.error('Error message:', error.message);
         console.error('Error error:', error.error);
-        this.errorMessage.set('Error al procesar el pedido. Intenta nuevamente.');
+        const backendError = error?.error?.error || error?.error?.message;
+        this.errorMessage.set(
+          backendError || 'Error al procesar el pedido. Intenta nuevamente.'
+        );
         this.loading.set(false);
         this.confirmando.set(false); // Permitir reintentar si hay error
       }

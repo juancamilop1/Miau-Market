@@ -3,13 +3,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import Producto
 from datetime import date
+import re
 
 Usuario = get_user_model()
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ('id', 'Nombre', 'Apellido', 'Email', 'Telefono', 'Address', 'City', 'BirthDate', 'FechaRegistro', 'is_staff')
+        fields = ('id', 'Username', 'Nombre', 'Apellido', 'Email', 'Telefono', 'Address', 'City', 'BirthDate', 'FechaRegistro', 'is_staff')
         read_only_fields = ('id', 'FechaRegistro', 'is_staff')
 
 class RegistroSerializer(serializers.ModelSerializer):
@@ -17,11 +18,25 @@ class RegistroSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True, required=True)
     Telefono = serializers.CharField(required=True, max_length=20)
     Address = serializers.CharField(required=True, max_length=40)
+    Username = serializers.CharField(required=True, max_length=50)
 
     class Meta:
         model = Usuario
-        fields = ('Nombre', 'Apellido', 'Email', 'password', 'password2', 'Telefono', 
+        fields = ('Username', 'Nombre', 'Apellido', 'Email', 'password', 'password2', 'Telefono',
                  'Address', 'City', 'BirthDate')
+
+    def validate_Email(self, value):
+        return value.strip().lower()
+
+    def validate_Username(self, value):
+        username = value.strip().lower()
+        if not re.match(r'^[a-z0-9_]+$', username):
+            raise serializers.ValidationError(
+                'El usuario solo puede contener letras, numeros y guion bajo.'
+            )
+        if Usuario.objects.filter(Username__iexact=username).exists():
+            raise serializers.ValidationError('Este nombre de usuario ya esta registrado.')
+        return username
 
     def validate_BirthDate(self, value):
         """Validar que el usuario sea mayor de 18 años"""
@@ -66,9 +81,11 @@ class RegistroSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         password = validated_data.pop('password')
-        Email = validated_data.pop('Email')  # Get and remove Email from validated_data
+        Email = validated_data.pop('Email')
+        Username = validated_data.pop('Username')
         user = Usuario.objects.create_user(
-            Email=Email,  # Pass Email with correct case
+            Email=Email,
+            Username=Username,
             password=password,
             **validated_data
         )
@@ -86,4 +103,46 @@ class ProductoSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['Id_Products'] = data.pop('id')
         return data
+
+
+class AdminUsuarioUpdateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = Usuario
+        fields = (
+            'Username', 'Nombre', 'Apellido', 'Email', 'Telefono',
+            'Address', 'City', 'BirthDate', 'is_staff', 'is_superuser', 'is_active', 'password',
+        )
+
+    def validate_Email(self, value):
+        email = value.strip().lower()
+        qs = Usuario.objects.filter(Email__iexact=email)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Este correo ya esta registrado.')
+        return email
+
+    def validate_Username(self, value):
+        username = value.strip().lower()
+        if not re.match(r'^[a-z0-9_]+$', username):
+            raise serializers.ValidationError(
+                'El usuario solo puede contener letras, numeros y guion bajo.'
+            )
+        qs = Usuario.objects.filter(Username__iexact=username)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Este nombre de usuario ya esta registrado.')
+        return username
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 

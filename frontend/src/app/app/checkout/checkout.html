@@ -83,7 +83,7 @@
         <div *ngFor="let item of cart()" class="order-item">
           <img 
             *ngIf="item.product.imagen" 
-            [src]="item.product.imagen" 
+            [src]="getImageUrl(item.product.imagen)" 
             [alt]="item.product.name"
             class="order-item-image"
           />

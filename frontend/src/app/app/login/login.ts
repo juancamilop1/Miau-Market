@@ -16,7 +16,7 @@ export class Login {
   private auth = inject(AuthService);
   private api = inject(ApiService);
 
-  email = '';
+  login = '';
   password = '';
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
@@ -32,7 +32,7 @@ export class Login {
     ev.preventDefault();
     
     // Validación básica
-    if (!this.email || !this.password) {
+    if (!this.login || !this.password) {
       this.errorMessage.set('Por favor completa todos los campos');
       return;
     }
@@ -40,8 +40,7 @@ export class Login {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    // Llamada real a la API
-    this.api.login({ Email: this.email, password: this.password }).subscribe({
+    this.api.login({ login: this.login, password: this.password }).subscribe({
       next: (response) => {
         if (response.success) {
           // Guardar token
@@ -68,7 +67,7 @@ export class Login {
       error: (error) => {
         this.isLoading.set(false);
         if (error.status === 401) {
-          this.errorMessage.set('Email o contraseña incorrectos');
+          this.errorMessage.set('Usuario, correo o contrasena incorrectos');
         } else if (error.error?.error) {
           this.errorMessage.set(error.error.error);
         } else {

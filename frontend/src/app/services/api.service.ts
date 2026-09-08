@@ -7,7 +7,7 @@ import { EnvironmentService } from './environment.service';
 
 // Interfaces para los datos
 export interface LoginRequest {
-  Email: string;
+  login: string;
   password: string;
 }
 
@@ -30,6 +30,7 @@ export interface LoginResponse {
 }
 
 export interface RegisterRequest {
+  Username: string;
   Nombre: string;
   Apellido: string;
   Email: string;

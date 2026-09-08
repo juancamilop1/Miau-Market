@@ -1,0 +1,41 @@
+---
+description: Estándares generales del proyecto Miau Market
+alwaysApply: true
+---
+
+# Miau Market — buenas practicas
+
+## Codigo limpio
+
+- Cambios minimos y enfocados; no refactorizar lo no solicitado.
+- Reutilizar patrones existentes del proyecto antes de inventar abstracciones.
+- Sin comentarios obvios; solo logica de negocio no evidente.
+- Sin `print()` de debug en produccion; usar logging si hace falta.
+
+## Secretos y configuracion
+
+- Variables sensibles en `Backend/.env` (ver `.env.example`).
+- No commitear `.env`, claves API, passwords ni tokens.
+- Frontend: URLs del backend via `EnvironmentService`, no hardcodear IPs.
+
+## Backend (Django)
+
+- Permisos explicitos en vistas (`IsAdminUser`, `IsAuthenticated`).
+- Validar datos en servidor (precios, stock, usuario autenticado).
+- Pedidos/resenas: SQL parametrizado; preferir migraciones para cambios de esquema.
+
+## Frontend (Angular)
+
+- Token en `localStorage` via `auth.setToken()` tras login/registro.
+- Imagenes de producto via `EnvironmentService.getImageUrl()`.
+- Mensajes de error claros al usuario (403, 401, validacion).
+
+## Base de datos
+
+- Seguir regla `database.mdc` y `Data Base/ESQUEMA_BD.md`.
+- Nuevas tablas: migracion Django o script en `Data Base/sql/alter_*.sql`.
+
+## Documentacion
+
+- Cambios de esquema: actualizar `ESQUEMA_BD.md`.
+- Nuevas variables de entorno: actualizar `.env.example`.

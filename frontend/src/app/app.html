@@ -1,12 +1,12 @@
 <header class="app-header">
   <!-- MOBILE HEADER -->
   <div class="mobile-header" *ngIf="isMobile()">
-    <button class="mobile-menu-btn" (click)="toggleMobileMenu()" *ngIf="auth.isLogged()">
+    <button class="mobile-menu-btn" (click)="toggleMobileMenu()">
       <span class="hamburger-icon">☰</span>
     </button>
-    <div class="brand">
+    <a routerLink="/shop" class="brand">
       <img src="/miauMarket.png" alt="Logo MiauMarket" class="brand-logo" data-brand="logo" />
-    </div>
+    </a>
     <div class="mobile-header-actions" *ngIf="auth.isLogged()">
       <a class="cart-link-mobile" routerLink="/cart">
         🛒
@@ -25,10 +25,10 @@
   <div *ngIf="showMobileMenu()" class="mobile-menu-overlay" (click)="closeMobileMenu()">
     <div class="mobile-menu" (click)="$event.stopPropagation()">
       <div class="mobile-menu-header">
-        <h2>Menú</h2>
+        <h2>Menu</h2>
         <button class="close-btn" (click)="closeMobileMenu()">✕</button>
       </div>
-      
+
       <div class="mobile-user-info" *ngIf="auth.isLogged()">
         <div class="user-avatar">{{ auth.user()?.name?.charAt(0) }}{{ auth.user()?.Apellido?.charAt(0) }}</div>
         <div class="user-details">
@@ -42,7 +42,8 @@
           <span class="item-icon">🏪</span>
           <span class="item-text">Tienda</span>
         </a>
-        
+
+        <ng-container *ngIf="auth.isLogged()">
         <a class="mobile-menu-item" routerLink="/cart" (click)="closeMobileMenu()">
           <span class="item-icon">🛒</span>
           <span class="item-text">Carrito</span>
@@ -61,20 +62,37 @@
         
         <a *ngIf="auth.user()?.is_staff" class="mobile-menu-item admin-item" routerLink="/admin" (click)="closeMobileMenu()">
           <span class="item-icon">⚙️</span>
-          <span class="item-text">Administración</span>
+          <span class="item-text">Administracion</span>
         </a>
-        
+
         <div class="mobile-menu-divider"></div>
-        
-        <button class="mobile-menu-item" (click)="toggleTheme()">
+
+        <button class="mobile-menu-item" (click)="toggleTheme(); closeMobileMenu()">
           <span class="item-icon">🌓</span>
           <span class="item-text">Cambiar Tema</span>
         </button>
-        
+
         <button class="mobile-menu-item logout-item" (click)="logout(); closeMobileMenu()">
           <span class="item-icon">🚪</span>
-          <span class="item-text">Cerrar Sesión</span>
+          <span class="item-text">Cerrar Sesion</span>
         </button>
+        </ng-container>
+
+        <ng-container *ngIf="!auth.isLogged()">
+          <div class="mobile-menu-divider"></div>
+          <a class="mobile-menu-item" routerLink="/login" (click)="closeMobileMenu()">
+            <span class="item-icon">🔑</span>
+            <span class="item-text">Iniciar sesion</span>
+          </a>
+          <a class="mobile-menu-item" routerLink="/register" (click)="closeMobileMenu()">
+            <span class="item-icon">✨</span>
+            <span class="item-text">Registrarse</span>
+          </a>
+          <button class="mobile-menu-item" (click)="toggleTheme(); closeMobileMenu()">
+            <span class="item-icon">🌓</span>
+            <span class="item-text">Cambiar Tema</span>
+          </button>
+        </ng-container>
       </div>
     </div>
   </div>
@@ -102,15 +120,14 @@
     </div>
 
     <div class="header-center">
-      <div class="header-search" *ngIf="auth.isLogged() && showSearch()">
+      <div class="header-search" *ngIf="showSearch()">
         <input class="input" placeholder="Buscar productos..." [value]="auth.search()" (input)="auth.search.set($any($event.target).value)" />
       </div>
     </div>
 
     <div class="header-right">
-      <!-- Tienda y Carrito a la derecha cuando está logueado -->
+      <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
       <ng-container *ngIf="auth.isLogged()">
-        <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
         <a class="nav-link" routerLink="/my-orders" routerLinkActive="active">Mis Pedidos</a>
         <a class="nav-link cart-link" routerLink="/cart" routerLinkActive="active">
           Carrito
@@ -137,5 +154,5 @@
   <!-- El contenido de login/register aparece aquí -->
 </main>
 
-<!-- Chatbot flotante global (oculto en admin) -->
-<mm-chatbot *ngIf="auth.isLogged() && !isAdminPage()"></mm-chatbot>
+<!-- Chatbot flotante global (oculto en admin/dashboard) -->
+<mm-chatbot *ngIf="!isAdminPage()"></mm-chatbot>

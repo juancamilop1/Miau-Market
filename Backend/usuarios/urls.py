@@ -6,9 +6,9 @@ from .views import (
     VerificarProductosCaducadosView, ActualizarPerfilView,
     ProductReviewsView, UserReviewView, ProductRatingsView,
     GestionUsuariosView, ConvertirAdministradorView, EliminarUsuarioView,
-    BulkDeleteUsersView, BulkMakeAdminView
+    BulkDeleteUsersView, BulkMakeAdminView, ActualizarUsuarioAdminView
 )
-from .ai_views import ChatbotView
+from .ai_views import ChatbotView, ChatbotConfigView, MiauBotAprendizajeListView, MiauBotAprendizajeDetailView
 
 urlpatterns = [
     path('registro/', RegistroView.as_view(), name='registro'),
@@ -19,6 +19,9 @@ urlpatterns = [
     path('perfil/', ActualizarPerfilView.as_view(), name='perfil'),
     # Endpoint único de chatbot inteligente
     path('chatbot/', ChatbotView.as_view(), name='chatbot'),
+    path('chatbot/config/', ChatbotConfigView.as_view(), name='chatbot-config'),
+    path('gestion/miaubot/aprendizaje/', MiauBotAprendizajeListView.as_view(), name='miaubot-aprendizaje'),
+    path('gestion/miaubot/aprendizaje/<int:pk>/', MiauBotAprendizajeDetailView.as_view(), name='miaubot-aprendizaje-detail'),
     # Endpoints de productos
     path('productos/', ProductoListView.as_view(), name='producto-list'),
     path('productos/<int:id>/', ProductoDetailView.as_view(), name='producto-detail'),
@@ -38,6 +41,7 @@ urlpatterns = [
     path('ratings/', ProductRatingsView.as_view(), name='all-ratings'),
     # Endpoints de gestión de usuarios (Admin)
     path('gestion/usuarios/', GestionUsuariosView.as_view(), name='gestion-usuarios'),
+    path('gestion/usuarios/<int:user_id>/', ActualizarUsuarioAdminView.as_view(), name='actualizar-usuario-admin'),
     path('gestion/usuarios/<int:user_id>/convertir-admin/', ConvertirAdministradorView.as_view(), name='convertir-admin'),
     path('gestion/usuarios/<int:user_id>/eliminar/', EliminarUsuarioView.as_view(), name='eliminar-usuario'),
     # Endpoints de acciones masivas (Admin)

@@ -38,7 +38,20 @@
 			/>
 		</div>
 		<div class="field">
-			<label for="email">Correo electrónico *</label>
+			<label for="username">Nombre de usuario *</label>
+			<input 
+				id="username" 
+				type="text" 
+				class="input" 
+				placeholder="elige un nombre de usuario"
+				[(ngModel)]="username"
+				name="username"
+				required 
+				[disabled]="isLoading()"
+			/>
+		</div>
+		<div class="field">
+			<label for="email">Correo electronico *</label>
 			<input 
 				id="email" 
 				type="email" 

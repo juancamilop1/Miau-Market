@@ -49,7 +49,7 @@
         <div class="item-image">
           <img 
             *ngIf="item.product.imagen" 
-            [src]="item.product.imagen" 
+            [src]="getImageUrl(item.product.imagen)" 
             [alt]="item.product.name"
           />
           <div *ngIf="!item.product.imagen" class="no-image">📦</div>
