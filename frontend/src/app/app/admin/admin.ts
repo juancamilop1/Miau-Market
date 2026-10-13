@@ -5,12 +5,19 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 import { EnvironmentService } from '../../services/environment.service';
+import { UiOverlayService } from '../../services/ui-overlay.service';
+
+interface CategoriaCatalogo {
+  id: number;
+  Nombre: string;
+}
 
 interface Product {
   Id_Products?: number;
   Titulo: string;
   Descripcion: string;
-  Categoria: string;
+  categoria: number | null;
+  Categoria?: string;
   Precio: number;
   Stock: number;
   Fecha_Caducidad: string;  // Campo obligatorio para fecha de caducidad (formato YYYY-MM-DD)
@@ -199,13 +206,12 @@ export class Admin implements OnInit {
     return pages;
   });
 
-  // Categorías disponibles
-  categorias = ['Comida de Gato', 'Comida de Perro', 'Juguetes', 'Servicios'];
+  categorias = signal<CategoriaCatalogo[]>([]);
 
   newProduct = signal<Product>({
     Titulo: '',
     Descripcion: '',
-    Categoria: '',
+    categoria: null,
     Precio: 0,
     Stock: 0,
     Fecha_Caducidad: ''
@@ -220,7 +226,8 @@ export class Admin implements OnInit {
     private api: ApiService,
     private env: EnvironmentService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private overlays: UiOverlayService
   ) {
     // Efecto para resetear la página cuando cambia la búsqueda
     effect(() => {
@@ -247,6 +254,8 @@ export class Admin implements OnInit {
       setTimeout(() => this.checkIfMobile(), 0);
     }
 
+    this.loadCategorias();
+
     // Verificar si viene de una notificación
     this.route.queryParams.subscribe(params => {
       if (params['tab'] === 'pedidos') {
@@ -263,18 +272,26 @@ export class Admin implements OnInit {
     }
   }
 
+  loadCategorias() {
+    this.api.get<CategoriaCatalogo[]>('/usuarios/categorias/').subscribe({
+      next: (data) => this.categorias.set(data || []),
+      error: (error: any) => {
+        console.error('Error cargando categorías:', error);
+        this.errorMessage.set('No se pudieron cargar las categorías. Recarga la página.');
+      }
+    });
+  }
+
   loadProducts() {
     this.loading.set(true);
     this.api.get<Product[]>('/usuarios/productos/').subscribe(
       (data: Product[]) => {
-        console.log('Productos cargados:', data);
         this.products.set(data || []);
         this.loading.set(false);
         this.errorMessage.set(''); // Limpiar error si tenía uno
       },
       (error: any) => {
         console.error('Error cargando productos:', error);
-        console.error('Error details:', error.status, error.statusText, error.url);
         // No mostrar error para permitir agregar de todas formas
         this.loading.set(false);
         // Seguir permitiendo agregar productos aunque falle la carga
@@ -291,7 +308,7 @@ export class Admin implements OnInit {
       this.newProduct.set({
         Titulo: '',
         Descripcion: '',
-        Categoria: '',
+        categoria: null,
         Precio: 0,
         Stock: 0,
         Fecha_Caducidad: ''
@@ -338,7 +355,7 @@ export class Admin implements OnInit {
   saveProduct() {
     const product = this.newProduct();
     
-    if (!product.Titulo || !product.Categoria || product.Precio <= 0 || !product.Fecha_Caducidad) {
+    if (!product.Titulo || !product.categoria || product.Precio <= 0 || !product.Fecha_Caducidad) {
       this.errorMessage.set('Por favor completa todos los campos correctamente');
       return;
     }
@@ -350,7 +367,7 @@ export class Admin implements OnInit {
     const formData = new FormData();
     formData.append('Titulo', product.Titulo);
     formData.append('Descripcion', product.Descripcion);
-    formData.append('Categoria', product.Categoria);
+    formData.append('categoria', String(product.categoria));
     formData.append('Precio', Math.floor(product.Precio).toString());
     formData.append('Stock', product.Stock.toString());
     formData.append('Fecha_Caducidad', product.Fecha_Caducidad);
@@ -394,7 +411,6 @@ export class Admin implements OnInit {
   }
 
   deleteProduct(id: number | undefined) {
-    console.log('Intentando eliminar producto con ID:', id, typeof id);
     
     if (!id || id === undefined || id === null) {
       this.errorMessage.set('Error: ID de producto no válido');
@@ -403,7 +419,6 @@ export class Admin implements OnInit {
 
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
       this.loading.set(true);
-      console.log('Enviando DELETE a:', `/usuarios/productos/${id}/`);
       this.api.delete<void>(`/usuarios/productos/${id}/`).subscribe(
         () => {
           this.successMessage.set('Producto eliminado exitosamente');
@@ -513,9 +528,11 @@ export class Admin implements OnInit {
       password: '',
     };
     this.showEditModal.set(true);
+    this.overlays.register('admin-edit-user', () => this.closeEditModal());
   }
 
   closeEditModal() {
+    this.overlays.unregister('admin-edit-user');
     this.showEditModal.set(false);
     this.userToEdit.set(null);
     this.editFormData = this.emptyEditForm();
@@ -555,8 +572,6 @@ export class Admin implements OnInit {
   }
 
   toggleAdmin(user: User) {
-    console.log('esSuperusuario():', this.esSuperusuario());
-    console.log('auth.user():', this.auth.user());
     
     if (!this.esSuperusuario()) {
       this.errorMessage.set('Solo los superusuarios pueden crear administradores');
@@ -596,9 +611,11 @@ export class Admin implements OnInit {
     this.userToDelete.set(user);
     this.deleteConfirmationName.set('');
     this.showDeleteModal.set(true);
+    this.overlays.register('admin-delete-user', () => this.closeDeleteModal());
   }
 
   closeDeleteModal() {
+    this.overlays.unregister('admin-delete-user');
     this.showDeleteModal.set(false);
     this.userToDelete.set(null);
     this.deleteConfirmationName.set('');
@@ -725,9 +742,11 @@ export class Admin implements OnInit {
       return;
     }
     this.showBulkActions.set(true);
+    this.overlays.register('admin-bulk', () => this.closeBulkActions());
   }
 
   closeBulkActions() {
+    this.overlays.unregister('admin-bulk');
     this.showBulkActions.set(false);
   }
 
@@ -961,9 +980,11 @@ export class Admin implements OnInit {
     this.aprendizajeEdit.set(item);
     this.respuestaEditada.set(item.respuesta);
     this.showAprendizajeModal.set(true);
+    this.overlays.register('admin-aprendizaje', () => this.cerrarAprendizajeModal());
   }
 
   cerrarAprendizajeModal() {
+    this.overlays.unregister('admin-aprendizaje');
     this.showAprendizajeModal.set(false);
     this.aprendizajeEdit.set(null);
     this.respuestaEditada.set('');

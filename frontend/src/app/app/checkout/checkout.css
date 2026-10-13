@@ -38,30 +38,15 @@
   border: 2px solid #dc3545;
 }
 
-/* Overlay de procesamiento */
 .processing-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease;
+  pointer-events: all;
 }
 
 .processing-content {
-  background: var(--mm-white);
-  padding: 3rem 2.5rem;
-  border-radius: 16px;
+  width: min(400px, 100%);
+  padding: 2.5rem 2rem;
   text-align: center;
-  max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.4s ease;
+  animation: mm-scale-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .processing-content h2 {

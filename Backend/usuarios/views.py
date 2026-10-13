@@ -1,14 +1,20 @@
+import logging
+
 from rest_framework import generics, status
+
+logger = logging.getLogger(__name__)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
-from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer, AdminUsuarioUpdateSerializer
+from .serializers import (
+    RegistroSerializer, UsuarioSerializer, ProductoSerializer, AdminUsuarioUpdateSerializer, CategoriaSerializer,
+)
 from .pedidos_serializers import CrearPedidoSerializer
 from .notificaciones_serializers import NotificacionSerializer
 from django.db.models import Sum, Count
-from .models import Producto, Notificacion, Pedido
+from .models import Categoria, Producto, Notificacion, Pedido
 from .services import pedidos_service, ratings_service
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -167,9 +173,7 @@ class GestionUsuariosView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(f"Error al listar usuarios: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception('Error al listar usuarios')
             return Response({
                 'error': 'Error al obtener la lista de usuarios'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -222,7 +226,7 @@ class ConvertirAdministradorView(APIView):
                 'error': 'Usuario no encontrado'
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Error al convertir administrador: {str(e)}")
+            logger.exception('Error al convertir administrador')
             return Response({
                 'error': 'Error al modificar el usuario'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -337,7 +341,7 @@ class EliminarUsuarioView(APIView):
                 'error': 'Usuario no encontrado'
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Error al eliminar usuario: {str(e)}")
+            logger.exception('Error al eliminar usuario')
             return Response({
                 'error': 'Error al eliminar el usuario'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -389,9 +393,7 @@ class BulkDeleteUsersView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(f"Error en eliminación masiva: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception('Error en eliminación masiva')
             return Response({
                 'error': 'Error al eliminar usuarios'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -439,19 +441,25 @@ class BulkMakeAdminView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(f"Error en conversión masiva: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception('Error en conversión masiva')
             return Response({
                 'error': 'Error al convertir usuarios en administradores'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Vistas para Productos
+class CategoriaListView(generics.ListAPIView):
+    """Categorias activas del catalogo, en el orden definido por el administrador."""
+    serializer_class = CategoriaSerializer
+    permission_classes = [AllowAny]
+    queryset = Categoria.objects.filter(Activo=True)
+    pagination_class = None
+
+
 class ProductoListView(generics.ListCreateAPIView):
     """
     Lista todos los productos o crea uno nuevo (solo admin).
-    Para usuarios normales: solo muestra productos no caducados.
+    Para usuarios normales: oculta los productos perecederos ya caducados.
     Para admins: muestra todos los productos.
     """
     serializer_class = ProductoSerializer
@@ -459,17 +467,14 @@ class ProductoListView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         from datetime import date
-        
-        # Si es un usuario admin, mostrar todos los productos
+
+        productos = Producto.objects.select_related('categoria')
         if self.request.user.is_authenticated and self.request.user.is_staff:
-            return Producto.objects.all()
-        
-        # Para usuarios normales o no autenticados, filtrar productos caducados de categoría Comida
-        hoy = date.today()
-        # Mostrar todos los productos EXCEPTO los de Comida que ya caducaron (hoy o antes)
-        return Producto.objects.exclude(
-            Categoria='Comida',
-            Fecha_Caducidad__lte=hoy
+            return productos
+
+        return productos.exclude(
+            categoria__Perecedero=True,
+            Fecha_Caducidad__lte=date.today(),
         )
 
     def get_permissions(self):
@@ -492,7 +497,7 @@ class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Recupera, actualiza o elimina un producto (solo admin puede editar/eliminar).
     """
-    queryset = Producto.objects.all()
+    queryset = Producto.objects.select_related('categoria')
     serializer_class = ProductoSerializer
     lookup_field = 'id'
     parser_classes = (MultiPartParser, FormParser)
@@ -525,10 +530,11 @@ class CrearPedidoView(APIView):
         
         try:
             return Response(pedidos_service.listar_pedidos_admin(), status=status.HTTP_200_OK)
-        except Exception as e:
+        except Exception:
+            logger.exception('Error listando pedidos (admin)')
             return Response({
                 'success': False,
-                'error': str(e)
+                'error': 'No se pudieron cargar los pedidos. Intenta de nuevo.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
@@ -552,8 +558,12 @@ class CrearPedidoView(APIView):
             }, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Error creando pedido')
+            return Response(
+                {'success': False, 'error': 'No se pudo registrar el pedido. Intenta de nuevo.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ActualizarPedidoView(APIView):
@@ -571,12 +581,10 @@ class ActualizarPedidoView(APIView):
                 'error': 'Estado es requerido'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validar que el estado sea válido
-        estados_validos = ['Pendiente', 'Enviado', 'Entregado', 'Devuelto']
-        if nuevo_estado not in estados_validos:
+        if nuevo_estado not in Pedido.ESTADOS:
             return Response({
                 'success': False,
-                'error': f'Estado inválido. Valores permitidos: {", ".join(estados_validos)}'
+                'error': f'Estado inválido. Valores permitidos: {", ".join(Pedido.ESTADOS)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
@@ -587,8 +595,12 @@ class ActualizarPedidoView(APIView):
             }, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Error actualizando estado del pedido %s', pk)
+            return Response(
+                {'success': False, 'error': 'No se pudo actualizar el pedido. Intenta de nuevo.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class MisPedidosView(APIView):
@@ -603,8 +615,12 @@ class MisPedidosView(APIView):
                 pedidos_service.listar_pedidos_usuario(request.user.id),
                 status=status.HTTP_200_OK
             )
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Error listando pedidos del usuario')
+            return Response(
+                {'success': False, 'error': 'No se pudieron cargar tus pedidos. Intenta de nuevo.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class NotificacionesView(APIView):
@@ -693,7 +709,7 @@ class MarcarTodasLeidasView(APIView):
 
 class VerificarProductosCaducadosView(APIView):
     """
-    Verifica productos caducados de categoría Comida y notifica a los administradores.
+    Verifica productos perecederos caducados y notifica a los administradores.
     Se ejecuta automáticamente al cargar notificaciones.
     """
     permission_classes = [IsAuthenticated]
@@ -704,9 +720,8 @@ class VerificarProductosCaducadosView(APIView):
         try:
             hoy = date.today()
             
-            # Buscar TODOS los productos de categoría Comida que ya caducaron (hoy o antes)
             productos_caducados = Producto.objects.filter(
-                Categoria='Comida',
+                categoria__Perecedero=True,
                 Fecha_Caducidad__lte=hoy
             )
             
@@ -732,11 +747,11 @@ class VerificarProductosCaducadosView(APIView):
                             dias_caducado = (hoy - producto.Fecha_Caducidad).days
                             
                             if dias_caducado == 0:
-                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) ha caducado hoy.'
+                                mensaje = f'El producto "{producto.Titulo}" (ID {producto.id}) ha caducado hoy.'
                             elif dias_caducado == 1:
-                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) caducó ayer.'
+                                mensaje = f'El producto "{producto.Titulo}" (ID {producto.id}) caducó ayer.'
                             else:
-                                mensaje = f'El producto de comida "{producto.Titulo}" (ID {producto.id}) caducó hace {dias_caducado} días.'
+                                mensaje = f'El producto "{producto.Titulo}" (ID {producto.id}) caducó hace {dias_caducado} días.'
                             
                             Notificacion.objects.create(
                                 usuario=admin,
@@ -764,10 +779,11 @@ class VerificarProductosCaducadosView(APIView):
                 'notificaciones_creadas': 0
             }, status=status.HTTP_200_OK)
             
-        except Exception as e:
+        except Exception:
+            logger.exception('Error verificando productos caducados')
             return Response({
                 'success': False,
-                'error': str(e)
+                'error': 'No se pudo verificar la caducidad de productos.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -850,9 +866,7 @@ class ActualizarPerfilView(APIView):
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            import traceback
-            print("Error en ActualizarPerfilView:")
-            print(traceback.format_exc())
+            logger.exception('Error en ActualizarPerfilView')
             return Response({
                 'error': 'Error al actualizar el perfil'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

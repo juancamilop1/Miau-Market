@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import Producto
+from .models import Categoria, Producto
 from datetime import date
 import re
 
@@ -45,6 +45,8 @@ class RegistroSerializer(serializers.ModelSerializer):
         
         if age < 18:
             raise serializers.ValidationError("Debes ser mayor de 18 años para registrarte.")
+        if age > 120:
+            raise serializers.ValidationError("La edad debe estar entre 18 y 120 años.")
         
         return value
 
@@ -92,10 +94,24 @@ class RegistroSerializer(serializers.ModelSerializer):
         return user
 
 
+class CategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categoria
+        fields = ('id', 'Codigo', 'Nombre', 'Icono', 'Animal', 'Tema', 'Perecedero', 'Orden')
+
+
 class ProductoSerializer(serializers.ModelSerializer):
+    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.filter(Activo=True))
+    Categoria = serializers.CharField(source='categoria.Nombre', read_only=True)
+    Categoria_Codigo = serializers.CharField(source='categoria.Codigo', read_only=True)
+    Perecedero = serializers.BooleanField(source='categoria.Perecedero', read_only=True)
+
     class Meta:
         model = Producto
-        fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by')
+        fields = (
+            'id', 'Titulo', 'Descripcion', 'categoria', 'Categoria', 'Categoria_Codigo', 'Perecedero',
+            'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by',
+        )
         read_only_fields = ('id', 'Fecha_creacion', 'created_by')
     
     def to_representation(self, instance):

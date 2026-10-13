@@ -22,7 +22,7 @@
   </div>
 
   <!-- MOBILE MENU OVERLAY -->
-  <div *ngIf="showMobileMenu()" class="mobile-menu-overlay" (click)="closeMobileMenu()">
+  <div *ngIf="showMobileMenu()" class="mm-overlay mm-overlay--drawer" (click)="closeMobileMenu()" role="presentation">
     <div class="mobile-menu" (click)="$event.stopPropagation()">
       <div class="mobile-menu-header">
         <h2>Menu</h2>
@@ -153,6 +153,8 @@
   <router-outlet />
   <!-- El contenido de login/register aparece aquí -->
 </main>
+
+<mm-toast />
 
 <!-- Chatbot flotante global (oculto en admin/dashboard) -->
 <mm-chatbot *ngIf="!isAdminPage()"></mm-chatbot>

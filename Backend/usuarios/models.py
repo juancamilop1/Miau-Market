@@ -53,11 +53,48 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return f'{self.Nombre} {self.Apellido}'
 
 
+class Categoria(models.Model):
+    ANIMALES = (
+        ('gato', 'Gato'),
+        ('perro', 'Perro'),
+        ('general', 'General'),
+    )
+    # Temas que MiauBot detecta en la conversacion (miaubot_memoria.detectar_temas).
+    TEMAS = (
+        ('comida', 'Comida'),
+        ('juguete', 'Juguete'),
+        ('accesorio', 'Accesorio'),
+        ('higiene', 'Higiene'),
+        ('salud', 'Salud'),
+        ('servicio', 'Servicio'),
+        ('general', 'General'),
+    )
+
+    id = models.AutoField(primary_key=True, db_column='Id_Category')
+    Codigo = models.CharField(max_length=30, unique=True)
+    Nombre = models.CharField(max_length=100, unique=True)
+    Icono = models.CharField(max_length=8, blank=True)
+    Animal = models.CharField(max_length=10, choices=ANIMALES, default='general')
+    Tema = models.CharField(max_length=20, choices=TEMAS, default='general')
+    Perecedero = models.BooleanField(default=False)
+    Orden = models.PositiveSmallIntegerField(default=0)
+    Activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'Categories'
+        ordering = ['Orden', 'Nombre']
+
+    def __str__(self):
+        return self.Nombre
+
+
 class Producto(models.Model):
     id = models.AutoField(primary_key=True, db_column='Id_Products')
     Titulo = models.CharField(max_length=150)
     Descripcion = models.TextField(null=True, blank=True)
-    Categoria = models.CharField(max_length=100, null=True, blank=True)
+    categoria = models.ForeignKey(
+        Categoria, on_delete=models.PROTECT, db_column='Id_Category', related_name='productos'
+    )
     Precio = models.IntegerField()
     Stock = models.IntegerField(default=0)
     Imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
@@ -232,7 +269,10 @@ class MiauBotAprendizaje(models.Model):
     respuesta = models.TextField()
     palabras_clave = models.TextField(blank=True, help_text='Auto-generadas desde la pregunta')
     animal = models.CharField(max_length=20, default='general')
-    usuario_id = models.IntegerField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        Usuario, null=True, blank=True, on_delete=models.SET_NULL,
+        db_column='usuario_id', related_name='aprendizajes_miaubot',
+    )
     estado = models.CharField(max_length=20, choices=ESTADOS, default='pendiente')
     veces_usada = models.PositiveIntegerField(default=0)
     Fecha_Creacion = models.DateTimeField(auto_now_add=True)
@@ -249,7 +289,9 @@ class MiauBotAprendizaje(models.Model):
 
 class MiauBotMemoriaUsuario(models.Model):
     """Memoria persistente del chatbot por usuario: mascotas y temas de seguimiento."""
-    usuario_id = models.IntegerField(unique=True)
+    usuario = models.OneToOneField(
+        Usuario, on_delete=models.CASCADE, db_column='usuario_id', related_name='memoria_miaubot',
+    )
     mascotas = models.JSONField(default=list, blank=True)
     seguimiento = models.JSONField(default=dict, blank=True)
     mascota_activa_idx = models.IntegerField(default=0)

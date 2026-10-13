@@ -7,18 +7,18 @@ Usuario = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Verifica productos de categoria Comida caducados y notifica a los administradores'
+    help = 'Verifica productos perecederos caducados hoy y notifica a los administradores'
 
     def handle(self, *args, **kwargs):
         hoy = date.today()
 
         productos_caducados = Producto.objects.filter(
-            Categoria='Comida',
+            categoria__Perecedero=True,
             Fecha_Caducidad=hoy
         )
 
         if not productos_caducados.exists():
-            self.stdout.write('No hay productos de comida caducados hoy')
+            self.stdout.write('No hay productos perecederos caducados hoy')
             return
 
         admins = Usuario.objects.filter(is_staff=True)
@@ -37,7 +37,7 @@ class Command(BaseCommand):
                     Notificacion.objects.create(
                         usuario=admin,
                         Titulo='Producto Caducado',
-                        Mensaje=f'El producto de comida "{producto.Titulo}" (ID {producto.id}) ha caducado hoy.',
+                        Mensaje=f'El producto "{producto.Titulo}" (ID {producto.id}) ha caducado hoy.',
                         Tipo='producto_caducado'
                     )
 
@@ -47,5 +47,5 @@ class Command(BaseCommand):
                         Notificacion.objects.filter(usuario=admin).exclude(id__in=ids).delete()
 
         self.stdout.write(self.style.SUCCESS(
-            f'{productos_caducados.count()} productos de comida caducados procesados'
+            f'{productos_caducados.count()} productos perecederos caducados procesados'
         ))

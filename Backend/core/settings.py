@@ -1,15 +1,8 @@
-"""
-Django settings for Miau Market.
-Credenciales via variables de entorno (.env). Ver Backend/.env.example
-"""
 
 import os
 from pathlib import Path
 
-import pymysql
 from dotenv import load_dotenv
-
-pymysql.install_as_MySQLdb()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -38,26 +31,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        'CORS_ALLOWED_ORIGINS',
-        'http://localhost:4200,http://127.0.0.1:4200',
-    ).split(',')
-    if origin.strip()
-]
-CORS_ALLOW_ALL_ORIGINS = DEBUG and os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'True').lower() in ('1', 'true', 'yes')
-CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'core.urls'
 
@@ -78,19 +60,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+_sqlite_name = os.environ.get('SQLITE_PATH', 'db.sqlite3')
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'miau_market'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'use_unicode': True,
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / _sqlite_name,
     }
 }
 
@@ -123,6 +97,11 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
 }
+
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'True').lower() in ('1', 'true', 'yes')
+_cors = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if _cors:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors.split(',') if o.strip()]
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')

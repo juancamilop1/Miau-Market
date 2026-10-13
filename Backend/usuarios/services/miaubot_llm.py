@@ -27,14 +27,14 @@ def _format_price(precio) -> str:
 def _catalogo_texto(limite: int = 25) -> str:
     ratings = obtener_ratings_dict()
     lineas = []
-    for p in Producto.objects.filter(Stock__gt=0).order_by('-Stock')[:limite]:
+    for p in Producto.objects.filter(Stock__gt=0).select_related('categoria').order_by('-Stock')[:limite]:
         r = ratings.get(p.id, {})
         extra = ''
         if r.get('promedio', 0) > 0:
             extra = f" | Rating {r['promedio']:.1f}/5 ({r['total']} resenas)"
         desc = (p.Descripcion or '')[:120]
         lineas.append(
-            f"- ID {p.id} | {p.Titulo} | {p.Categoria} | "
+            f"- ID {p.id} | {p.Titulo} | {p.categoria.Nombre} | "
             f"{_format_price(p.Precio)} | Stock {p.Stock}{extra}"
             + (f" | {desc}" if desc else '')
         )

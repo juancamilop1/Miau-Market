@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     RegistroView, LoginView, UsuarioListView, UsuarioDetailView,
-    ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
+    CategoriaListView, ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
     MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView, MarcarTodasLeidasView,
     VerificarProductosCaducadosView, ActualizarPerfilView,
     ProductReviewsView, UserReviewView, ProductRatingsView,
@@ -15,36 +15,29 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('', UsuarioListView.as_view(), name='usuario-list'),
     path('<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
-    # Endpoint de perfil
     path('perfil/', ActualizarPerfilView.as_view(), name='perfil'),
-    # Endpoint único de chatbot inteligente
     path('chatbot/', ChatbotView.as_view(), name='chatbot'),
     path('chatbot/config/', ChatbotConfigView.as_view(), name='chatbot-config'),
     path('gestion/miaubot/aprendizaje/', MiauBotAprendizajeListView.as_view(), name='miaubot-aprendizaje'),
     path('gestion/miaubot/aprendizaje/<int:pk>/', MiauBotAprendizajeDetailView.as_view(), name='miaubot-aprendizaje-detail'),
-    # Endpoints de productos
+    path('categorias/', CategoriaListView.as_view(), name='categoria-list'),
     path('productos/', ProductoListView.as_view(), name='producto-list'),
     path('productos/<int:id>/', ProductoDetailView.as_view(), name='producto-detail'),
-    # Endpoints de pedidos
     path('pedidos/', CrearPedidoView.as_view(), name='pedidos'),
     path('pedidos/<int:pk>/', ActualizarPedidoView.as_view(), name='actualizar-pedido'),
     path('mis-pedidos/', MisPedidosView.as_view(), name='mis-pedidos'),
-    # Endpoints de notificaciones
     path('notificaciones/', NotificacionesView.as_view(), name='notificaciones'),
     path('notificaciones/<int:pk>/leer/', MarcarNotificacionLeidaView.as_view(), name='marcar-leida'),
     path('notificaciones/leer-todas/', MarcarTodasLeidasView.as_view(), name='marcar-todas-leidas'),
     path('notificaciones/verificar-caducados/', VerificarProductosCaducadosView.as_view(), name='verificar-caducados'),
-    # Endpoints de reseñas de productos
     path('productos/<int:product_id>/reviews/', ProductReviewsView.as_view(), name='product-reviews'),
     path('productos/<int:product_id>/my-review/', UserReviewView.as_view(), name='user-review'),
     path('productos/<int:product_id>/rating/', ProductRatingsView.as_view(), name='product-rating'),
     path('ratings/', ProductRatingsView.as_view(), name='all-ratings'),
-    # Endpoints de gestión de usuarios (Admin)
     path('gestion/usuarios/', GestionUsuariosView.as_view(), name='gestion-usuarios'),
     path('gestion/usuarios/<int:user_id>/', ActualizarUsuarioAdminView.as_view(), name='actualizar-usuario-admin'),
     path('gestion/usuarios/<int:user_id>/convertir-admin/', ConvertirAdministradorView.as_view(), name='convertir-admin'),
     path('gestion/usuarios/<int:user_id>/eliminar/', EliminarUsuarioView.as_view(), name='eliminar-usuario'),
-    # Endpoints de acciones masivas (Admin)
     path('gestion/usuarios/bulk-delete/', BulkDeleteUsersView.as_view(), name='bulk-delete-users'),
     path('gestion/usuarios/bulk-make-admin/', BulkMakeAdminView.as_view(), name='bulk-make-admin'),
 ]

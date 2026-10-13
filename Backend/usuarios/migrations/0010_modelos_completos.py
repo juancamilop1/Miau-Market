@@ -116,21 +116,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            database_operations=[
-                migrations.RunSQL(
-                    sql="""
-                        CREATE TABLE IF NOT EXISTS authtoken_token (
-                            `key` VARCHAR(40) NOT NULL PRIMARY KEY,
-                            created DATETIME(6) NOT NULL,
-                            user_id INT NOT NULL,
-                            UNIQUE KEY authtoken_token_user_id_key (user_id),
-                            CONSTRAINT authtoken_token_user_id_fk
-                                FOREIGN KEY (user_id) REFERENCES Users(Id_User)
-                                ON DELETE CASCADE
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-                    """,
-                    reverse_sql="DROP TABLE IF EXISTS authtoken_token;",
-                ),
-            ],
+            database_operations=[],
         ),
     ]

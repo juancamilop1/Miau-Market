@@ -5,17 +5,28 @@ import { RouterLink } from '@angular/router';
 import { AuthService, Product } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 import { EnvironmentService } from '../../services/environment.service';
+import { UiOverlayService } from '../../services/ui-overlay.service';
 import { StarRating } from '../star-rating/star-rating';
+import { forkJoin } from 'rxjs';
 
 interface ProductFromDB {
   Id_Products: number;
   Titulo: string;
   Descripcion: string;
+  categoria: number;
   Categoria: string;
+  Perecedero: boolean;
   Precio: number;
   Stock: number;
   Imagen?: string;
   Fecha_Caducidad?: string;
+}
+
+interface CategoriaCatalogo {
+  id: number;
+  Codigo: string;
+  Nombre: string;
+  Icono: string;
 }
 
 interface ProductDisplay {
@@ -26,8 +37,15 @@ interface ProductDisplay {
   imagen?: string;
   stock: number;
   dbId: number;
+  categoriaId: number;
   categoria: string;
+  perecedero: boolean;
   fechaCaducidad?: string;
+}
+
+interface SeccionCategoria {
+  categoria: CategoriaCatalogo;
+  productos: ProductDisplay[];
 }
 
 interface Review {
@@ -64,6 +82,7 @@ export class Shop implements OnInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
   private env = inject(EnvironmentService);
+  private overlays = inject(UiOverlayService);
 
   // Todos los productos
   allProducts = signal<ProductDisplay[]>([]);
@@ -87,21 +106,11 @@ export class Shop implements OnInit {
   miReview = signal<Review | null>(null);
   editandoReview = signal(false);
 
-  // Carruseles por categoría
   highlighted = signal<ProductDisplay[]>([]);
-  highlightedIndex = signal(0);
 
-  comidaGato = signal<ProductDisplay[]>([]);
-  comidaGatoIndex = signal(0);
-
-  comidaPerro = signal<ProductDisplay[]>([]);
-  comidaPerroIndex = signal(0);
-
-  juguetes = signal<ProductDisplay[]>([]);
-  juguetesIndex = signal(0);
-
-  servicios = signal<ProductDisplay[]>([]);
-  serviciosIndex = signal(0);
+  // Un carrusel por cada categoría activa que tenga productos
+  secciones = signal<SeccionCategoria[]>([]);
+  private indicesCarrusel = signal<Record<number, number>>({});
 
   itemsPerCarousel = 4;
 
@@ -111,49 +120,54 @@ export class Shop implements OnInit {
 
   loadProductsFromDB() {
     this.loading.set(true);
-    this.api.get<ProductFromDB[]>('/usuarios/productos/').subscribe(
-      (data: ProductFromDB[]) => {
-        if (data && data.length > 0) {
-          // Convertir productos
-          const products = data.map(p => ({
-            id: `db_${p.Id_Products}`,
-            name: p.Titulo,
-            price: p.Precio,
-            description: p.Descripcion,
-            imagen: p.Imagen ? this.env.getImageUrl(p.Imagen) : undefined,
-            stock: p.Stock,
-            dbId: p.Id_Products,
-            categoria: p.Categoria,
-            fechaCaducidad: p.Fecha_Caducidad
-          }));
+    forkJoin({
+      categorias: this.api.get<CategoriaCatalogo[]>('/usuarios/categorias/'),
+      productos: this.api.get<ProductFromDB[]>('/usuarios/productos/'),
+    }).subscribe({
+      next: ({ categorias, productos }) => {
+        const products = (productos || []).map(p => ({
+          id: `db_${p.Id_Products}`,
+          name: p.Titulo,
+          price: p.Precio,
+          description: p.Descripcion,
+          imagen: p.Imagen ? this.env.getImageUrl(p.Imagen) : undefined,
+          stock: p.Stock,
+          dbId: p.Id_Products,
+          categoriaId: p.categoria,
+          categoria: p.Categoria,
+          perecedero: p.Perecedero,
+          fechaCaducidad: p.Fecha_Caducidad
+        }));
 
-          this.allProducts.set(products);
-          this.organizarPorCategoria(products);
-        } else {
-          this.allProducts.set([]);
-        }
+        this.allProducts.set(products);
+        this.organizarPorCategoria(products, categorias || []);
         this.loading.set(false);
       },
-      (error: any) => {
+      error: (error: any) => {
         console.error('Error cargando productos:', error);
         this.allProducts.set([]);
+        this.secciones.set([]);
         this.loading.set(false);
       }
-    );
+    });
   }
 
-  organizarPorCategoria(products: ProductDisplay[]) {
+  organizarPorCategoria(products: ProductDisplay[], categorias: CategoriaCatalogo[]) {
     // Productos destacados: los 4 con más stock
     const highlighted = [...products]
       .sort((a, b) => b.stock - a.stock)
       .slice(0, 4);
     this.highlighted.set(highlighted);
 
-    // Organizar por categoría
-    this.comidaGato.set(products.filter(p => p.categoria === 'Comida de Gato'));
-    this.comidaPerro.set(products.filter(p => p.categoria === 'Comida de Perro'));
-    this.juguetes.set(products.filter(p => p.categoria === 'Juguetes'));
-    this.servicios.set(products.filter(p => p.categoria === 'Servicios'));
+    this.secciones.set(
+      categorias
+        .map(categoria => ({
+          categoria,
+          productos: products.filter(p => p.categoriaId === categoria.id)
+        }))
+        .filter(seccion => seccion.productos.length > 0)
+    );
+    this.indicesCarrusel.set({});
   }
 
   filtered() {
@@ -179,10 +193,12 @@ export class Shop implements OnInit {
   verDetalles(product: ProductDisplay) {
     this.productoSeleccionado.set(product);
     this.mostrarModal.set(true);
+    this.overlays.register('shop-product', () => this.cerrarModal());
     this.cargarReviewsDelProducto(product.dbId);
   }
 
   cerrarModal() {
+    this.overlays.unregister('shop-product');
     this.mostrarModal.set(false);
     setTimeout(() => {
       this.productoSeleccionado.set(null);
@@ -214,89 +230,31 @@ export class Shop implements OnInit {
     return fechaObj.toLocaleDateString('es-ES', opciones);
   }
 
-  // Métodos para controlar carruseles
-  nextSlide(category: 'highlighted' | 'comidaGato' | 'comidaPerro' | 'juguetes' | 'servicios') {
-    let items: ProductDisplay[];
-    let currentIndex: number;
-    let setter: (index: number) => void;
-
-    switch(category) {
-      case 'highlighted':
-        items = this.highlighted();
-        currentIndex = this.highlightedIndex();
-        setter = (i) => this.highlightedIndex.set(i);
-        break;
-      case 'comidaGato':
-        items = this.comidaGato();
-        currentIndex = this.comidaGatoIndex();
-        setter = (i) => this.comidaGatoIndex.set(i);
-        break;
-      case 'comidaPerro':
-        items = this.comidaPerro();
-        currentIndex = this.comidaPerroIndex();
-        setter = (i) => this.comidaPerroIndex.set(i);
-        break;
-      case 'juguetes':
-        items = this.juguetes();
-        currentIndex = this.juguetesIndex();
-        setter = (i) => this.juguetesIndex.set(i);
-        break;
-      case 'servicios':
-        items = this.servicios();
-        currentIndex = this.serviciosIndex();
-        setter = (i) => this.serviciosIndex.set(i);
-        break;
-    }
-
-    const nextIndex = (currentIndex + this.itemsPerCarousel) % items.length;
-    setter(nextIndex);
+  indiceCarrusel(categoriaId: number): number {
+    return this.indicesCarrusel()[categoriaId] ?? 0;
   }
 
-  prevSlide(category: 'highlighted' | 'comidaGato' | 'comidaPerro' | 'juguetes' | 'servicios') {
-    let items: ProductDisplay[];
-    let currentIndex: number;
-    let setter: (index: number) => void;
+  nextSlide(seccion: SeccionCategoria) {
+    const id = seccion.categoria.id;
+    const nextIndex = (this.indiceCarrusel(id) + this.itemsPerCarousel) % seccion.productos.length;
+    this.indicesCarrusel.update(indices => ({ ...indices, [id]: nextIndex }));
+  }
 
-    switch(category) {
-      case 'highlighted':
-        items = this.highlighted();
-        currentIndex = this.highlightedIndex();
-        setter = (i) => this.highlightedIndex.set(i);
-        break;
-      case 'comidaGato':
-        items = this.comidaGato();
-        currentIndex = this.comidaGatoIndex();
-        setter = (i) => this.comidaGatoIndex.set(i);
-        break;
-      case 'comidaPerro':
-        items = this.comidaPerro();
-        currentIndex = this.comidaPerroIndex();
-        setter = (i) => this.comidaPerroIndex.set(i);
-        break;
-      case 'juguetes':
-        items = this.juguetes();
-        currentIndex = this.juguetesIndex();
-        setter = (i) => this.juguetesIndex.set(i);
-        break;
-      case 'servicios':
-        items = this.servicios();
-        currentIndex = this.serviciosIndex();
-        setter = (i) => this.serviciosIndex.set(i);
-        break;
-    }
-
-    const prevIndex = currentIndex === 0 ? Math.max(0, items.length - this.itemsPerCarousel) : currentIndex - this.itemsPerCarousel;
-    setter(prevIndex);
+  prevSlide(seccion: SeccionCategoria) {
+    const id = seccion.categoria.id;
+    const actual = this.indiceCarrusel(id);
+    const prevIndex = actual === 0
+      ? Math.max(0, seccion.productos.length - this.itemsPerCarousel)
+      : actual - this.itemsPerCarousel;
+    this.indicesCarrusel.update(indices => ({ ...indices, [id]: prevIndex }));
   }
 
   getVisibleProducts(products: ProductDisplay[], startIndex: number): ProductDisplay[] {
     return products.slice(startIndex, startIndex + this.itemsPerCarousel);
   }
 
-  // Método para determinar si un producto de comida está caducado
   getEstadoFrescura(product: ProductDisplay): string | null {
-    // Solo mostrar para productos de categoría Comida de Gato o Comida de Perro
-    if ((product.categoria !== 'Comida de Gato' && product.categoria !== 'Comida de Perro') || !product.fechaCaducidad) {
+    if (!product.perecedero || !product.fechaCaducidad) {
       return null;
     }
 

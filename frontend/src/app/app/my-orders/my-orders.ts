@@ -55,7 +55,6 @@ export class MyOrders implements OnInit {
     
     this.api.get<Pedido[]>('/usuarios/mis-pedidos/').subscribe({
       next: (data) => {
-        console.log('Pedidos recibidos:', data);
         // Asegurarse de que data sea un array
         if (Array.isArray(data)) {
           this.pedidos.set(data);

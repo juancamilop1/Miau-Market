@@ -84,11 +84,9 @@ export class Register {
 
     this.api.register(registerData).subscribe({
       next: (response) => {
-        console.log('Registro exitoso:', response);
         // Registro exitoso, ahora hacer login automático
         this.api.login({ login: this.username || this.email, password: this.password }).subscribe({
           next: (loginResponse) => {
-            console.log('Login automático exitoso:', loginResponse);
             if (loginResponse.success && loginResponse.token) {
               this.auth.setToken(loginResponse.token);
               this.auth.login({
@@ -120,10 +118,7 @@ export class Register {
       },
       error: (error) => {
         this.isLoading.set(false);
-        console.error('Error completo:', error);
-        console.error('Error status:', error.status);
-        console.error('Error body:', error.error);
-        
+
         // Mejor manejo de errores
         let errorMsg = 'Error al registrar. Por favor intenta de nuevo.';
         
@@ -153,8 +148,7 @@ export class Register {
         } else if (error.status === 0) {
           errorMsg = 'Error de conexión. Verifica que el servidor esté ejecutándose.';
         }
-        
-        console.warn('Mensaje de error final:', errorMsg);
+
         this.errorMessage.set(errorMsg);
       }
     });

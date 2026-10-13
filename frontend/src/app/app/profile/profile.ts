@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
+import { UiToastService } from '../../services/ui-toast.service';
 
 @Component({
   selector: 'app-profile',
@@ -16,6 +17,7 @@ export class Profile implements OnInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
   private router = inject(Router);
+  private toasts = inject(UiToastService);
 
   // Modo edición
   editando = signal(false);
@@ -79,8 +81,6 @@ export class Profile implements OnInit {
     }
 
     // Cargar datos del usuario
-    console.log('Usuario completo en perfil:', user);
-    console.log('Ciudad del usuario:', user.Ciudad);
     this.nombre = user.name || '';
     this.apellido = user.Apellido || '';
     this.email = user.email || '';
@@ -89,7 +89,6 @@ export class Profile implements OnInit {
     this.ciudad = user.Ciudad || '';
     this.edad = user.Edad ? user.Edad.toString() : '';
     
-    console.log('Ciudad asignada:', this.ciudad);
   }
 
   activarEdicion() {
@@ -122,26 +121,15 @@ export class Profile implements OnInit {
     this.error.set('');
     this.mensaje.set('');
 
-    console.log('Guardando cambios...', {
-      nombre: this.nombre,
-      apellido: this.apellido,
-      telefono: this.telefono,
-      direccion: this.direccion,
-      ciudad: this.ciudad,
-      edad: this.edad
-    });
-
     // Validaciones
     if (!this.nombre || !this.apellido || !this.telefono || !this.direccion || !this.ciudad || !this.edad) {
       this.error.set('Todos los campos son obligatorios');
-      console.error('Validación fallida: campos vacíos');
       return;
     }
 
     const edadNum = parseInt(this.edad);
     if (isNaN(edadNum) || edadNum < 18 || edadNum > 120) {
       this.error.set('La edad debe ser un número entre 18 y 120');
-      console.error('Validación fallida: edad inválida', this.edad);
       return;
     }
 
@@ -178,12 +166,11 @@ export class Profile implements OnInit {
       datosActualizar.password_nueva = this.passwordNueva;
     }
 
-    console.log('Enviando datos:', datosActualizar);
 
     this.api.put('/usuarios/perfil/', datosActualizar).subscribe({
       next: (response: any) => {
-        console.log('Respuesta exitosa:', response);
         this.mensaje.set('Perfil actualizado exitosamente');
+        this.toasts.success('Perfil actualizado correctamente');
         this.cargando.set(false);
         this.editando.set(false);
         this.mostrarCambioPassword.set(false);
@@ -212,14 +199,12 @@ export class Profile implements OnInit {
         }, 3000);
       },
       error: (err) => {
-        console.error('Error actualizando perfil:', err);
-        console.error('Error status:', err.status);
-        console.error('Error body:', err.error);
-        if (err.status === 400 && err.error?.error) {
-          this.error.set(err.error.error);
-        } else {
-          this.error.set('Error al actualizar el perfil. Intenta nuevamente.');
-        }
+        const msg =
+          err.status === 400 && err.error?.error
+            ? err.error.error
+            : 'Error al actualizar el perfil. Intenta nuevamente.';
+        this.error.set(msg);
+        this.toasts.error(msg);
         this.cargando.set(false);
       }
     });

@@ -1,9 +1,5 @@
 .my-orders-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  min-height: calc(100vh - 100px);
-  background: var(--mm-gray-100);
+  min-height: calc(100vh - var(--header-h) - 2rem);
 }
 
 /* Header */

@@ -1,7 +1,16 @@
-<section class="shop-hero">
-  <div class="shop-intro">
-    <h1>Bienvenido a MiauMarket</h1>
-    <p>Encuentra todo para consentir a tu gato: juguetes, comida, accesorios y más.</p>
+<div class="mm-page mm-page--shop">
+<section class="shop-hero mm-page-hero shop-hero--banner">
+  <div class="shop-hero__pattern" aria-hidden="true"></div>
+  <div class="shop-hero__inner">
+    <div class="shop-intro">
+      <h1>Todo para consentir a tu <span class="shop-hero__accent">mascota</span></h1>
+      <p>Comida, juguetes, accesorios y servicios con envío en Colombia. Precios en COP.</p>
+      <div class="shop-hero__chips">
+        <span>🐱 Gatos</span>
+        <span>🐶 Perros</span>
+        <span>📦 Stock en tiempo real</span>
+      </div>
+    </div>
   </div>
   
   <!-- Mobile search bar -->
@@ -127,23 +136,23 @@
   </div>
 </section>
 
-<!-- Comida de Gato (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && comidaGato().length > 0">
+<!-- Un carrusel por categoría (solo si no hay búsqueda) -->
+<ng-container *ngIf="!auth.search()">
+<section class="products" *ngFor="let seccion of secciones()">
   <div class="carousel-header">
-    <h2>🐱 Comida de Gato</h2>
+    <h2><span *ngIf="seccion.categoria.Icono" aria-hidden="true">{{ seccion.categoria.Icono }} </span>{{ seccion.categoria.Nombre }}</h2>
   </div>
   <div class="carousel-container">
-    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
+    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide(seccion)" [disabled]="seccion.productos.length <= itemsPerCarousel" [attr.aria-label]="'Anteriores en ' + seccion.categoria.Nombre">
       ❮
     </button>
     <div class="product-grid">
-      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaGato(), comidaGatoIndex())">
+      <div class="product-card" *ngFor="let p of getVisibleProducts(seccion.productos, indiceCarrusel(seccion.categoria.id))">
         <div class="product-media">
-          <img 
-            *ngIf="p.imagen" 
-            [src]="p.imagen" 
+          <img
+            *ngIf="p.imagen"
+            [src]="p.imagen"
             [alt]="p.name"
-            
           />
           <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
             📦
@@ -166,155 +175,24 @@
         </div>
       </div>
     </div>
-    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaGato')" [disabled]="comidaGato().length <= 4">
+    <button class="carousel-btn carousel-btn-next" (click)="nextSlide(seccion)" [disabled]="seccion.productos.length <= itemsPerCarousel" [attr.aria-label]="'Siguientes en ' + seccion.categoria.Nombre">
       ❯
     </button>
   </div>
 </section>
-
-<!-- Comida de Perro (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && comidaPerro().length > 0">
-  <div class="carousel-header">
-    <h2>🐶 Comida de Perro</h2>
-  </div>
-  <div class="carousel-container">
-    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
-      ❮
-    </button>
-    <div class="product-grid">
-      <div class="product-card" *ngFor="let p of getVisibleProducts(comidaPerro(), comidaPerroIndex())">
-        <div class="product-media">
-          <img 
-            *ngIf="p.imagen" 
-            [src]="p.imagen" 
-            [alt]="p.name"
-            
-          />
-          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
-            📦
-          </div>
-        </div>
-        <div class="product-body">
-          <h3>{{p.name}}</h3>
-          <p class="muted">{{p.description}}</p>
-          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
-            {{ getEstadoFrescura(p) }}
-          </p>
-          <div class="product-footer">
-            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-            <p class="stock">Stock: {{ p.stock }}</p>
-          </div>
-          <div class="product-actions">
-            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('comidaPerro')" [disabled]="comidaPerro().length <= 4">
-      ❯
-    </button>
-  </div>
-</section>
-
-<!-- Juguetes (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && juguetes().length > 0">
-  <div class="carousel-header">
-    <h2>Juguetes</h2>
-  </div>
-  <div class="carousel-container">
-    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('juguetes')" [disabled]="juguetes().length <= 4">
-      ❮
-    </button>
-    <div class="product-grid">
-      <div class="product-card" *ngFor="let p of getVisibleProducts(juguetes(), juguetesIndex())">
-        <div class="product-media">
-          <img 
-            *ngIf="p.imagen" 
-            [src]="p.imagen" 
-            [alt]="p.name"
-            
-          />
-          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
-            📦
-          </div>
-        </div>
-        <div class="product-body">
-          <h3>{{p.name}}</h3>
-          <p class="muted">{{p.description}}</p>
-          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
-            {{ getEstadoFrescura(p) }}
-          </p>
-          <div class="product-footer">
-            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-            <p class="stock">Stock: {{ p.stock }}</p>
-          </div>
-          <div class="product-actions">
-            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('juguetes')" [disabled]="juguetes().length <= 4">
-      ❯
-    </button>
-  </div>
-</section>
-
-<!-- Servicios (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && servicios().length > 0">
-  <div class="carousel-header">
-    <h2>Productos utiles</h2>
-  </div>
-  <div class="carousel-container">
-    <button class="carousel-btn carousel-btn-prev" (click)="prevSlide('servicios')" [disabled]="servicios().length <= 4">
-      ❮
-    </button>
-    <div class="product-grid">
-      <div class="product-card" *ngFor="let p of getVisibleProducts(servicios(), serviciosIndex())">
-        <div class="product-media">
-          <img 
-            *ngIf="p.imagen" 
-            [src]="p.imagen" 
-            [alt]="p.name"
-            
-          />
-          <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
-            📦
-          </div>
-        </div>
-        <div class="product-body">
-          <h3>{{p.name}}</h3>
-          <p class="muted">{{p.description}}</p>
-          <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
-            {{ getEstadoFrescura(p) }}
-          </p>
-          <div class="product-footer">
-            <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
-            <p class="stock">Stock: {{ p.stock }}</p>
-          </div>
-          <div class="product-actions">
-            <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="carousel-btn carousel-btn-next" (click)="nextSlide('servicios')" [disabled]="servicios().length <= 4">
-      ❯
-    </button>
-  </div>
-</section>
+</ng-container>
 
 <!-- Sin resultados ni búsqueda -->
-<div *ngIf="!auth.search() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
-  <p>No hay productos disponibles</p>
+<div *ngIf="!auth.search() && !loading() && allProducts().length === 0" class="mm-empty-state mm-card mm-card--static">
+  <span class="empty-icon" aria-hidden="true">🐾</span>
+  <p>No hay productos disponibles en este momento</p>
+</div>
+
 </div>
 
 <!-- Modal de detalles del producto -->
-<div class="modal-overlay" *ngIf="mostrarModal()" (click)="cerrarModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()" *ngIf="productoSeleccionado()">
+<div class="mm-overlay" *ngIf="mostrarModal()" (click)="cerrarModal()" role="presentation">
+  <div class="mm-modal modal-content shop-product-modal" (click)="$event.stopPropagation()" *ngIf="productoSeleccionado()" role="dialog" aria-modal="true" aria-labelledby="shop-modal-title">
     
     <div class="modal-body">
       <!-- Columna izquierda: Imagen y Reseñas -->

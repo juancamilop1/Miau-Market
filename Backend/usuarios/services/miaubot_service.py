@@ -7,7 +7,7 @@ import re
 import random
 from dataclasses import dataclass, field
 
-from ..models import Producto
+from ..models import Categoria, Producto
 from .ratings_service import obtener_ratings_dict
 from .miaubot_knowledge import (
     buscar_conocimiento,
@@ -38,13 +38,13 @@ def _cargar_productos():
     ratings = obtener_ratings_dict()
     productos = []
     for p in Producto.objects.filter(Stock__gt=0).values(
-        'id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock'
+        'id', 'Titulo', 'Descripcion', 'categoria__Nombre', 'Precio', 'Stock'
     ):
         productos.append({
             'id': p['id'],
             'nombre': p['Titulo'],
             'descripcion': p['Descripcion'] or '',
-            'categoria': p['Categoria'] or 'General',
+            'categoria': p['categoria__Nombre'] or 'General',
             'precio': p['Precio'],
             'stock': p['Stock'],
         })
@@ -108,11 +108,17 @@ def _extraer_perfil(textos: list[str]) -> PerfilMascota:
             perfil.tamano = 'grande'
             perfil.animal = 'perro'
 
+    texto_original = ' '.join(textos)
     m_nombre = re.search(
-        r'(?:se llama|llama|nombre es|mi (?:gato|gata|perro|perra|mascota))\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]{2,20})',
-        ' '.join(textos),
-        re.IGNORECASE,
+        r'(?:se llama|llama|nombre es)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]{2,20})', texto_original, re.IGNORECASE
     )
+    if not m_nombre:
+        m_nombre = re.search(
+            r'mi (?:gato|gata|perro|perra|mascota)\s+'
+            r'(?!(?:se|es|tiene|esta|está|no|ya|come|quiere|necesita)\b)([A-ZÁÉÍÓÚÑa-záéíóúñ]{2,20})',
+            texto_original,
+            re.IGNORECASE,
+        )
     if m_nombre:
         perfil.nombre = m_nombre.group(1).capitalize()
 
@@ -136,16 +142,12 @@ def _ref_mascota(perfil: PerfilMascota) -> str:
 
 
 def _categorias_por_tema(perfil: PerfilMascota, temas: set[str]) -> list[str]:
-    cats = []
-    animal = perfil.animal
-    for tema in temas:
-        if tema == 'comida':
-            cats.append('Comida de Gato' if animal == 'gato' else 'Comida de Perro')
-        elif tema == 'juguete':
-            cats.append('Juguetes')
-        elif tema in ('higiene', 'accesorio'):
-            cats.extend(['Servicios', 'Juguetes'])
-    return cats
+    if not temas:
+        return []
+    categorias = Categoria.objects.filter(Activo=True, Tema__in=temas)
+    if perfil.animal in ('gato', 'perro'):
+        categorias = categorias.filter(Animal__in=(perfil.animal, 'general'))
+    return list(categorias.values_list('Nombre', flat=True))
 
 
 def _buscar_por_categoria(perfil: PerfilMascota, categorias: list[str], limite: int = 3):
@@ -230,8 +232,7 @@ def _buscar_productos(texto: str, perfil: PerfilMascota, limite: int = 3, temas_
             return por_cat, ratings
 
     if perfil.animal in ('gato', 'perro') and not temas:
-        cat_default = 'Comida de Gato' if perfil.animal == 'gato' else 'Comida de Perro'
-        por_cat, ratings = _buscar_por_categoria(perfil, [cat_default], limite)
+        por_cat, ratings = _buscar_por_categoria(perfil, _categorias_por_tema(perfil, {'comida'}), limite)
         if por_cat:
             return por_cat, ratings
 

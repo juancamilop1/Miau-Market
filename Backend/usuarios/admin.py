@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    DetallePedido, MiauBotAprendizaje, MiauBotConfig, MiauBotConocimiento, MiauBotFrase,
+    Categoria, DetallePedido, MiauBotAprendizaje, MiauBotConfig, MiauBotConocimiento, MiauBotFrase,
     Notificacion, Pedido, Producto, ResenaProducto, Usuario,
 )
 
@@ -13,11 +13,19 @@ class UsuarioAdmin(admin.ModelAdmin):
     list_filter = ('is_staff', 'is_active')
 
 
+@admin.register(Categoria)
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'Codigo', 'Nombre', 'Animal', 'Tema', 'Perecedero', 'Orden', 'Activo')
+    search_fields = ('Codigo', 'Nombre')
+    list_filter = ('Activo', 'Animal', 'Tema', 'Perecedero')
+    list_editable = ('Orden', 'Activo')
+
+
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'Titulo', 'Categoria', 'Precio', 'Stock', 'Fecha_Caducidad')
-    search_fields = ('Titulo', 'Categoria')
-    list_filter = ('Categoria',)
+    list_display = ('id', 'Titulo', 'categoria', 'Precio', 'Stock', 'Fecha_Caducidad')
+    search_fields = ('Titulo', 'categoria__Nombre')
+    list_filter = ('categoria',)
 
 
 class DetallePedidoInline(admin.TabularInline):

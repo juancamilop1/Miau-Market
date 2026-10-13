@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { EnvironmentService } from '../../services/environment.service';
 import { AuthService } from '../../auth.service';
+import { UiOverlayService } from '../../services/ui-overlay.service';
 
 interface ChatAction {
   label: string;
@@ -29,6 +30,7 @@ export class Chatbot {
   private envService = inject(EnvironmentService);
   auth = inject(AuthService);
   private router = inject(Router);
+  private overlays = inject(UiOverlayService);
 
   open = false;
   currentMessage = '';
@@ -64,8 +66,13 @@ export class Chatbot {
   };
 
   toggle() {
-    this.open = !this.open;
-    if (this.open && !this.hasShownGreeting) {
+    if (this.open) {
+      this.closePanel();
+      return;
+    }
+    this.open = true;
+    this.overlays.register('chatbot', () => this.closePanel());
+    if (!this.hasShownGreeting) {
       this.hasShownGreeting = true;
       if (this.auth.isLogged()) {
         this.addWelcomeMessage();
@@ -73,6 +80,11 @@ export class Chatbot {
         this.addAuthMessage();
       }
     }
+  }
+
+  private closePanel() {
+    this.open = false;
+    this.overlays.unregister('chatbot');
   }
 
   sendMessage() {

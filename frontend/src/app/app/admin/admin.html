@@ -116,10 +116,10 @@
   </div>
 
   <!-- Mensajes -->
-  <div class="alert alert-success" *ngIf="successMessage()">
+  <div class="mm-alert mm-alert--success" *ngIf="successMessage()">
     {{ successMessage() }}
   </div>
-  <div class="alert alert-error" *ngIf="errorMessage()" (click)="errorMessage.set('')" style="cursor: pointer;">
+  <div class="mm-alert mm-alert--error" *ngIf="errorMessage()" (click)="errorMessage.set('')" style="cursor: pointer;">
     {{ errorMessage() }} (Haz clic para cerrar)
   </div>
 
@@ -159,11 +159,11 @@
       <label>Categoría</label>
       <select 
         class="input"
-        [(ngModel)]="newProduct().Categoria"
+        [(ngModel)]="newProduct().categoria"
       >
-        <option value="">Selecciona una categoría</option>
-        <option *ngFor="let cat of categorias" [value]="cat">
-          {{ cat }}
+        <option [ngValue]="null">Selecciona una categoría</option>
+        <option *ngFor="let cat of categorias()" [ngValue]="cat.id">
+          {{ cat.Nombre }}
         </option>
       </select>
     </div>
@@ -742,8 +742,8 @@
   </div>
 
   <!-- ==================== MODAL DE ACCIONES MASIVAS ==================== -->
-  <div *ngIf="showBulkActions()" class="modal-overlay" (click)="closeBulkActions()">
-    <div class="modal-content bulk-actions-modal" (click)="$event.stopPropagation()">
+  <div *ngIf="showBulkActions()" class="mm-overlay modal-overlay" (click)="closeBulkActions()">
+    <div class="mm-modal modal-content bulk-actions-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header">
         <h2>⚡ Acciones Masivas</h2>
         <p class="subtitle">{{ selectedUsers().size }} usuario{{ selectedUsers().size !== 1 ? 's' : '' }} seleccionado{{ selectedUsers().size !== 1 ? 's' : '' }}</p>
@@ -778,8 +778,8 @@
   </div>
 
   <!-- ==================== MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ==================== -->
-  <div *ngIf="showDeleteModal()" class="modal-overlay" (click)="closeDeleteModal()">
-    <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+  <div *ngIf="showDeleteModal()" class="mm-overlay modal-overlay" (click)="closeDeleteModal()">
+    <div class="mm-modal modal-content delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header">
         <div class="warning-icon">⚠️</div>
         <h2>Confirmar Eliminación</h2>
@@ -836,8 +836,8 @@
   </div>
 
   <!-- MODAL EDITAR USUARIO -->
-  <div *ngIf="showEditModal()" class="modal-overlay" (click)="closeEditModal()">
-    <div class="modal-content edit-user-modal" (click)="$event.stopPropagation()">
+  <div *ngIf="showEditModal()" class="mm-overlay modal-overlay" (click)="closeEditModal()">
+    <div class="mm-modal modal-content edit-user-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header edit-header">
         <div>
           <h2>Editar usuario</h2>
@@ -915,8 +915,8 @@
   </div>
 
   <!-- MODAL CORREGIR APRENDIZAJE MIAUBOT -->
-  <div *ngIf="showAprendizajeModal()" class="modal-overlay" (click)="cerrarAprendizajeModal()">
-    <div class="modal-content aprendizaje-modal" (click)="$event.stopPropagation()">
+  <div *ngIf="showAprendizajeModal()" class="mm-overlay modal-overlay" (click)="cerrarAprendizajeModal()">
+    <div class="mm-modal modal-content aprendizaje-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header edit-header">
         <div>
           <h2>Corregir respuesta</h2>

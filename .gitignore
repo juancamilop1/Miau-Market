@@ -4,8 +4,7 @@ Backend/venv/
 Backend/.venv/
 Backend/**/__pycache__/
 Backend/**/*.pyc
-Backend/media/
-Backend/db.sqlite3
+# db.sqlite3 se versiona con datos demo (ver README)
 
 # Node / Angular
 frontend/node_modules/
@@ -23,3 +22,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+miau_market_backup*.sql
+*.sql.backup
+*.mwb.bak
