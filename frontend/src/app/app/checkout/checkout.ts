@@ -1,11 +1,13 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, signal, OnInit, PLATFORM_ID, effect } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 import { EnvironmentService } from '../../services/environment.service';
+import { UiOverlayService } from '../../services/ui-overlay.service';
+import { UiToastService } from '../../services/ui-toast.service';
 
 interface OrderData {
   Total: number;
@@ -41,6 +43,9 @@ export class Checkout implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
   private env = inject(EnvironmentService);
+  private platformId = inject(PLATFORM_ID);
+  private overlays = inject(UiOverlayService);
+  private toasts = inject(UiToastService);
 
   loading = signal(false);
   errorMessage = signal('');
@@ -58,10 +63,23 @@ export class Checkout implements OnInit {
   // Items seleccionados del carrito
   selectedCartItems = signal<any[]>([]);
 
+  constructor() {
+    effect(() => {
+      const busy = this.loading() || this.confirmando();
+      if (busy) {
+        this.overlays.register('checkout-processing', () => {});
+      } else {
+        this.overlays.unregister('checkout-processing');
+      }
+    });
+  }
+
   ngOnInit() {
-    // Obtener items seleccionados del sessionStorage
-    const selectedIdsJson = sessionStorage.getItem('selectedCartItems');
-    const selectedIds = selectedIdsJson ? JSON.parse(selectedIdsJson) : [];
+    let selectedIds: string[] = [];
+    if (isPlatformBrowser(this.platformId)) {
+      const selectedIdsJson = sessionStorage.getItem('selectedCartItems');
+      selectedIds = selectedIdsJson ? JSON.parse(selectedIdsJson) : [];
+    }
     
     // Filtrar el carrito para obtener solo items seleccionados
     const allCartItems = this.auth.cart();
@@ -129,7 +147,9 @@ export class Checkout implements OnInit {
 
     // Validar datos
     if (!this.direccion || !this.telefono) {
-      this.errorMessage.set('Por favor completa la dirección y el teléfono');
+      const msg = 'Por favor completa la dirección y el teléfono';
+      this.errorMessage.set(msg);
+      this.toasts.error(msg);
       return;
     }
 
@@ -196,11 +216,14 @@ export class Checkout implements OnInit {
     // Enviar pedido al backend
     this.api.post('/usuarios/pedidos/', orderData).subscribe(
       () => {
-        this.successMessage.set('¡Pedido confirmado exitosamente! Redirigiendo a tus pedidos...');
+        const okMsg = '¡Pedido confirmado! Te redirigimos a Mis Pedidos.';
+        this.successMessage.set(okMsg);
+        this.toasts.success(okMsg);
         this.loading.set(false);
         
-        // Limpiar sessionStorage
-        sessionStorage.removeItem('selectedCartItems');
+        if (isPlatformBrowser(this.platformId)) {
+          sessionStorage.removeItem('selectedCartItems');
+        }
         
         // Remover solo los items seleccionados del carrito
         const selectedIds = this.selectedCartItems().map(item => item.product.id);
@@ -213,11 +236,11 @@ export class Checkout implements OnInit {
       },
       (error: any) => {
         const backendError = error?.error?.error || error?.error?.message;
-        this.errorMessage.set(
-          backendError || 'Error al procesar el pedido. Intenta nuevamente.'
-        );
+        const msg = backendError || 'Error al procesar el pedido. Intenta nuevamente.';
+        this.errorMessage.set(msg);
+        this.toasts.error(msg);
         this.loading.set(false);
-        this.confirmando.set(false); // Permitir reintentar si hay error
+        this.confirmando.set(false);
       }
     );
   }

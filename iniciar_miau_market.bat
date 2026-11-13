@@ -39,11 +39,20 @@ if not exist "%BACKEND%\.env" (
     echo [2/5] Archivo .env encontrado
 )
 
+set "DB_IS_SQLITE=0"
+findstr /i /b /x /c:"DB_ENGINE=sqlite" "%BACKEND%\.env" >nul
+if not errorlevel 1 set "DB_IS_SQLITE=1"
+if "%DB_IS_SQLITE%"=="1" (
+    echo       DB_ENGINE=sqlite ^(sin MySQL^)
+    goto env_ok
+)
+
 findstr /i /b /c:"DB_PASSWORD=tu_" /c:"DB_PASSWORD=CAMBIAR" /c:"DB_PASSWORD=changeme" /c:"DB_PASSWORD=your_" "%BACKEND%\.env" >nul
 if not errorlevel 1 goto error_env_password
 findstr /b /x /c:"DB_PASSWORD=" "%BACKEND%\.env" >nul
 if not errorlevel 1 goto error_env_password
 echo       DB_PASSWORD configurado
+:env_ok
 
 REM --- Backend: dependencias y migraciones ---
 echo [3/5] Instalando dependencias backend...
@@ -57,6 +66,10 @@ if errorlevel 1 goto error_pip
 echo [4/5] Aplicando migraciones...
 python manage.py migrate --noinput
 if errorlevel 1 goto error_migrate
+if "%DB_IS_SQLITE%"=="1" (
+    python manage.py seed_demo
+    if errorlevel 1 goto error_migrate
+)
 
 REM --- Frontend: dependencias ---
 echo [5/5] Verificando dependencias frontend...

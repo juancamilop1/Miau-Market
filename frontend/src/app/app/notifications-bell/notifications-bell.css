@@ -59,7 +59,7 @@
   border: 1px solid var(--mm-border, #2a2a2a);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
   animation: slideDown 0.2s ease;
@@ -231,12 +231,9 @@
 
 .overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: transparent;
-  z-index: 999;
+  z-index: calc(var(--z-dropdown) - 1);
 }
 
 /* Responsive */

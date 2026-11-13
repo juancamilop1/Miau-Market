@@ -55,8 +55,28 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
 
 class CatCategoria(models.Model):
     """Catalogo de categorias. Transaccional referencia por FK a id; codigo estable en API."""
+    ANIMALES = (
+        ('gato', 'Gato'),
+        ('perro', 'Perro'),
+        ('general', 'General'),
+    )
+    # Temas que MiauBot detecta en la conversacion (miaubot_memoria.detectar_temas).
+    TEMAS = (
+        ('comida', 'Comida'),
+        ('juguete', 'Juguete'),
+        ('accesorio', 'Accesorio'),
+        ('higiene', 'Higiene'),
+        ('salud', 'Salud'),
+        ('servicio', 'Servicio'),
+        ('general', 'General'),
+    )
+
     codigo = models.CharField(max_length=40, unique=True)
     nombre = models.CharField(max_length=100, unique=True)
+    icono = models.CharField(max_length=8, blank=True)
+    animal = models.CharField(max_length=10, choices=ANIMALES, default='general')
+    tema = models.CharField(max_length=20, choices=TEMAS, default='general')
+    perecedero = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
     orden = models.PositiveSmallIntegerField(default=0)
 
@@ -306,7 +326,10 @@ class MiauBotAprendizaje(models.Model):
     respuesta = models.TextField()
     palabras_clave = models.TextField(blank=True, help_text='Auto-generadas desde la pregunta')
     animal = models.CharField(max_length=20, default='general')
-    usuario_id = models.IntegerField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        Usuario, null=True, blank=True, on_delete=models.SET_NULL,
+        db_column='usuario_id', related_name='aprendizajes_miaubot',
+    )
     estado = models.CharField(max_length=20, choices=ESTADOS, default='pendiente')
     veces_usada = models.PositiveIntegerField(default=0)
     Fecha_Creacion = models.DateTimeField(auto_now_add=True)
@@ -323,7 +346,9 @@ class MiauBotAprendizaje(models.Model):
 
 class MiauBotMemoriaUsuario(models.Model):
     """Memoria persistente del chatbot por usuario: mascotas y temas de seguimiento."""
-    usuario_id = models.IntegerField(unique=True)
+    usuario = models.OneToOneField(
+        Usuario, on_delete=models.CASCADE, db_column='usuario_id', related_name='memoria_miaubot',
+    )
     mascotas = models.JSONField(default=list, blank=True)
     seguimiento = models.JSONField(default=dict, blank=True)
     mascota_activa_idx = models.IntegerField(default=0)

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NotificacionesService, Notificacion } from '../../services/notificaciones.service';
 import { AuthService } from '../../auth.service';
+import { UiOverlayService } from '../../services/ui-overlay.service';
 
 @Component({
   selector: 'app-notifications-bell',
@@ -15,7 +16,8 @@ export class NotificationsBell implements OnInit {
   notifService = inject(NotificacionesService);
   auth = inject(AuthService);
   router = inject(Router);
-  
+  private overlays = inject(UiOverlayService);
+
   showPanel = signal(false);
   
   ngOnInit() {
@@ -26,7 +28,18 @@ export class NotificationsBell implements OnInit {
   }
   
   togglePanel() {
-    this.showPanel.update(val => !val);
+    const next = !this.showPanel();
+    this.showPanel.set(next);
+    if (next) {
+      this.overlays.register('notifications', () => this.closePanel());
+    } else {
+      this.overlays.unregister('notifications');
+    }
+  }
+
+  closePanel() {
+    this.overlays.unregister('notifications');
+    this.showPanel.set(false);
   }
   
   clickNotificacion(notif: Notificacion, event: Event) {
@@ -38,8 +51,8 @@ export class NotificationsBell implements OnInit {
     }
     
     // Cerrar el panel
-    this.showPanel.set(false);
-    
+    this.closePanel();
+
     // Redirigir según el tipo de notificación
     const user = this.auth.user();
     

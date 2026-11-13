@@ -1,20 +1,15 @@
-<div class="profile-container">
-  <div class="profile-header">
+<div class="mm-page profile-container">
+  <header class="mm-page-hero profile-header">
     <h1>Mi Perfil</h1>
-    <p class="subtitle">Administra tu información personal</p>
-  </div>
+    <p class="mm-page-hero__sub">Administra tu información personal</p>
+  </header>
 
-  <!-- Mensajes -->
-  <div class="alert alert-success" *ngIf="mensaje()">
-    ✓ {{ mensaje() }}
-  </div>
-  <div class="alert alert-error" *ngIf="error()">
-    ✗ {{ error() }}
-  </div>
+  <div class="mm-alert mm-alert--success" *ngIf="mensaje()">✓ {{ mensaje() }}</div>
+  <div class="mm-alert mm-alert--error" *ngIf="error()">✗ {{ error() }}</div>
 
   <div class="profile-content">
     <!-- Información del perfil -->
-    <div class="profile-card">
+    <div class="profile-card mm-card mm-card--static">
       <div class="card-header">
         <h2>Información Personal</h2>
         <button 

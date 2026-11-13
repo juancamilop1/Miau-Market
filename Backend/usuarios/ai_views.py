@@ -17,7 +17,7 @@ class ChatbotRateThrottle(AnonRateThrottle):
 
 
 class ChatbotView(generics.GenericAPIView):
-    """MiauBot 100% local — productos reales + conocimiento en BD."""
+    """MiauBoT productos reales + conocimiento en BD."""
     serializer_class = ChatbotSerializer
     permission_classes = [AllowAny]
     throttle_classes = [ChatbotRateThrottle]
@@ -42,11 +42,10 @@ class ChatbotView(generics.GenericAPIView):
             result = procesar_mensaje(message, conversation_history, context)
             return Response(result, status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except Exception:
             logger.exception('Error en chatbot')
             return Response({
                 'success': False,
-                'error': str(e),
                 'response': 'Hubo un problema. Intenta de nuevo en un momento.',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

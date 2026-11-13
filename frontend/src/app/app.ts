@@ -3,13 +3,15 @@ import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { Chatbot } from './app/chatbot/chatbot';
 import { NotificationsBell } from './app/notifications-bell/notifications-bell';
+import { MmToast } from './app/mm-toast/mm-toast';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './auth.service';
+import { UiOverlayService } from './services/ui-overlay.service';
 import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Chatbot, NotificationsBell, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Chatbot, NotificationsBell, MmToast, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -27,7 +29,8 @@ export class App implements OnInit {
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object, 
     public auth: AuthService,
-    private router: Router
+    private router: Router,
+    private overlays: UiOverlayService
   ) {
     // Aplicar tema guardado al iniciar en el navegador
     if (isPlatformBrowser(this.platformId)) {
@@ -38,14 +41,12 @@ export class App implements OnInit {
         root.classList.remove('theme-light');
         root.classList.add('theme-dark');
         root.setAttribute('data-mm-theme', 'dark');
-        console.log('MiauMarket: aplicando tema dark desde localStorage');
         this.applyBrandAssets('dark');
       } else {
         // Asegurarse de que el tema light está aplicado por defecto
         root.classList.remove('theme-dark');
         root.classList.add('theme-light');
         root.setAttribute('data-mm-theme', 'light');
-        console.log('MiauMarket: aplicando tema light');
         this.applyBrandAssets('light');
       }
       
@@ -100,7 +101,6 @@ export class App implements OnInit {
       root.classList.add('theme-light');
       root.setAttribute('data-mm-theme', 'light');
       localStorage.setItem('mm-theme', 'light');
-      console.log('MiauMarket: toggleTheme -> light');
       this.applyBrandAssets('light');
     } else {
       // Cambiar a dark
@@ -108,7 +108,6 @@ export class App implements OnInit {
       root.classList.add('theme-dark');
       root.setAttribute('data-mm-theme', 'dark');
       localStorage.setItem('mm-theme', 'dark');
-      console.log('MiauMarket: toggleTheme -> dark');
       this.applyBrandAssets('dark');
     }
   }
@@ -159,10 +158,17 @@ export class App implements OnInit {
 
   // Mobile menu functions
   toggleMobileMenu() {
-    this.showMobileMenu.update(val => !val);
+    const next = !this.showMobileMenu();
+    this.showMobileMenu.set(next);
+    if (next) {
+      this.overlays.register('mobile-menu', () => this.closeMobileMenu());
+    } else {
+      this.overlays.unregister('mobile-menu');
+    }
   }
 
   closeMobileMenu() {
+    this.overlays.unregister('mobile-menu');
     this.showMobileMenu.set(false);
   }
 
@@ -171,7 +177,6 @@ export class App implements OnInit {
       // Usar matchMedia para mejor detección móvil
       const isMobileDevice = window.matchMedia('(max-width: 768px)').matches;
       this.isMobile.set(isMobileDevice);
-      console.log('Mobile detection:', isMobileDevice, 'Width:', window.innerWidth);
     }
   }
 }

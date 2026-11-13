@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../auth.service';
@@ -15,6 +16,7 @@ export class Cart {
   auth = inject(AuthService);
   router = inject(Router);
   private env = inject(EnvironmentService);
+  private platformId = inject(PLATFORM_ID);
   
   // Set para mantener los IDs de productos seleccionados
   selectedItems = signal<Set<string>>(new Set());
@@ -105,8 +107,9 @@ export class Cart {
       return;
     }
     
-    // Guardar IDs de items seleccionados en sessionStorage
-    const selectedIds = Array.from(this.selectedItems());
-    sessionStorage.setItem('selectedCartItems', JSON.stringify(selectedIds));
+    if (isPlatformBrowser(this.platformId)) {
+      const selectedIds = Array.from(this.selectedItems());
+      sessionStorage.setItem('selectedCartItems', JSON.stringify(selectedIds));
+    }
   }
 }

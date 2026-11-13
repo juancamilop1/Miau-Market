@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import Producto
+from .models import CatCategoria, Producto
 from datetime import date
 import re
 
@@ -45,6 +45,8 @@ class RegistroSerializer(serializers.ModelSerializer):
         
         if age < 18:
             raise serializers.ValidationError("Debes ser mayor de 18 años para registrarte.")
+        if age > 120:
+            raise serializers.ValidationError("La edad debe estar entre 18 y 120 años.")
         
         return value
 
@@ -92,21 +94,40 @@ class RegistroSerializer(serializers.ModelSerializer):
         return user
 
 
+class CategoriaSerializer(serializers.ModelSerializer):
+    Codigo = serializers.CharField(source='codigo', read_only=True)
+    Nombre = serializers.CharField(source='nombre', read_only=True)
+    Icono = serializers.CharField(source='icono', read_only=True)
+    Animal = serializers.CharField(source='animal', read_only=True)
+    Tema = serializers.CharField(source='tema', read_only=True)
+    Perecedero = serializers.BooleanField(source='perecedero', read_only=True)
+    Orden = serializers.IntegerField(source='orden', read_only=True)
+
+    class Meta:
+        model = CatCategoria
+        fields = ('id', 'Codigo', 'Nombre', 'Icono', 'Animal', 'Tema', 'Perecedero', 'Orden')
+
+
 class ProductoSerializer(serializers.ModelSerializer):
+    categoria = serializers.PrimaryKeyRelatedField(
+        queryset=CatCategoria.objects.filter(activo=True), required=False, allow_null=True
+    )
     categoria_codigo = serializers.CharField(required=False, allow_blank=True, write_only=False)
 
     class Meta:
         model = Producto
         fields = (
-            'id', 'Titulo', 'Descripcion', 'Categoria', 'categoria_codigo',
+            'id', 'Titulo', 'Descripcion', 'categoria', 'Categoria', 'categoria_codigo',
             'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by',
         )
         read_only_fields = ('id', 'Fecha_creacion', 'created_by')
 
     def validate(self, attrs):
-        from .models import CatCategoria
-
         codigo = attrs.pop('categoria_codigo', None)
+        cat = attrs.get('categoria')
+        if cat:
+            attrs['Categoria'] = cat.nombre
+            return attrs
         if codigo:
             cat = CatCategoria.objects.filter(codigo=codigo, activo=True).first()
             if not cat:
@@ -127,6 +148,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['Id_Products'] = data.pop('id')
         data['categoria_codigo'] = instance.categoria.codigo if instance.categoria_id else None
+        data['Categoria_Codigo'] = data['categoria_codigo']
+        data['Perecedero'] = instance.categoria.perecedero if instance.categoria_id else False
         if instance.categoria_id and not data.get('Categoria'):
             data['Categoria'] = instance.categoria.nombre
         return data

@@ -1,13 +1,14 @@
-<section class="cart-hero">
+<div class="mm-page">
+<header class="mm-page-hero">
   <h1>Tu carrito</h1>
-  <p *ngIf="cart().length > 0" class="cart-summary">
+  <p *ngIf="cart().length > 0" class="mm-page-hero__sub">
     {{ cart().length }} producto(s) únicos
   </p>
-</section>
+</header>
 
 <section class="cart-container">
   <!-- Carrito vacío -->
-  <div *ngIf="cart().length === 0" class="empty-cart">
+  <div *ngIf="cart().length === 0" class="mm-empty-state mm-card mm-card--static empty-cart">
     <div class="empty-icon">🛒</div>
     <p class="empty-message">Tu carrito está vacío</p>
     <a class="btn btn-primary" routerLink="/shop">Ir a la tienda</a>
@@ -18,7 +19,7 @@
     <!-- Columna izquierda: Items del carrito -->
     <div class="cart-items-wrapper">
       <!-- Checkbox para seleccionar todos -->
-      <div class="select-all-bar">
+      <div class="select-all-bar mm-card mm-card--static">
         <label class="checkbox-label">
           <input 
             type="checkbox" 
@@ -34,7 +35,7 @@
       </div>
 
       <div class="cart-items">
-        <div *ngFor="let item of cart()" class="cart-item" [class.item-selected]="isSelected(item.product.id)">
+        <div *ngFor="let item of cart()" class="cart-item mm-card mm-card--static" [class.item-selected]="isSelected(item.product.id)">
           <!-- Checkbox de selección -->
           <div class="item-checkbox">
             <input 
@@ -101,7 +102,7 @@
     </div>
 
     <!-- Columna derecha: Resumen del carrito -->
-    <div class="cart-summary-box">
+    <div class="cart-summary-box mm-card mm-card--static">
       <h2>Resumen del pedido</h2>
       <div class="summary-row">
         <span>Productos seleccionados:</span>
@@ -136,3 +137,4 @@
     </div>
   </div>
 </section>
+</div>
