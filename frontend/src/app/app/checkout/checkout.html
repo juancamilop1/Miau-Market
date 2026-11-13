@@ -1,6 +1,6 @@
 <section class="checkout-hero">
   <h1>Confirmar Pedido</h1>
-  <p class="checkout-subtitle">Pago contra entrega - Revisa tu información antes de confirmar</p>
+  <p class="checkout-subtitle">Revisa tu información antes de confirmar</p>
 </section>
 
 <!-- Overlay de procesamiento -->
@@ -68,10 +68,12 @@
 
       <div class="payment-info">
         <h3>💵 Método de Pago</h3>
-        <div class="payment-badge">
-          <strong>Pago Contra Entrega</strong>
-          <p>Pagarás en efectivo o nequi cuando recibas tu pedido</p>
-        </div>
+        <select id="metodoPago" class="input" [(ngModel)]="metodoPago">
+          <option *ngFor="let m of metodosPago()" [value]="m.value">{{ m.label }}</option>
+        </select>
+        <small class="form-hint" *ngIf="metodoSeleccionado()?.requiere_pasarela">
+          Este método requiere pasarela de pago.
+        </small>
       </div>
     </div>
 

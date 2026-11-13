@@ -162,8 +162,8 @@
         [(ngModel)]="newProduct().Categoria"
       >
         <option value="">Selecciona una categoría</option>
-        <option *ngFor="let cat of categorias" [value]="cat">
-          {{ cat }}
+        <option *ngFor="let cat of categorias()" [value]="cat.label">
+          {{ cat.label }}
         </option>
       </select>
     </div>
@@ -301,6 +301,7 @@
               [class.status-enviado]="order.Estado === 'Enviado'"
               [class.status-entregado]="order.Estado === 'Entregado'"
               [class.status-devuelto]="order.Estado === 'Devuelto'"
+              [class.status-cancelado]="order.Estado === 'Cancelado'"
             >
               {{ order.Estado }}
             </span>
@@ -350,10 +351,7 @@
             [value]="order.Estado"
             (change)="updateOrderStatus(order.Id_Factura, $any($event.target).value)"
           >
-            <option value="Pendiente">Pendiente</option>
-            <option value="Enviado">Enviado</option>
-            <option value="Entregado">Entregado</option>
-            <option value="Devuelto">Devuelto</option>
+            <option *ngFor="let estado of estadosPedido()" [value]="estado" [selected]="estado === order.Estado">{{ estado }}</option>
           </select>
         </div>
       </div>

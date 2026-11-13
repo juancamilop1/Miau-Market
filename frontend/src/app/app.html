@@ -55,6 +55,11 @@
           <span class="item-text">Mis Pedidos</span>
         </a>
         
+        <a class="mobile-menu-item" routerLink="/wishlist" (click)="closeMobileMenu()">
+          <span class="item-icon">❤️</span>
+          <span class="item-text">Favoritos</span>
+        </a>
+
         <a class="mobile-menu-item" routerLink="/profile" (click)="closeMobileMenu()">
           <span class="item-icon">👤</span>
           <span class="item-text">Mi Perfil</span>
@@ -129,6 +134,7 @@
       <a class="nav-link" routerLink="/shop" routerLinkActive="active">Tienda</a>
       <ng-container *ngIf="auth.isLogged()">
         <a class="nav-link" routerLink="/my-orders" routerLinkActive="active">Mis Pedidos</a>
+        <a class="nav-link" routerLink="/wishlist" routerLinkActive="active">Favoritos</a>
         <a class="nav-link cart-link" routerLink="/cart" routerLinkActive="active">
           Carrito
           <span class="cart-badge" *ngIf="auth.cartCount() > 0">{{ auth.cartCount() }}</span>

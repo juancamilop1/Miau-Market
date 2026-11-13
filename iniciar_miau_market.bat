@@ -7,6 +7,10 @@ set "ROOT=%~dp0"
 set "BACKEND=%ROOT%Backend"
 set "FRONTEND=%ROOT%frontend"
 
+REM Node.js recien instalado no siempre esta en el PATH de esta ventana
+if exist "%ProgramFiles%\nodejs\npm.cmd" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+if exist "%ProgramFiles(x86)%\nodejs\npm.cmd" set "PATH=%ProgramFiles(x86)%\nodejs;%PATH%"
+
 echo ============================================================
 echo   MIAU MARKET - Inicio del proyecto
 echo ============================================================
@@ -27,14 +31,19 @@ if not exist "%BACKEND%\.env" (
     if exist "%BACKEND%\.env.example" (
         echo [2/5] Copiando .env.example a .env ...
         copy /Y "%BACKEND%\.env.example" "%BACKEND%\.env" >nul
-        echo       Edita Backend\.env con tu DB_PASSWORD antes de continuar.
     ) else (
         echo ERROR: Falta Backend\.env y Backend\.env.example
         goto fin
     )
 ) else (
-    echo [2/5] Archivo .env OK
+    echo [2/5] Archivo .env encontrado
 )
+
+findstr /i /b /c:"DB_PASSWORD=tu_" /c:"DB_PASSWORD=CAMBIAR" /c:"DB_PASSWORD=changeme" /c:"DB_PASSWORD=your_" "%BACKEND%\.env" >nul
+if not errorlevel 1 goto error_env_password
+findstr /b /x /c:"DB_PASSWORD=" "%BACKEND%\.env" >nul
+if not errorlevel 1 goto error_env_password
+echo       DB_PASSWORD configurado
 
 REM --- Backend: dependencias y migraciones ---
 echo [3/5] Instalando dependencias backend...
@@ -51,11 +60,26 @@ if errorlevel 1 goto error_migrate
 
 REM --- Frontend: dependencias ---
 echo [5/5] Verificando dependencias frontend...
+where npm >nul 2>&1
+if errorlevel 1 goto error_npm_missing
 cd /d "%FRONTEND%"
-if not exist "node_modules\" (
-    echo       Instalando npm packages - primera vez...
-    call npm install
+
+REM Si node_modules esta incompleto/corrupto (avisos TAR_ENTRY_ERROR), reinstalar
+set "NEED_NPM_INSTALL=0"
+if not exist "node_modules\" set "NEED_NPM_INSTALL=1"
+if not exist "node_modules\@angular\cli\package.json" set "NEED_NPM_INSTALL=1"
+if not exist "node_modules\typescript\package.json" set "NEED_NPM_INSTALL=1"
+
+if "%NEED_NPM_INSTALL%"=="1" (
+    echo       Instalando npm packages...
+    echo       Cierra otras ventanas de ng serve / npm antes si ves TAR_ENTRY_ERROR.
+    if exist "node_modules\" (
+        echo       Limpiando node_modules incompleto...
+        rmdir /s /q "node_modules" 2>nul
+    )
+    call npm install --no-fund --no-audit
     if errorlevel 1 goto error_npm
+    if not exist "node_modules\@angular\cli\package.json" goto error_npm
 ) else (
     echo       node_modules OK
 )
@@ -85,14 +109,29 @@ echo.
 echo ERROR: pip install fallo en Backend.
 goto fin
 
+:error_env_password
+echo.
+echo ERROR: Backend\.env todavia tiene la contrasena de ejemplo.
+echo Edita DB_PASSWORD con la clave de root de MySQL local, guarda y reejecuta este script.
+echo.
+start "" notepad "%BACKEND%\.env"
+goto fin
+
 :error_migrate
 echo.
-echo ERROR: migrate fallo. Revisa Backend\.env y que MySQL este encendido.
+echo ERROR: migrate fallo. Revisa Backend\.env (DB_PASSWORD) y que el servicio MySQL este Running.
+goto fin
+
+:error_npm_missing
+echo.
+echo ERROR: No se encontro npm. Instala Node.js LTS (https://nodejs.org) y vuelve a ejecutar.
 goto fin
 
 :error_npm
 echo.
 echo ERROR: npm install fallo en frontend.
+echo Cierra ventanas "ng serve" / Node del proyecto, borra frontend\node_modules
+echo y vuelve a ejecutar este script. Antivirus a veces bloquea la extraccion tar.
 goto fin
 
 :fin

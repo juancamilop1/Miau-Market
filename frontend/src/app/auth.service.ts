@@ -8,6 +8,7 @@ export interface Product {
   price: number;
   description?: string;
   imagen?: string;
+  stock?: number;
 }
 
 export interface CartItem {
@@ -207,19 +208,26 @@ export class AuthService {
   }
 
   addToCart(product: Product) {
+    if (product.stock != null && product.stock <= 0) {
+      return;
+    }
     const current = this._cart();
     const existingItemIndex = current.findIndex(item => item.product.id === product.id);
     
     let updatedCart: CartItem[];
     if (existingItemIndex >= 0) {
-      // Si el producto ya existe, incrementar cantidad
+      const nextQty = current[existingItemIndex].quantity + 1;
+      const max = product.stock ?? current[existingItemIndex].product.stock;
+      if (max != null && nextQty > max) {
+        return;
+      }
       updatedCart = [...current];
       updatedCart[existingItemIndex] = {
         ...updatedCart[existingItemIndex],
-        quantity: updatedCart[existingItemIndex].quantity + 1
+        product: { ...updatedCart[existingItemIndex].product, ...product },
+        quantity: nextQty
       };
     } else {
-      // Si es nuevo, agregarlo con cantidad 1
       updatedCart = [...current, { product, quantity: 1 }];
     }
     
@@ -239,11 +247,12 @@ export class AuthService {
   // Incrementar cantidad de un producto
   incrementQuantity(productId: string) {
     const current = this._cart();
-    const updatedCart = current.map(item => 
-      item.product.id === productId 
-        ? { ...item, quantity: item.quantity + 1 }
-        : item
-    );
+    const updatedCart = current.map(item => {
+      if (item.product.id !== productId) return item;
+      const max = item.product.stock;
+      if (max != null && item.quantity >= max) return item;
+      return { ...item, quantity: item.quantity + 1 };
+    });
     this._cart.set(updatedCart);
     this.saveCart(updatedCart);
   }

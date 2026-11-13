@@ -53,11 +53,65 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return f'{self.Nombre} {self.Apellido}'
 
 
+class CatCategoria(models.Model):
+    """Catalogo de categorias. Transaccional referencia por FK a id; codigo estable en API."""
+    codigo = models.CharField(max_length=40, unique=True)
+    nombre = models.CharField(max_length=100, unique=True)
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'cat_categoria'
+        ordering = ['orden', 'nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class CatMetodoPago(models.Model):
+    codigo = models.CharField(max_length=40, unique=True)
+    nombre = models.CharField(max_length=100, unique=True)
+    activo = models.BooleanField(default=True)
+    requiere_pasarela = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'cat_metodo_pago'
+        ordering = ['orden', 'nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class CatEstadoPedido(models.Model):
+    codigo = models.CharField(max_length=40, unique=True)
+    nombre = models.CharField(max_length=100, unique=True)
+    activo = models.BooleanField(default=True)
+    restaura_stock = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'cat_estado_pedido'
+        ordering = ['orden', 'nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class Producto(models.Model):
     id = models.AutoField(primary_key=True, db_column='Id_Products')
     Titulo = models.CharField(max_length=150)
     Descripcion = models.TextField(null=True, blank=True)
+    # Label legado (API/UI). Fuente de verdad: categoria (FK).
     Categoria = models.CharField(max_length=100, null=True, blank=True)
+    categoria = models.ForeignKey(
+        CatCategoria,
+        db_column='categoria_id',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='productos',
+    )
     Precio = models.IntegerField()
     Stock = models.IntegerField(default=0)
     Imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
@@ -70,19 +124,39 @@ class Producto(models.Model):
     class Meta:
         db_table = 'Products'
 
+    @property
+    def categoria_codigo(self):
+        return self.categoria.codigo if self.categoria_id else None
+
     def __str__(self):
         return self.Titulo
 
 
 class Pedido(models.Model):
-    ESTADOS = ('Pendiente', 'Enviado', 'Entregado', 'Devuelto')
+    ESTADOS = ('Pendiente', 'Enviado', 'Entregado', 'Devuelto', 'Cancelado')
 
     id = models.AutoField(primary_key=True, db_column='Id_Factura')
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='Id_User', related_name='pedidos')
     Fecha = models.DateTimeField(auto_now_add=True)
     Total = models.DecimalField(max_digits=10, decimal_places=2)
     Metodo_Pago = models.CharField(max_length=50, blank=True)
+    metodo_pago = models.ForeignKey(
+        CatMetodoPago,
+        db_column='metodo_pago_id',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='pedidos',
+    )
     Estado = models.CharField(max_length=50, default='Pendiente')
+    estado = models.ForeignKey(
+        CatEstadoPedido,
+        db_column='estado_id',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='pedidos',
+    )
     Direccion_Envio = models.CharField(max_length=200, blank=True)
     Telefono_Envio = models.CharField(max_length=20, blank=True)
 
@@ -262,3 +336,46 @@ class MiauBotMemoriaUsuario(models.Model):
 
     def __str__(self):
         return f'Memoria usuario {self.usuario_id}'
+
+
+class ListaDeseos(models.Model):
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, db_column='Id_User', related_name='lista_deseos'
+    )
+    producto = models.ForeignKey(
+        Producto, on_delete=models.CASCADE, db_column='Id_Products', related_name='en_listas_deseos'
+    )
+    Fecha_Creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'Lista_Deseos'
+        constraints = [
+            models.UniqueConstraint(fields=['usuario', 'producto'], name='uk_wishlist_user_product'),
+        ]
+
+    def __str__(self):
+        return f'Deseo user={self.usuario_id} product={self.producto_id}'
+
+
+class MascotaUsuario(models.Model):
+    ESPECIES = (
+        ('gato', 'Gato'),
+        ('perro', 'Perro'),
+        ('otro', 'Otro'),
+    )
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, db_column='Id_User', related_name='mascotas'
+    )
+    nombre = models.CharField(max_length=80)
+    especie = models.CharField(max_length=20, choices=ESPECIES, default='gato')
+    edad_anios = models.PositiveSmallIntegerField(null=True, blank=True)
+    notas = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    Fecha_Creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'Mascotas_Usuario'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f'{self.nombre} ({self.especie})'

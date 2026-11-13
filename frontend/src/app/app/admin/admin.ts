@@ -199,8 +199,9 @@ export class Admin implements OnInit {
     return pages;
   });
 
-  // Categorías disponibles
-  categorias = ['Comida de Gato', 'Comida de Perro', 'Juguetes', 'Servicios'];
+  // Catálogos (cargados desde /usuarios/catalogos/)
+  categorias = signal<{ value: string; label: string }[]>([]);
+  estadosPedido = signal<string[]>(['Pendiente', 'Enviado', 'Entregado', 'Devuelto', 'Cancelado']);
 
   newProduct = signal<Product>({
     Titulo: '',
@@ -246,6 +247,18 @@ export class Admin implements OnInit {
     if (isPlatformBrowser(this.platformId)) {
       setTimeout(() => this.checkIfMobile(), 0);
     }
+
+    this.api.get<{ categorias: { value: string; label: string }[]; estados_pedido: { label: string }[] }>(
+      '/usuarios/catalogos/'
+    ).subscribe({
+      next: (cat) => {
+        this.categorias.set(cat.categorias || []);
+        if (cat.estados_pedido?.length) {
+          this.estadosPedido.set(cat.estados_pedido.map(e => e.label));
+        }
+      },
+      error: () => this.errorMessage.set('No se pudieron cargar las categorías')
+    });
 
     // Verificar si viene de una notificación
     this.route.queryParams.subscribe(params => {
@@ -351,6 +364,10 @@ export class Admin implements OnInit {
     formData.append('Titulo', product.Titulo);
     formData.append('Descripcion', product.Descripcion);
     formData.append('Categoria', product.Categoria);
+    const categoria = this.categorias().find(c => c.label === product.Categoria);
+    if (categoria) {
+      formData.append('categoria_codigo', categoria.value);
+    }
     formData.append('Precio', Math.floor(product.Precio).toString());
     formData.append('Stock', product.Stock.toString());
     formData.append('Fecha_Caducidad', product.Fecha_Caducidad);

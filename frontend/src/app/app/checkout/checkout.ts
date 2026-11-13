@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 import { EnvironmentService } from '../../services/environment.service';
@@ -16,6 +17,16 @@ interface OrderData {
   }[];
   direccion_envio: string;
   telefono_envio: string;
+}
+
+interface MetodoPago {
+  value: string;
+  label: string;
+  requiere_pasarela?: boolean;
+}
+
+interface CatalogosResponse {
+  metodos_pago: MetodoPago[];
 }
 
 @Component({
@@ -40,6 +51,9 @@ export class Checkout implements OnInit {
   direccion = '';
   telefono = '';
   email = signal('');
+
+  metodosPago = signal<MetodoPago[]>([]);
+  metodoPago = 'contra_entrega';
   
   // Items seleccionados del carrito
   selectedCartItems = signal<any[]>([]);
@@ -76,6 +90,21 @@ export class Checkout implements OnInit {
     if (user.Telefono) {
       this.telefono = user.Telefono;
     }
+
+    this.api.get<CatalogosResponse>('/usuarios/catalogos/').subscribe({
+      next: (cat) => {
+        const metodos = cat.metodos_pago || [];
+        this.metodosPago.set(metodos);
+        if (metodos.length > 0 && !metodos.some(m => m.value === this.metodoPago)) {
+          this.metodoPago = metodos[0].value;
+        }
+      },
+      error: () => this.metodosPago.set([{ value: 'contra_entrega', label: 'Contra Entrega' }])
+    });
+  }
+
+  metodoSeleccionado(): MetodoPago | undefined {
+    return this.metodosPago().find(m => m.value === this.metodoPago);
   }
 
   getImageUrl(imagen?: string): string {
@@ -95,14 +124,9 @@ export class Checkout implements OnInit {
   confirmarPedido() {
     // Evitar confirmaciones múltiples
     if (this.confirmando()) {
-      console.log('Ya se está procesando un pedido, ignorando clic');
       return;
     }
 
-    console.log('Botón confirmar pedido clickeado');
-    console.log('Dirección:', this.direccion);
-    console.log('Teléfono:', this.telefono);
-    
     // Validar datos
     if (!this.direccion || !this.telefono) {
       this.errorMessage.set('Por favor completa la dirección y el teléfono');
@@ -115,20 +139,53 @@ export class Checkout implements OnInit {
       return;
     }
 
-    console.log('Usuario:', user);
-    console.log('Carrito:', this.cart());
+    if (!this.metodoPago) {
+      this.errorMessage.set('Selecciona un método de pago');
+      return;
+    }
 
     // Marcar como confirmando para bloquear múltiples clics
     this.confirmando.set(true);
     this.loading.set(true);
     this.errorMessage.set('');
 
-    // Preparar datos del pedido
+    const items = this.cart();
+    forkJoin(
+      items.map(item => this.api.get<{ Titulo: string; Stock: number }>(
+        `/usuarios/productos/${this.dbId(item.product.id)}/`
+      ))
+    ).subscribe({
+      next: (productos) => {
+        const sinStock = items.find((item, i) => productos[i].Stock < item.quantity);
+        if (sinStock) {
+          const i = items.indexOf(sinStock);
+          this.errorMessage.set(
+            `Stock insuficiente para "${productos[i].Titulo}" (disponible: ${productos[i].Stock}). Ajusta tu carrito.`
+          );
+          this.loading.set(false);
+          this.confirmando.set(false);
+          return;
+        }
+        this.enviarPedido();
+      },
+      error: () => {
+        this.errorMessage.set('No se pudo verificar el stock. Intenta nuevamente.');
+        this.loading.set(false);
+        this.confirmando.set(false);
+      }
+    });
+  }
+
+  private dbId(productId: string): number {
+    return parseInt(productId.replace('db_', ''), 10);
+  }
+
+  private enviarPedido() {
     const orderData: OrderData = {
       Total: this.cartTotal(),
-      Metodo_Pago: 'Contra Entrega',
+      Metodo_Pago: this.metodoPago,
       productos: this.cart().map(item => ({
-        Id_Products: parseInt(item.product.id.replace('db_', '')),
+        Id_Products: this.dbId(item.product.id),
         Cantidad: item.quantity,
         Precio_Unitario: item.product.price
       })),
@@ -136,12 +193,9 @@ export class Checkout implements OnInit {
       telefono_envio: this.telefono
     };
 
-    console.log('Datos del pedido:', orderData);
-
     // Enviar pedido al backend
     this.api.post('/usuarios/pedidos/', orderData).subscribe(
-      (response: any) => {
-        console.log('Respuesta del servidor:', response);
+      () => {
         this.successMessage.set('¡Pedido confirmado exitosamente! Redirigiendo a tus pedidos...');
         this.loading.set(false);
         
@@ -158,10 +212,6 @@ export class Checkout implements OnInit {
         }, 2000);
       },
       (error: any) => {
-        console.error('Error completo:', error);
-        console.error('Error status:', error.status);
-        console.error('Error message:', error.message);
-        console.error('Error error:', error.error);
         const backendError = error?.error?.error || error?.error?.message;
         this.errorMessage.set(
           backendError || 'Error al procesar el pedido. Intenta nuevamente.'

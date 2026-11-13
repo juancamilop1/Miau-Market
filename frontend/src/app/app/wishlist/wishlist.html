@@ -1,0 +1,34 @@
+<section class="wl-container">
+  <a class="wl-back" routerLink="/shop">← Volver a la tienda</a>
+  <h1>Mis favoritos</h1>
+
+  <div class="wl-alert wl-alert-error" *ngIf="error()">✗ {{ error() }}</div>
+  <div class="wl-alert wl-alert-success" *ngIf="mensaje()">✓ {{ mensaje() }}</div>
+
+  <div class="wl-state" *ngIf="loading()">Cargando...</div>
+
+  <div class="wl-state" *ngIf="!loading() && !error() && items().length === 0">
+    <p>Aún no tienes productos favoritos.</p>
+    <a class="btn btn-primary" routerLink="/shop">Ir a la tienda</a>
+  </div>
+
+  <div class="wl-grid" *ngIf="!loading() && items().length > 0">
+    <div class="wl-card" *ngFor="let item of items()">
+      <a [routerLink]="['/product', item.Id_Products]" class="wl-media">
+        <img [src]="imagen(item)" [alt]="item.Titulo" />
+      </a>
+      <div class="wl-body">
+        <h3><a [routerLink]="['/product', item.Id_Products]">{{ item.Titulo }}</a></h3>
+        <p class="wl-muted">{{ item.Categoria }}</p>
+        <p class="wl-price">COP {{ item.Precio | number:'1.0-0' }}</p>
+        <p class="wl-muted" [class.wl-out]="item.Stock <= 0">
+          {{ item.Stock > 0 ? 'Stock: ' + item.Stock : 'Sin stock' }}
+        </p>
+        <div class="wl-actions">
+          <button class="btn btn-primary" (click)="agregarAlCarrito(item)" [disabled]="item.Stock <= 0">Agregar</button>
+          <button class="btn btn-ghost" (click)="quitar(item)">Quitar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

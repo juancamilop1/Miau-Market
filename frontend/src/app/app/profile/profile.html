@@ -188,5 +188,55 @@
         </div>
       </div>
     </div>
+
+    <!-- Mascotas -->
+    <div class="profile-card mascotas-card">
+      <div class="card-header">
+        <h2>🐾 Mis Mascotas</h2>
+      </div>
+
+      <div class="alert alert-error" *ngIf="errorMascota()">✗ {{ errorMascota() }}</div>
+
+      <p class="mascotas-empty" *ngIf="mascotas().length === 0">Aún no has registrado mascotas.</p>
+
+      <ul class="mascotas-list" *ngIf="mascotas().length > 0">
+        <li class="mascota-item" *ngFor="let m of mascotas()">
+          <div class="mascota-info">
+            <strong>{{ m.nombre }}</strong>
+            <span class="mascota-meta">
+              {{ m.especie }}<ng-container *ngIf="m.edad_anios !== null"> · {{ m.edad_anios }} año(s)</ng-container>
+            </span>
+            <span class="mascota-meta" *ngIf="m.notas">{{ m.notas }}</span>
+          </div>
+          <button class="btn btn-ghost" type="button" (click)="eliminarMascota(m)">Eliminar</button>
+        </li>
+      </ul>
+
+      <div class="mascota-form">
+        <div class="form-group">
+          <label for="mascotaNombre">Nombre</label>
+          <input id="mascotaNombre" type="text" class="input" [(ngModel)]="nuevaMascota.nombre" placeholder="Nombre de tu mascota" />
+        </div>
+        <div class="form-group">
+          <label for="mascotaEspecie">Especie</label>
+          <select id="mascotaEspecie" class="input" [(ngModel)]="nuevaMascota.especie">
+            <option value="gato">Gato</option>
+            <option value="perro">Perro</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="mascotaEdad">Edad (años)</label>
+          <input id="mascotaEdad" type="number" min="0" class="input" [(ngModel)]="nuevaMascota.edad_anios" />
+        </div>
+        <div class="form-group">
+          <label for="mascotaNotas">Notas</label>
+          <input id="mascotaNotas" type="text" class="input" maxlength="500" [(ngModel)]="nuevaMascota.notas" placeholder="Alergias, preferencias..." />
+        </div>
+        <button class="btn btn-primary" type="button" (click)="agregarMascota()" [disabled]="guardandoMascota()">
+          {{ guardandoMascota() ? 'Guardando...' : 'Agregar mascota' }}
+        </button>
+      </div>
+    </div>
   </div>
 </div>

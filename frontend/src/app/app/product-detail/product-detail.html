@@ -1,0 +1,68 @@
+<section class="pd-container">
+  <a class="pd-back" routerLink="/shop">← Volver a la tienda</a>
+
+  <div class="pd-state" *ngIf="loading()">Cargando producto...</div>
+
+  <div class="pd-alert pd-alert-error" *ngIf="error()">✗ {{ error() }}</div>
+  <div class="pd-alert pd-alert-success" *ngIf="mensaje()">✓ {{ mensaje() }}</div>
+
+  <ng-container *ngIf="producto() as p">
+    <div class="pd-main">
+      <div class="pd-media">
+        <img [src]="imagen(p)" [alt]="p.Titulo" />
+      </div>
+
+      <div class="pd-info">
+        <p class="pd-category">{{ p.Categoria }}</p>
+        <h1>{{ p.Titulo }}</h1>
+
+        <div class="pd-rating" *ngIf="rating() && rating()!.Total_Reviews > 0">
+          <app-star-rating [rating]="rating()!.Rating_Promedio" [readonly]="true" size="medium"></app-star-rating>
+          <span>{{ rating()!.Rating_Promedio.toFixed(1) }} ({{ rating()!.Total_Reviews }})</span>
+        </div>
+
+        <p class="pd-price">COP {{ p.Precio | number:'1.0-0' }}</p>
+        <p class="pd-stock" [class.pd-stock-out]="p.Stock <= 0">
+          {{ p.Stock > 0 ? 'Stock disponible: ' + p.Stock : 'Sin stock' }}
+        </p>
+
+        <p class="pd-description">{{ p.Descripcion }}</p>
+
+        <div class="pd-actions">
+          <input
+            type="number"
+            class="input pd-qty"
+            min="1"
+            [max]="p.Stock"
+            [(ngModel)]="cantidad"
+            [disabled]="p.Stock <= 0"
+          />
+          <button class="btn btn-primary" (click)="agregarAlCarrito()" [disabled]="p.Stock <= 0">
+            Agregar al carrito
+          </button>
+          <button
+            *ngIf="auth.isLogged()"
+            class="btn btn-ghost"
+            type="button"
+            (click)="toggleWishlist()"
+          >
+            {{ enWishlist() ? '❤️ Quitar de favoritos' : '🤍 Agregar a favoritos' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pd-reviews">
+      <h2>Reseñas</h2>
+      <p class="pd-muted" *ngIf="reviews().length === 0">Este producto aún no tiene reseñas.</p>
+      <div class="pd-review" *ngFor="let r of reviews()">
+        <div class="pd-review-header">
+          <strong>{{ r.Nombre }} {{ r.Apellido }}</strong>
+          <app-star-rating [rating]="r.Rating" [readonly]="true" size="small"></app-star-rating>
+          <span class="pd-muted">{{ formatearFecha(r.Fecha) }}</span>
+        </div>
+        <p *ngIf="r.Comentario">{{ r.Comentario }}</p>
+      </div>
+    </div>
+  </ng-container>
+</section>

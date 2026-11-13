@@ -963,6 +963,12 @@
   border: 1px solid #f44336;
 }
 
+.status-cancelado {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+  border: 1px solid #9e9e9e;
+}
+
 .order-details {
   display: flex;
   flex-direction: column;

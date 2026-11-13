@@ -105,13 +105,79 @@ export class Shop implements OnInit {
 
   itemsPerCarousel = 4;
 
+  // Filtros
+  categorias = signal<{ value: string; label: string }[]>([]);
+  filtroCategoria = '';
+  precioMin: number | null = null;
+  precioMax: number | null = null;
+  orden = 'recientes';
+
+  // Wishlist
+  wishlistIds = signal<Set<number>>(new Set());
+
   ngOnInit() {
     this.loadProductsFromDB();
+    this.api.get<{ categorias: { value: string; label: string }[] }>('/usuarios/catalogos/').subscribe({
+      next: (cat) => this.categorias.set(cat.categorias || []),
+      error: () => this.categorias.set([])
+    });
+    if (this.auth.isLogged()) {
+      this.api.get<{ items: { Id_Products: number }[] }>('/usuarios/wishlist/').subscribe({
+        next: (r) => this.wishlistIds.set(new Set((r.items || []).map(i => i.Id_Products))),
+        error: () => this.wishlistIds.set(new Set())
+      });
+    }
+  }
+
+  hayFiltros(): boolean {
+    return !!this.filtroCategoria || this.precioMin != null || this.precioMax != null || this.orden !== 'recientes';
+  }
+
+  aplicarFiltros() {
+    this.loadProductsFromDB();
+  }
+
+  limpiarFiltros() {
+    this.filtroCategoria = '';
+    this.precioMin = null;
+    this.precioMax = null;
+    this.orden = 'recientes';
+    this.loadProductsFromDB();
+  }
+
+  private buildQuery(): string {
+    const params = new URLSearchParams();
+    if (this.filtroCategoria) params.set('categoria', this.filtroCategoria);
+    if (this.precioMin != null) params.set('precio_min', String(this.precioMin));
+    if (this.precioMax != null) params.set('precio_max', String(this.precioMax));
+    if (this.orden && this.orden !== 'recientes') params.set('orden', this.orden);
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }
+
+  isInWishlist(product: ProductDisplay): boolean {
+    return this.wishlistIds().has(product.dbId);
+  }
+
+  toggleWishlist(product: ProductDisplay) {
+    const enLista = this.isInWishlist(product);
+    const request$ = enLista
+      ? this.api.delete(`/usuarios/wishlist/?Id_Products=${product.dbId}`)
+      : this.api.post('/usuarios/wishlist/', { Id_Products: product.dbId });
+    request$.subscribe({
+      next: () => {
+        const next = new Set(this.wishlistIds());
+        if (enLista) next.delete(product.dbId);
+        else next.add(product.dbId);
+        this.wishlistIds.set(next);
+      },
+      error: () => alert('No se pudo actualizar tu lista de deseos')
+    });
   }
 
   loadProductsFromDB() {
     this.loading.set(true);
-    this.api.get<ProductFromDB[]>('/usuarios/productos/').subscribe(
+    this.api.get<ProductFromDB[]>(`/usuarios/productos/${this.buildQuery()}`).subscribe(
       (data: ProductFromDB[]) => {
         if (data && data.length > 0) {
           // Convertir productos
@@ -131,6 +197,7 @@ export class Shop implements OnInit {
           this.organizarPorCategoria(products);
         } else {
           this.allProducts.set([]);
+          this.organizarPorCategoria([]);
         }
         this.loading.set(false);
       },
@@ -165,14 +232,25 @@ export class Shop implements OnInit {
     );
   }
 
-  add(product: ProductDisplay) {
+  add(product: ProductDisplay): boolean {
+    if (product.stock <= 0) {
+      alert('Producto sin stock');
+      return false;
+    }
+    const enCarrito = this.auth.cart().find(i => i.product.id === product.id)?.quantity ?? 0;
+    if (enCarrito >= product.stock) {
+      alert(`Ya tienes en el carrito todo el stock disponible (${product.stock})`);
+      return false;
+    }
     this.auth.addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       description: product.description,
-      imagen: product.imagen
+      imagen: product.imagen,
+      stock: product.stock
     } as Product);
+    return true;
   }
 
   // Métodos para el modal
@@ -197,8 +275,7 @@ export class Shop implements OnInit {
 
   agregarDesdeModal() {
     const producto = this.productoSeleccionado();
-    if (producto) {
-      this.add(producto);
+    if (producto && this.add(producto)) {
       this.cerrarModal();
     }
   }

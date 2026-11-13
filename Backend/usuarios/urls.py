@@ -2,11 +2,12 @@ from django.urls import path
 from .views import (
     RegistroView, LoginView, UsuarioListView, UsuarioDetailView,
     ProductoListView, ProductoDetailView, CrearPedidoView, ActualizarPedidoView,
-    MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView, MarcarTodasLeidasView,
-    VerificarProductosCaducadosView, ActualizarPerfilView,
+    CancelarPedidoView, MisPedidosView, NotificacionesView, MarcarNotificacionLeidaView,
+    MarcarTodasLeidasView, VerificarProductosCaducadosView, ActualizarPerfilView,
     ProductReviewsView, UserReviewView, ProductRatingsView,
     GestionUsuariosView, ConvertirAdministradorView, EliminarUsuarioView,
-    BulkDeleteUsersView, BulkMakeAdminView, ActualizarUsuarioAdminView
+    BulkDeleteUsersView, BulkMakeAdminView, ActualizarUsuarioAdminView,
+    CatalogosView, WishlistView, MascotasView, MascotaDetailView,
 )
 from .ai_views import ChatbotView, ChatbotConfigView, MiauBotAprendizajeListView, MiauBotAprendizajeDetailView
 
@@ -17,6 +18,10 @@ urlpatterns = [
     path('<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
     # Endpoint de perfil
     path('perfil/', ActualizarPerfilView.as_view(), name='perfil'),
+    path('catalogos/', CatalogosView.as_view(), name='catalogos'),
+    path('wishlist/', WishlistView.as_view(), name='wishlist'),
+    path('mascotas/', MascotasView.as_view(), name='mascotas'),
+    path('mascotas/<int:pk>/', MascotaDetailView.as_view(), name='mascota-detail'),
     # Endpoint único de chatbot inteligente
     path('chatbot/', ChatbotView.as_view(), name='chatbot'),
     path('chatbot/config/', ChatbotConfigView.as_view(), name='chatbot-config'),
@@ -28,6 +33,7 @@ urlpatterns = [
     # Endpoints de pedidos
     path('pedidos/', CrearPedidoView.as_view(), name='pedidos'),
     path('pedidos/<int:pk>/', ActualizarPedidoView.as_view(), name='actualizar-pedido'),
+    path('pedidos/<int:pk>/cancelar/', CancelarPedidoView.as_view(), name='cancelar-pedido'),
     path('mis-pedidos/', MisPedidosView.as_view(), name='mis-pedidos'),
     # Endpoints de notificaciones
     path('notificaciones/', NotificacionesView.as_view(), name='notificaciones'),

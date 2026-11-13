@@ -37,13 +37,23 @@ Product_Ratings (VISTA sobre Products + Product_Reviews)
 
 | Tabla | Gestionada por | Descripcion |
 |-------|----------------|-------------|
-| `Users` | Django ORM | Usuarios (AUTH_USER_MODEL) |
+| `Users` | Django ORM | Usuarios (AUTH_USER_MODEL); incluye `Username` |
 | `Products` | Django ORM | Catalogo de productos |
 | `Notificaciones` | Django ORM | Alertas de pedidos y caducidad |
 | `PaymentOrders` | Django ORM | Cabecera de pedidos |
 | `Orders_Details` | Django ORM | Lineas de pedido |
 | `Product_Reviews` | Django ORM | Resenas por producto |
 | `Product_Ratings` | Vista SQL (opcional) | Promedio de calificaciones |
+| `MiauBot_Config` | Django ORM | Prompt y mensajes del bot |
+| `MiauBot_Conocimiento` | Django ORM | Tips por especie/tema |
+| `MiauBot_Frases` | Django ORM | Frases de tono |
+| `MiauBot_Aprendizaje` | Django ORM | Sugerencias pendientes de aprobacion |
+| `MiauBot_Memoria` | Django ORM | Memoria por usuario |
+| `cat_categoria` | Catalogo | Categorias (codigo + nombre) |
+| `cat_metodo_pago` | Catalogo | Metodos de pago |
+| `cat_estado_pedido` | Catalogo | Estados de pedido (+ restaura_stock) |
+| `Lista_Deseos` | Django ORM | Wishlist usuario-producto |
+| `Mascotas_Usuario` | Django ORM | Perfiles de mascota del usuario |
 | `django_*`, `authtoken_*` | Django migrate | Framework y tokens |
 
 ---
@@ -167,6 +177,11 @@ Doble clic en `iniciar_miau_market.bat` en la raiz del proyecto. El script:
 | 0008 | Tablas de pedidos (IF NOT EXISTS) |
 | 0009 | Resenas + vista Product_Ratings |
 | 0010 | Modelos ORM completos + authtoken_token |
+| 0011 | `Users.Username` unico (seed desde email) |
+| 0012 | Tablas MiauBot_Config / Conocimiento / Frases + seed |
+| 0013 | MiauBot_Aprendizaje |
+| 0014 | MiauBot_Memoria |
+| 0015 | Catalogos (categoria/pago/estado) + FKs + Lista_Deseos + Mascotas_Usuario |
 
 ---
 

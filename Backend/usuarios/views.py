@@ -3,17 +3,33 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from .serializers import RegistroSerializer, UsuarioSerializer, ProductoSerializer, AdminUsuarioUpdateSerializer
 from .pedidos_serializers import CrearPedidoSerializer
 from .notificaciones_serializers import NotificacionSerializer
 from django.db.models import Sum, Count
-from .models import Producto, Notificacion, Pedido
+from .models import (
+    Producto, Notificacion, Pedido, CatCategoria, CatMetodoPago, CatEstadoPedido,
+    ListaDeseos, MascotaUsuario,
+)
 from .services import pedidos_service, ratings_service
+from .permissions import IsSelfOrAdmin
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
+import logging
 
 Usuario = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
+
+
+class ChatbotRateThrottle(AnonRateThrottle):
+    scope = 'chatbot'
 
 class RegistroView(generics.CreateAPIView):
     """
@@ -48,6 +64,7 @@ class LoginView(generics.GenericAPIView):
     """
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -94,25 +111,28 @@ class LoginView(generics.GenericAPIView):
 
 class UsuarioListView(generics.ListCreateAPIView):
     """
-    Lista todos los usuarios o crea uno nuevo (solo admin).
+    Lista usuarios (solo admin) o crea uno nuevo (solo admin).
     """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
+    permission_classes = [IsAdminUser]
 
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
 
 class UsuarioDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    Recupera, actualiza o elimina un usuario.
+    Detalle de usuario: admin o el propio usuario.
+    Eliminar: solo admin (y no a si mismo).
     """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSelfOrAdmin]
 
     def delete(self, request, *args, **kwargs):
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Solo un administrador puede eliminar usuarios"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         user = self.get_object()
         if user == request.user:
             return Response(
@@ -459,18 +479,45 @@ class ProductoListView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         from datetime import date
-        
-        # Si es un usuario admin, mostrar todos los productos
-        if self.request.user.is_authenticated and self.request.user.is_staff:
-            return Producto.objects.all()
-        
-        # Para usuarios normales o no autenticados, filtrar productos caducados de categoría Comida
-        hoy = date.today()
-        # Mostrar todos los productos EXCEPTO los de Comida que ya caducaron (hoy o antes)
-        return Producto.objects.exclude(
-            Categoria='Comida',
-            Fecha_Caducidad__lte=hoy
-        )
+
+        qs = Producto.objects.select_related('categoria').all()
+        if not (self.request.user.is_authenticated and self.request.user.is_staff):
+            hoy = date.today()
+            qs = qs.exclude(
+                Q(Categoria__icontains='Comida') | Q(categoria__codigo__startswith='comida_'),
+                Fecha_Caducidad__lte=hoy,
+            )
+
+        categoria = self.request.query_params.get('categoria')
+        if categoria:
+            qs = qs.filter(
+                Q(categoria__codigo=categoria) | Q(Categoria__iexact=categoria)
+            )
+
+        q = (self.request.query_params.get('q') or '').strip()
+        if q:
+            qs = qs.filter(
+                Q(Titulo__icontains=q) | Q(Descripcion__icontains=q) | Q(Categoria__icontains=q)
+            )
+
+        precio_min = self.request.query_params.get('precio_min')
+        precio_max = self.request.query_params.get('precio_max')
+        if precio_min:
+            qs = qs.filter(Precio__gte=precio_min)
+        if precio_max:
+            qs = qs.filter(Precio__lte=precio_max)
+
+        orden = self.request.query_params.get('orden', 'recientes')
+        if orden == 'precio_asc':
+            qs = qs.order_by('Precio')
+        elif orden == 'precio_desc':
+            qs = qs.order_by('-Precio')
+        elif orden == 'stock':
+            qs = qs.order_by('-Stock')
+        else:
+            qs = qs.order_by('-Fecha_creacion')
+
+        return qs
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -571,24 +618,35 @@ class ActualizarPedidoView(APIView):
                 'error': 'Estado es requerido'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validar que el estado sea válido
-        estados_validos = ['Pendiente', 'Enviado', 'Entregado', 'Devuelto']
-        if nuevo_estado not in estados_validos:
-            return Response({
-                'success': False,
-                'error': f'Estado inválido. Valores permitidos: {", ".join(estados_validos)}'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
         try:
-            pedidos_service.actualizar_estado_pedido(pk, nuevo_estado)
+            pedido = pedidos_service.actualizar_estado_pedido(pk, nuevo_estado)
             return Response({
                 'success': True,
-                'message': f'Pedido actualizado a {nuevo_estado}'
+                'message': f'Pedido actualizado a {pedido.Estado}'
             }, status=status.HTTP_200_OK)
         except ValueError as e:
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+            msg = str(e)
+            code = status.HTTP_404_NOT_FOUND if 'no encontrado' in msg.lower() else status.HTTP_400_BAD_REQUEST
+            return Response({'success': False, 'error': msg}, status=code)
         except Exception as e:
+            logger.exception('Error actualizando pedido')
             return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CancelarPedidoView(APIView):
+    """El cliente cancela su propio pedido si esta Pendiente."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            pedido = pedidos_service.cancelar_pedido_usuario(pk, request.user.id)
+            return Response({
+                'success': True,
+                'message': f'Pedido #{pedido.id} cancelado',
+                'Estado': pedido.Estado,
+            })
+        except ValueError as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MisPedidosView(APIView):
@@ -959,4 +1017,119 @@ class ProductRatingsView(APIView):
         except Exception as e:
             return Response({'error': 'Error al obtener calificaciones'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class CatalogosView(APIView):
+    """Catalogos activos para UI: categorias, metodos de pago, estados."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({
+            'categorias': [
+                {'value': c.codigo, 'label': c.nombre}
+                for c in CatCategoria.objects.filter(activo=True)
+            ],
+            'metodos_pago': [
+                {
+                    'value': m.codigo,
+                    'label': m.nombre,
+                    'requiere_pasarela': m.requiere_pasarela,
+                }
+                for m in CatMetodoPago.objects.filter(activo=True)
+            ],
+            'estados_pedido': [
+                {'value': e.codigo, 'label': e.nombre, 'restaura_stock': e.restaura_stock}
+                for e in CatEstadoPedido.objects.filter(activo=True)
+            ],
+        })
+
+
+class WishlistView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        items = (
+            ListaDeseos.objects.filter(usuario=request.user)
+            .select_related('producto')
+            .order_by('-Fecha_Creacion')
+        )
+        data = []
+        for item in items:
+            p = item.producto
+            data.append({
+                'id': item.id,
+                'Id_Products': p.id,
+                'Titulo': p.Titulo,
+                'Precio': p.Precio,
+                'Stock': p.Stock,
+                'Categoria': p.Categoria,
+                'Imagen': p.Imagen.url if p.Imagen else None,
+            })
+        return Response({'items': data})
+
+    def post(self, request):
+        product_id = request.data.get('Id_Products')
+        if not product_id:
+            return Response({'error': 'Id_Products es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        producto = Producto.objects.filter(id=product_id).first()
+        if not producto:
+            return Response({'error': 'Producto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        item, created = ListaDeseos.objects.get_or_create(usuario=request.user, producto=producto)
+        return Response(
+            {'success': True, 'created': created, 'id': item.id},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        product_id = request.data.get('Id_Products') or request.query_params.get('Id_Products')
+        deleted, _ = ListaDeseos.objects.filter(
+            usuario=request.user, producto_id=product_id
+        ).delete()
+        return Response({'success': True, 'deleted': deleted > 0})
+
+
+class MascotasView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        mascotas = MascotaUsuario.objects.filter(usuario=request.user, activo=True)
+        return Response({
+            'mascotas': [
+                {
+                    'id': m.id,
+                    'nombre': m.nombre,
+                    'especie': m.especie,
+                    'edad_anios': m.edad_anios,
+                    'notas': m.notas,
+                }
+                for m in mascotas
+            ]
+        })
+
+    def post(self, request):
+        nombre = (request.data.get('nombre') or '').strip()
+        especie = (request.data.get('especie') or 'gato').strip().lower()
+        if not nombre:
+            return Response({'error': 'nombre es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        if especie not in ('gato', 'perro', 'otro'):
+            return Response({'error': 'especie invalida'}, status=status.HTTP_400_BAD_REQUEST)
+        mascota = MascotaUsuario.objects.create(
+            usuario=request.user,
+            nombre=nombre,
+            especie=especie,
+            edad_anios=request.data.get('edad_anios') or None,
+            notas=(request.data.get('notas') or '')[:500],
+        )
+        return Response({'success': True, 'id': mascota.id}, status=status.HTTP_201_CREATED)
+
+
+class MascotaDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        updated = MascotaUsuario.objects.filter(
+            id=pk, usuario=request.user, activo=True
+        ).update(activo=False)
+        if not updated:
+            return Response({'error': 'Mascota no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success': True})
 

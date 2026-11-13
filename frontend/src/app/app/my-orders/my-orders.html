@@ -7,6 +7,8 @@
     <p class="subtitle">Aquí puedes ver el estado de todos tus pedidos</p>
   </div>
 
+  <div class="cancel-error" *ngIf="mensajeCancelacion()">✗ {{ mensajeCancelacion() }}</div>
+
   <!-- Estado de carga -->
   <div class="loading-state" *ngIf="cargando()">
     <div class="spinner"></div>
@@ -82,6 +84,14 @@
           <span class="total-label">Total:</span>
           <span class="total-amount">COP {{ pedido.Total | number:'1.0-0' }}</span>
         </div>
+        <button
+          *ngIf="pedido.Estado === 'Pendiente'"
+          class="cancel-btn"
+          (click)="cancelarPedido(pedido)"
+          [disabled]="cancelandoId() === pedido.Id_Factura"
+        >
+          {{ cancelandoId() === pedido.Id_Factura ? 'Cancelando...' : 'Cancelar pedido' }}
+        </button>
       </div>
     </div>
   </div>

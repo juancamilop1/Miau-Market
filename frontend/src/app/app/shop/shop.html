@@ -15,6 +15,54 @@
   </div>
 </section>
 
+<!-- Filtros -->
+<section class="shop-filters">
+  <select class="input" [(ngModel)]="filtroCategoria" (ngModelChange)="aplicarFiltros()" aria-label="Categoría">
+    <option value="">Todas las categorías</option>
+    <option *ngFor="let c of categorias()" [value]="c.value">{{ c.label }}</option>
+  </select>
+  <input class="input" type="number" min="0" placeholder="Precio mín." [(ngModel)]="precioMin" (change)="aplicarFiltros()" />
+  <input class="input" type="number" min="0" placeholder="Precio máx." [(ngModel)]="precioMax" (change)="aplicarFiltros()" />
+  <select class="input" [(ngModel)]="orden" (ngModelChange)="aplicarFiltros()" aria-label="Ordenar">
+    <option value="recientes">Más recientes</option>
+    <option value="precio_asc">Precio: menor a mayor</option>
+    <option value="precio_desc">Precio: mayor a menor</option>
+    <option value="stock">Mayor stock</option>
+  </select>
+  <button class="btn btn-ghost" type="button" *ngIf="hayFiltros()" (click)="limpiarFiltros()">Limpiar filtros</button>
+</section>
+
+<!-- Resultados con filtros activos (sin búsqueda de texto) -->
+<section class="products" *ngIf="!auth.search() && hayFiltros()">
+  <div class="carousel-header">
+    <h2>Productos filtrados ({{ allProducts().length }})</h2>
+  </div>
+  <p class="muted" *ngIf="!loading() && allProducts().length === 0">No hay productos que coincidan con los filtros.</p>
+  <div class="product-grid highlighted-grid">
+    <div class="product-card" *ngFor="let p of allProducts()">
+      <div class="product-media">
+        <img *ngIf="p.imagen" [src]="p.imagen" [alt]="p.name" />
+        <div *ngIf="!p.imagen" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(90deg,#fff,#f7f7f7);">
+          📦
+        </div>
+      </div>
+      <div class="product-body">
+        <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
+        <p class="muted">{{p.description}}</p>
+        <div class="product-footer">
+          <p class="price">COP {{ p.price | number:'1.0-0' }}</p>
+          <p class="stock">Stock: {{ p.stock }}</p>
+        </div>
+        <div class="product-actions">
+          <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Resultados de búsqueda - UN SOLO PRODUCTO (grande y horizontal) -->
 <section class="products" *ngIf="auth.search() && filtered().length === 1">
   <div class="carousel-header">
@@ -42,7 +90,8 @@
           <p class="single-product-price">COP {{ p.price | number:'1.0-0' }}</p>
           <p class="single-product-stock">Stock: {{ p.stock }}</p>
         </div>
-        <button class="btn btn-primary btn-large" (click)="add(p); $event.preventDefault()">Agregar al carrito</button>
+        <button class="btn btn-primary btn-large" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar al carrito</button>
+        <a class="btn btn-secondary btn-large" [routerLink]="['/product', p.dbId]">Ver detalle</a>
       </div>
     </div>
   </div>
@@ -67,7 +116,7 @@
         </div>
       </div>
       <div class="product-body">
-        <h3>{{p.name}}</h3>
+        <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
         <p class="muted">{{p.description}}</p>
         <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
           {{ getEstadoFrescura(p) }}
@@ -78,7 +127,8 @@
         </div>
         <div class="product-actions">
           <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
         </div>
       </div>
     </div>
@@ -91,7 +141,7 @@
 </div>
 
 <!-- Productos Destacados SIN CARRUSEL (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && highlighted().length > 0">
+<section class="products" *ngIf="!auth.search() && !hayFiltros() && highlighted().length > 0">
   <div class="carousel-header">
     <h2>Productos Destacados</h2>
   </div>
@@ -109,7 +159,7 @@
         </div>
       </div>
       <div class="product-body">
-        <h3>{{p.name}}</h3>
+        <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
         <p class="muted">{{p.description}}</p>
         <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
           {{ getEstadoFrescura(p) }}
@@ -120,7 +170,8 @@
         </div>
         <div class="product-actions">
           <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+          <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
         </div>
       </div>
     </div>
@@ -128,7 +179,7 @@
 </section>
 
 <!-- Comida de Gato (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && comidaGato().length > 0">
+<section class="products" *ngIf="!auth.search() && !hayFiltros() && comidaGato().length > 0">
   <div class="carousel-header">
     <h2>🐱 Comida de Gato</h2>
   </div>
@@ -150,7 +201,7 @@
           </div>
         </div>
         <div class="product-body">
-          <h3>{{p.name}}</h3>
+          <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
           <p class="muted">{{p.description}}</p>
           <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
             {{ getEstadoFrescura(p) }}
@@ -161,7 +212,8 @@
           </div>
           <div class="product-actions">
             <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
           </div>
         </div>
       </div>
@@ -173,7 +225,7 @@
 </section>
 
 <!-- Comida de Perro (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && comidaPerro().length > 0">
+<section class="products" *ngIf="!auth.search() && !hayFiltros() && comidaPerro().length > 0">
   <div class="carousel-header">
     <h2>🐶 Comida de Perro</h2>
   </div>
@@ -195,7 +247,7 @@
           </div>
         </div>
         <div class="product-body">
-          <h3>{{p.name}}</h3>
+          <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
           <p class="muted">{{p.description}}</p>
           <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
             {{ getEstadoFrescura(p) }}
@@ -206,7 +258,8 @@
           </div>
           <div class="product-actions">
             <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
           </div>
         </div>
       </div>
@@ -218,7 +271,7 @@
 </section>
 
 <!-- Juguetes (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && juguetes().length > 0">
+<section class="products" *ngIf="!auth.search() && !hayFiltros() && juguetes().length > 0">
   <div class="carousel-header">
     <h2>Juguetes</h2>
   </div>
@@ -240,7 +293,7 @@
           </div>
         </div>
         <div class="product-body">
-          <h3>{{p.name}}</h3>
+          <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
           <p class="muted">{{p.description}}</p>
           <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
             {{ getEstadoFrescura(p) }}
@@ -251,7 +304,8 @@
           </div>
           <div class="product-actions">
             <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
           </div>
         </div>
       </div>
@@ -263,7 +317,7 @@
 </section>
 
 <!-- Servicios (solo si no hay búsqueda) -->
-<section class="products" *ngIf="!auth.search() && servicios().length > 0">
+<section class="products" *ngIf="!auth.search() && !hayFiltros() && servicios().length > 0">
   <div class="carousel-header">
     <h2>Productos utiles</h2>
   </div>
@@ -285,7 +339,7 @@
           </div>
         </div>
         <div class="product-body">
-          <h3>{{p.name}}</h3>
+          <h3><a [routerLink]="['/product', p.dbId]" class="product-link">{{p.name}}</a></h3>
           <p class="muted">{{p.description}}</p>
           <p *ngIf="getEstadoFrescura(p)" [ngClass]="getEstadoClass(p)" class="estado-producto">
             {{ getEstadoFrescura(p) }}
@@ -296,7 +350,8 @@
           </div>
           <div class="product-actions">
             <button class="btn btn-secondary" (click)="verDetalles(p); $event.preventDefault()">Ver más</button>
-            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()">Agregar</button>
+            <button class="btn btn-primary" (click)="add(p); $event.preventDefault()" [disabled]="p.stock <= 0">Agregar</button>
+          <button *ngIf="auth.isLogged()" class="btn btn-ghost wishlist-btn" type="button" (click)="toggleWishlist(p); $event.preventDefault()" [attr.title]="isInWishlist(p) ? 'Quitar de favoritos' : 'Agregar a favoritos'">{{ isInWishlist(p) ? '❤️' : '🤍' }}</button>
           </div>
         </div>
       </div>
@@ -308,7 +363,7 @@
 </section>
 
 <!-- Sin resultados ni búsqueda -->
-<div *ngIf="!auth.search() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
+<div *ngIf="!auth.search() && !hayFiltros() && !loading() && allProducts().length === 0" style="text-align: center; padding: 3rem; color: var(--mm-gray-700);">
   <p>No hay productos disponibles</p>
 </div>
 
@@ -502,7 +557,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-primary btn-large" (click)="agregarDesdeModal()">
+          <button class="btn btn-primary btn-large" (click)="agregarDesdeModal()" [disabled]="productoSeleccionado()!.stock <= 0">
             Agregar al carrito
           </button>
           <button class="btn btn-secondary btn-large" (click)="cerrarModal()">

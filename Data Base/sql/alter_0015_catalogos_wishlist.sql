@@ -1,0 +1,28 @@
+-- Espejo documental de usuarios.0015 (preferir: python manage.py migrate).
+-- Catalogos + wishlist + mascotas. No ejecutar si migrate ya aplico 0015.
+
+CREATE TABLE IF NOT EXISTS cat_categoria (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(40) NOT NULL UNIQUE,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  orden SMALLINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cat_metodo_pago (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(40) NOT NULL UNIQUE,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  requiere_pasarela TINYINT(1) NOT NULL DEFAULT 0,
+  orden SMALLINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cat_estado_pedido (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(40) NOT NULL UNIQUE,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  restaura_stock TINYINT(1) NOT NULL DEFAULT 0,
+  orden SMALLINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -11,17 +12,28 @@ export class EnvironmentService {
   }
 
   /**
-   * Determina la URL del backend según el hostname actual
+   * Prioridad: environment.apiUrl (prod) → meta miau-api → LAN → localhost
    */
   private getBackendUrl(): string {
+    const fromBuild = (environment.apiUrl || '').trim().replace(/\/$/, '');
+    if (fromBuild) {
+      return fromBuild;
+    }
+
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="miau-api"]');
+      const content = (meta?.getAttribute('content') || '').trim().replace(/\/$/, '');
+      if (content) {
+        return content;
+      }
+    }
+
     if (typeof window !== 'undefined') {
       const currentHost = window.location.hostname;
-      // Si accedes desde la red (no localhost), usa la misma IP del frontend
       if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
         return `http://${currentHost}:8000`;
       }
     }
-    // Por defecto, usa localhost
     return 'http://localhost:8000';
   }
 

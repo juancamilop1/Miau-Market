@@ -39,6 +39,8 @@ export class MyOrders implements OnInit {
   pedidos = signal<Pedido[]>([]);
   cargando = signal(true);
   error = signal('');
+  cancelandoId = signal<number | null>(null);
+  mensajeCancelacion = signal('');
   
   ngOnInit() {
     if (!this.auth.user()) {
@@ -88,7 +90,8 @@ export class MyOrders implements OnInit {
       'Pendiente': 'estado-pendiente',
       'Enviado': 'estado-enviado',
       'Entregado': 'estado-entregado',
-      'Devuelto': 'estado-devuelto'
+      'Devuelto': 'estado-devuelto',
+      'Cancelado': 'estado-cancelado'
     };
     return clases[estado] || 'estado-pendiente';
   }
@@ -98,7 +101,8 @@ export class MyOrders implements OnInit {
       'Pendiente': '⏳',
       'Enviado': '📦',
       'Entregado': '✅',
-      'Devuelto': '↩️'
+      'Devuelto': '↩️',
+      'Cancelado': '🚫'
     };
     return iconos[estado] || '📋';
   }
@@ -118,6 +122,24 @@ export class MyOrders implements OnInit {
     return this.envService.getImageUrl(imagen);
   }
   
+  cancelarPedido(pedido: Pedido) {
+    if (!confirm(`¿Cancelar el pedido #${pedido.Id_Factura}?`)) return;
+
+    this.cancelandoId.set(pedido.Id_Factura);
+    this.error.set('');
+    this.api.post(`/usuarios/pedidos/${pedido.Id_Factura}/cancelar/`, {}).subscribe({
+      next: () => {
+        this.cancelandoId.set(null);
+        this.cargarPedidos();
+      },
+      error: (err) => {
+        this.cancelandoId.set(null);
+        this.mensajeCancelacion.set(err.error?.error || 'No se pudo cancelar el pedido');
+        setTimeout(() => this.mensajeCancelacion.set(''), 4000);
+      }
+    });
+  }
+
   volverATienda() {
     this.router.navigate(['/shop']);
   }

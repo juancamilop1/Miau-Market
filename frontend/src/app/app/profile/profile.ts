@@ -5,6 +5,14 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../auth.service';
 import { ApiService } from '../../services/api.service';
 
+interface Mascota {
+  id: number;
+  nombre: string;
+  especie: string;
+  edad_anios: number | null;
+  notas: string;
+}
+
 @Component({
   selector: 'app-profile',
   standalone: true,
@@ -39,6 +47,17 @@ export class Profile implements OnInit {
   cargando = signal(false);
   mensaje = signal('');
   error = signal('');
+
+  // Mascotas
+  mascotas = signal<Mascota[]>([]);
+  errorMascota = signal('');
+  guardandoMascota = signal(false);
+  nuevaMascota: { nombre: string; especie: string; edad_anios: number | null; notas: string } = {
+    nombre: '',
+    especie: 'gato',
+    edad_anios: null,
+    notas: ''
+  };
 
   ciudadesColombia = [
     'Bogotá D.C.',
@@ -90,6 +109,50 @@ export class Profile implements OnInit {
     this.edad = user.Edad ? user.Edad.toString() : '';
     
     console.log('Ciudad asignada:', this.ciudad);
+
+    this.cargarMascotas();
+  }
+
+  cargarMascotas() {
+    this.api.get<{ mascotas: Mascota[] }>('/usuarios/mascotas/').subscribe({
+      next: (r) => this.mascotas.set(r.mascotas || []),
+      error: () => this.errorMascota.set('No se pudieron cargar tus mascotas')
+    });
+  }
+
+  agregarMascota() {
+    this.errorMascota.set('');
+    const nombre = this.nuevaMascota.nombre.trim();
+    if (!nombre) {
+      this.errorMascota.set('El nombre de la mascota es obligatorio');
+      return;
+    }
+
+    this.guardandoMascota.set(true);
+    this.api.post('/usuarios/mascotas/', {
+      nombre,
+      especie: this.nuevaMascota.especie,
+      edad_anios: this.nuevaMascota.edad_anios,
+      notas: this.nuevaMascota.notas.trim()
+    }).subscribe({
+      next: () => {
+        this.guardandoMascota.set(false);
+        this.nuevaMascota = { nombre: '', especie: 'gato', edad_anios: null, notas: '' };
+        this.cargarMascotas();
+      },
+      error: (err) => {
+        this.guardandoMascota.set(false);
+        this.errorMascota.set(err.error?.error || 'No se pudo guardar la mascota');
+      }
+    });
+  }
+
+  eliminarMascota(mascota: Mascota) {
+    if (!confirm(`¿Eliminar a ${mascota.nombre}?`)) return;
+    this.api.delete(`/usuarios/mascotas/${mascota.id}/`).subscribe({
+      next: () => this.mascotas.update(list => list.filter(m => m.id !== mascota.id)),
+      error: (err) => this.errorMascota.set(err.error?.error || 'No se pudo eliminar la mascota')
+    });
   }
 
   activarEdicion() {

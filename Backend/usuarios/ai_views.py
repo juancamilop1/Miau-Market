@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle
 from .ai_serializers import ChatbotSerializer
 from .models import MiauBotAprendizaje
 from .services.miaubot_service import procesar_mensaje, obtener_mensaje_bienvenida
@@ -11,10 +12,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class ChatbotRateThrottle(AnonRateThrottle):
+    scope = 'chatbot'
+
+
 class ChatbotView(generics.GenericAPIView):
     """MiauBot 100% local — productos reales + conocimiento en BD."""
     serializer_class = ChatbotSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [ChatbotRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -93,15 +93,42 @@ class RegistroSerializer(serializers.ModelSerializer):
 
 
 class ProductoSerializer(serializers.ModelSerializer):
+    categoria_codigo = serializers.CharField(required=False, allow_blank=True, write_only=False)
+
     class Meta:
         model = Producto
-        fields = ('id', 'Titulo', 'Descripcion', 'Categoria', 'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by')
+        fields = (
+            'id', 'Titulo', 'Descripcion', 'Categoria', 'categoria_codigo',
+            'Precio', 'Stock', 'Imagen', 'Fecha_creacion', 'Fecha_Caducidad', 'created_by',
+        )
         read_only_fields = ('id', 'Fecha_creacion', 'created_by')
-    
+
+    def validate(self, attrs):
+        from .models import CatCategoria
+
+        codigo = attrs.pop('categoria_codigo', None)
+        if codigo:
+            cat = CatCategoria.objects.filter(codigo=codigo, activo=True).first()
+            if not cat:
+                raise serializers.ValidationError({'categoria_codigo': 'Categoria invalida'})
+        else:
+            nombre = attrs.get('Categoria') or getattr(self.instance, 'Categoria', None)
+            if not nombre:
+                return attrs
+            cat = CatCategoria.objects.filter(nombre__iexact=str(nombre).strip(), activo=True).first()
+            if not cat:
+                raise serializers.ValidationError({'Categoria': 'Categoria no esta en el catalogo'})
+
+        attrs['categoria'] = cat
+        attrs['Categoria'] = cat.nombre
+        return attrs
+
     def to_representation(self, instance):
-        """Cambiar 'id' a 'Id_Products' en la respuesta"""
         data = super().to_representation(instance)
         data['Id_Products'] = data.pop('id')
+        data['categoria_codigo'] = instance.categoria.codigo if instance.categoria_id else None
+        if instance.categoria_id and not data.get('Categoria'):
+            data['Categoria'] = instance.categoria.nombre
         return data
 
 
