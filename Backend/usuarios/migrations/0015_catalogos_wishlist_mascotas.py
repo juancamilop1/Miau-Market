@@ -85,7 +85,27 @@ def seed_catalogos(apps, schema_editor):
             pedido.save(update_fields=updates)
 
 
+def add_fk_columns(apps, schema_editor):
+    """TiDB no soporta bien ADD COLUMN + FK en un solo ALTER de Django."""
+    stmts = [
+        'ALTER TABLE Products ADD COLUMN categoria_id BIGINT NULL',
+        'ALTER TABLE PaymentOrders ADD COLUMN metodo_pago_id BIGINT NULL',
+        'ALTER TABLE PaymentOrders ADD COLUMN estado_id BIGINT NULL',
+        'CREATE INDEX Products_categoria_id_idx ON Products (categoria_id)',
+        'CREATE INDEX PaymentOrders_metodo_pago_id_idx ON PaymentOrders (metodo_pago_id)',
+        'CREATE INDEX PaymentOrders_estado_id_idx ON PaymentOrders (estado_id)',
+    ]
+    for sql in stmts:
+        try:
+            schema_editor.execute(sql)
+        except Exception:
+            # Idempotente si la columna/indice ya existe
+            pass
+
+
 class Migration(migrations.Migration):
+
+    atomic = False
 
     dependencies = [
         ('usuarios', '0014_miaubot_memoria'),
@@ -136,41 +156,48 @@ class Migration(migrations.Migration):
                 'ordering': ['orden', 'nombre'],
             },
         ),
-        migrations.AddField(
-            model_name='producto',
-            name='categoria',
-            field=models.ForeignKey(
-                blank=True,
-                db_column='categoria_id',
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name='productos',
-                to='usuarios.catcategoria',
-            ),
-        ),
-        migrations.AddField(
-            model_name='pedido',
-            name='metodo_pago',
-            field=models.ForeignKey(
-                blank=True,
-                db_column='metodo_pago_id',
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name='pedidos',
-                to='usuarios.catmetodopago',
-            ),
-        ),
-        migrations.AddField(
-            model_name='pedido',
-            name='estado',
-            field=models.ForeignKey(
-                blank=True,
-                db_column='estado_id',
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name='pedidos',
-                to='usuarios.catestadopedido',
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(add_fk_columns, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='producto',
+                    name='categoria',
+                    field=models.ForeignKey(
+                        blank=True,
+                        db_column='categoria_id',
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name='productos',
+                        to='usuarios.catcategoria',
+                    ),
+                ),
+                migrations.AddField(
+                    model_name='pedido',
+                    name='metodo_pago',
+                    field=models.ForeignKey(
+                        blank=True,
+                        db_column='metodo_pago_id',
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name='pedidos',
+                        to='usuarios.catmetodopago',
+                    ),
+                ),
+                migrations.AddField(
+                    model_name='pedido',
+                    name='estado',
+                    field=models.ForeignKey(
+                        blank=True,
+                        db_column='estado_id',
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name='pedidos',
+                        to='usuarios.catestadopedido',
+                    ),
+                ),
+            ],
         ),
         migrations.CreateModel(
             name='ListaDeseos',

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS Product_Reviews (
 """
 
 VIEW_SQL = """
-CREATE VIEW IF NOT EXISTS Product_Ratings AS
+CREATE VIEW Product_Ratings AS
 SELECT
     p.Id_Products,
     p.Titulo,
@@ -54,6 +54,8 @@ def create_reviews(apps, schema_editor):
     vendor = schema_editor.connection.vendor
     reviews_sql = MYSQL_REVIEWS if vendor == 'mysql' else SQLITE_REVIEWS
     schema_editor.execute(reviews_sql)
+    # TiDB no soporta CREATE VIEW IF NOT EXISTS
+    schema_editor.execute('DROP VIEW IF EXISTS Product_Ratings')
     schema_editor.execute(VIEW_SQL)
 
 
@@ -63,6 +65,9 @@ def drop_reviews(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+
+    # TiDB/MySQL serverless: DDL fuera de transaccion.
+    atomic = False
 
     dependencies = [
         ('usuarios', '0008_orders_tables'),

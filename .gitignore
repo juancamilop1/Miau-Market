@@ -8,6 +8,7 @@ venv/
 .venv/
 Backend/db.sqlite3
 Backend/media/
+Backend/certs/
 *.sqlite3
 
 # Node / Angular

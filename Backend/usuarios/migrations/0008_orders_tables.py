@@ -71,6 +71,9 @@ def drop_orders(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    # TiDB/MySQL serverless: DDL no puede ir dentro de transaccion atomica.
+    atomic = False
+
     dependencies = [
         ('usuarios', '0007_paymentorders_shipping_columns'),
     ]

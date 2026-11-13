@@ -18,6 +18,8 @@ def asignar_usernames(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # TiDB Starter no permite ADD COLUMN + UNIQUE en un solo ALTER.
+    atomic = False
 
     dependencies = [
         ('usuarios', '0010_modelos_completos'),
@@ -27,12 +29,30 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='usuario',
             name='Username',
-            field=models.CharField(db_column='Username', max_length=50, null=True, unique=True),
+            field=models.CharField(db_column='Username', max_length=50, null=True),
         ),
         migrations.RunPython(asignar_usernames, migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name='usuario',
-            name='Username',
-            field=models.CharField(db_column='Username', max_length=50, unique=True),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="UPDATE Users SET Username = CONCAT('user', Id_User) WHERE Username IS NULL OR Username = ''",
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+                migrations.RunSQL(
+                    sql='ALTER TABLE Users MODIFY COLUMN Username VARCHAR(50) NOT NULL',
+                    reverse_sql='ALTER TABLE Users MODIFY COLUMN Username VARCHAR(50) NULL',
+                ),
+                migrations.RunSQL(
+                    sql='CREATE UNIQUE INDEX Username ON Users (Username)',
+                    reverse_sql='DROP INDEX Username ON Users',
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name='usuario',
+                    name='Username',
+                    field=models.CharField(db_column='Username', max_length=50, unique=True),
+                ),
+            ],
         ),
     ]

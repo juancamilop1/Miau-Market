@@ -107,9 +107,15 @@ else:
         'use_unicode': True,
         'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
     }
-    # TiDB Cloud / MySQL remoto suelen exigir TLS
+    # TiDB Cloud / MySQL remoto: DB_SSL=True y opcional DB_SSL_CA=/ruta/isrgrootx1.pem
     if os.environ.get('DB_SSL', 'False').lower() in ('1', 'true', 'yes'):
-        _db_options['ssl'] = {'ssl': True}
+        ca_path = os.environ.get('DB_SSL_CA', '').strip()
+        if ca_path:
+            _db_options['ssl'] = {'ca': ca_path}
+            _db_options['ssl_verify_cert'] = True
+            _db_options['ssl_verify_identity'] = True
+        else:
+            _db_options['ssl'] = True
 
     DATABASES = {
         'default': {
