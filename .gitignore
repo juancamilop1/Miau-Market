@@ -35,7 +35,7 @@ miau_market_backup*.sql
 *.sql.backup
 *.mwb.bak
 
-# Documentacion local (no subir a remoto)
-docs/
-README.md
+# Solo docs operativos locales (NO ignorar arquitectura/stack/README)
+docs/CAMBIOS_*.md
+docs/DESPLIEGUE*.md
 render.yaml
