@@ -1,0 +1,7 @@
+# Cloudflare Workers (Builds): static SPA — el output directory NO va en el dashboard.
+name = "miau-market"
+compatibility_date = "2025-04-01"
+
+[assets]
+directory = "./dist/frontend/browser"
+not_found_handling = "single-page-application"
