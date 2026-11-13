@@ -5,7 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const apiUrl = (process.env.API_URL || '').trim().replace(/\/$/, '');
+const DEFAULT_API = 'https://miau-market-api.onrender.com';
+const apiUrl = (process.env.API_URL || DEFAULT_API).trim().replace(/\/$/, '');
 const envFile = path.join(__dirname, '..', 'src', 'environments', 'environment.prod.ts');
 const indexFile = path.join(__dirname, '..', 'src', 'index.html');
 
