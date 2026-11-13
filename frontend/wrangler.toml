@@ -1,7 +1,11 @@
-# Cloudflare Workers (Builds): static SPA — el output directory NO va en el dashboard.
+# Cloudflare Workers Builds — SPA static assets (sin _redirects; eso rompe el deploy).
 name = "miau-market"
 compatibility_date = "2025-04-01"
+workers_dev = true
 
 [assets]
 directory = "./dist/frontend/browser"
 not_found_handling = "single-page-application"
+
+[vars]
+API_URL = "https://miau-market-api.onrender.com"
