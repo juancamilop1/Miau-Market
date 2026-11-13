@@ -107,7 +107,8 @@ else:
         'use_unicode': True,
         'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
     }
-    # TiDB Cloud / MySQL remoto: DB_SSL=True y opcional DB_SSL_CA=/ruta/isrgrootx1.pem
+    # TiDB Cloud / MySQL remoto: DB_SSL=True (ssl debe ser dict; bool rompe PyMySQL).
+    # En Render suele bastar {} (CAs del sistema). Local Windows: DB_SSL_CA=ruta/isrgrootx1.pem
     if os.environ.get('DB_SSL', 'False').lower() in ('1', 'true', 'yes'):
         ca_path = os.environ.get('DB_SSL_CA', '').strip()
         if ca_path:
@@ -115,7 +116,7 @@ else:
             _db_options['ssl_verify_cert'] = True
             _db_options['ssl_verify_identity'] = True
         else:
-            _db_options['ssl'] = True
+            _db_options['ssl'] = {}
 
     DATABASES = {
         'default': {
