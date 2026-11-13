@@ -5,8 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "build:pages": "node scripts/set-api-url.js && ng build --configuration=pages",
-    "deploy:cloudflare": "npx wrangler deploy",
+    "build:pages": "node scripts/set-api-url.js && ng build --configuration=pages && node scripts/scrub-redirects.js",
+    "deploy:cloudflare": "node scripts/scrub-redirects.js && npx wrangler deploy",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:frontend": "node dist/frontend/server/server.mjs"
