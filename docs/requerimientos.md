@@ -1,8 +1,8 @@
 # Requerimientos del sistema — Miau Market
 
 **Proyecto:** plataforma web de comercio de productos para mascotas con asistente conversacional (MiauBot).  
-**Versión del documento:** 1.3 (entrega académica)  
-**Fecha:** 2026-10-12  
+**Versión del documento:** 2.0 (actualización V2 — Entrega 3)  
+**Fecha:** 2026-11-20  
 **Autores:** Juan Camilo Barragán Pottes · Angely Liced Herrera Roldán  
 
 ---
@@ -67,7 +67,7 @@ Los requerimientos funcionales definen **qué debe hacer** el sistema. Cada uno 
 |----|------|---------------|------------------------|----------------|
 | RF-01 | A | Registro de nuevos clientes con datos obligatorios (nombre, apellido, correo, teléfono, dirección, ciudad, edad). | Con datos válidos, el sistema crea la cuenta y permite el acceso posterior. Con datos incompletos, edad no válida o correo duplicado, el sistema rechaza el registro e informa el motivo. | CP-01 Registro desde la pantalla de creación de cuenta. CP-02 Registro vía servicio web de registro (datos completos e incompletos). |
 | RF-02 | A | Inicio y cierre de sesión. | Credenciales correctas permiten el acceso; credenciales incorrectas son rechazadas. Al cerrar sesión, el usuario no accede a funciones reservadas sin autenticarse de nuevo. | CP-03 Inicio de sesión en la aplicación. CP-04 Validación del servicio de autenticación. CP-05 Cierre de sesión desde el menú principal. |
-| RF-03 | A | Consulta y actualización del perfil, incluido cambio de contraseña. | Los datos personales se actualizan correctamente. El cambio de contraseña solo procede si se valida la contraseña actual. | CP-06 Edición del perfil en pantalla Mi perfil. CP-07 Actualización de perfil mediante servicio web autenticado. |
+| RF-03 | A | Consulta y actualización del perfil, incluido cambio de contraseña y gestión de perfiles de mascota. | Los datos personales se actualizan correctamente. El cambio de contraseña solo procede si se valida la contraseña actual. El cliente puede registrar, editar y desactivar sus mascotas (`Mascotas_Usuario`). | CP-06 Edición del perfil en pantalla Mi perfil. CP-07 Actualización de perfil y mascotas mediante servicio web autenticado. |
 
 ### 4.2 Catálogo y búsqueda
 
@@ -77,7 +77,7 @@ Los requerimientos funcionales definen **qué debe hacer** el sistema. Cada uno 
 | RF-05 | A | Búsqueda de productos por texto. | Al ingresar un término de búsqueda, solo se muestran productos coincidentes; si no hay resultados, el sistema lo comunica de forma clara. | CP-10 Búsqueda con término existente y con término inexistente. |
 | RF-06 | M | Organización por categorías. | Los productos se presentan agrupados por categorías (por ejemplo alimentos, juguetes, accesorios). Las categorías provienen de un catálogo administrable en base de datos: una categoría nueva o desactivada se refleja en la tienda y en el formulario de productos sin modificar el código. | CP-11 Revisión de secciones por categoría en la tienda. |
 | RF-07 | A | Restricción de venta de productos caducados. | Los productos vencidos se identifican como no disponibles para compra y no pueden añadirse al carrito. | CP-12 Visualización y comportamiento de un producto caducado. |
-| RF-08 | M | Detalle de producto, calificación y reseñas. | Al consultar un producto, el usuario ve descripción, promedio de calificación y comentarios de otros clientes cuando existen. | CP-13 Apertura del detalle de producto con reseñas. |
+| RF-08 | M | Detalle de producto (`/product/:id`), calificación, reseñas y lista de deseos (favoritos). | Al consultar un producto, el usuario ve descripción, promedio de calificación y comentarios de otros clientes; el cliente autenticado puede guardar/quitar favoritos (`Lista_Deseos`). | CP-13 Apertura del detalle de producto con reseñas y gestión en Favoritos (`/wishlist`). |
 
 ### 4.3 Carrito y compra
 
@@ -86,9 +86,9 @@ Los requerimientos funcionales definen **qué debe hacer** el sistema. Cada uno 
 | RF-09 | A | Gestión del carrito de compras. | El cliente autenticado puede agregar productos, modificar cantidades y eliminar ítems; el total se refleja en la interfaz. | CP-14 Flujo desde tienda hasta carrito. |
 | RF-10 | M | Selección parcial de ítems para compra. | El usuario marca qué productos desea enviar; solo los seleccionados pasan a la confirmación del pedido. | CP-15 Selección de un subconjunto de productos en el carrito. |
 | RF-11 | A | Datos de entrega en la confirmación del pedido. | Dirección y teléfono son obligatorios; si ya existen en el perfil, se precargan. | CP-16 Confirmación con datos completos e incompletos. |
-| RF-12 | A | Registro del pedido con pago contra entrega. | El sistema guarda el pedido con método de pago contra entrega, detalle de productos, total y datos de envío. | CP-17 Confirmación de pedido en pantalla. CP-18 Registro de pedido vía servicio web. |
-| RF-13 | A | Actualización de inventario y visibilidad del pedido. | Tras una compra exitosa, disminuye el stock y el pedido aparece en el historial del cliente. | CP-19 Verificación de stock. CP-20 Consulta en Mis pedidos. |
-| RF-14 | A | Historial y estado de pedidos. | Cada cliente consulta únicamente sus pedidos y el estado actual de cada uno (por ejemplo Pendiente, Enviado, Entregado). | CP-21 Listado de pedidos y cambio de estado por administración. |
+| RF-12 | A | Registro del pedido con método de pago de catálogo (operación sin pasarela, pago contra entrega por defecto). | El sistema valida el método de pago contra `cat_metodo_pago`, guarda el pedido, detalle de productos, total calculado en servidor y datos de envío. | CP-17 Confirmación de pedido en pantalla. CP-18 Registro de pedido vía servicio web. |
+| RF-13 | A | Actualización atómica de inventario y visibilidad del pedido. | Tras una compra exitosa (`select_for_update`), disminuye el stock y el pedido aparece en el historial del cliente. Si el pedido pasa a `Cancelado` o `Devuelto`, el stock se restaura automáticamente. | CP-19 Verificación de stock (compra y restauración). CP-20 Consulta en Mis pedidos. |
+| RF-14 | A | Historial, estado y cancelación de pedidos del cliente. | Cada cliente consulta únicamente sus pedidos, visualiza el estado actual (`Pendiente`, `Enviado`, `Entregado`, `Devuelto`, `Cancelado`) y puede cancelar un pedido propio mientras esté en estado `Pendiente`. | CP-21 Listado de pedidos, cancelación en `Pendiente` y cambio de estado por administración. |
 
 ### 4.4 Reseñas
 
@@ -166,10 +166,10 @@ Los autores implementaron los requerimientos RF-01 a RF-26 en la versión entreg
 | RNF-01 | Interfaz en **español**, mensajes claros y jerarquía visual comprensible. | Usabilidad | Revisión heurística de pantallas principales. |
 | RNF-02 | Flujos de registro, carrito y compra completables **sin conocimientos técnicos**; el asistente apoya dudas. | Usabilidad | CP-01, CP-14, CP-17 y CP-24. |
 | RNF-03 | Secretos y credenciales en **variables de entorno**, no en el código publicado. | Seguridad | Revisión del repositorio y archivo de ejemplo de configuración. |
-| RNF-04 | Operaciones sensibles exigen **autenticación**; gestión solo para **administradores**. | Seguridad | CP-33 y pruebas de acceso sin permiso. |
-| RNF-05 | Integración mediante **API REST** con intercambio **JSON**. | Arquitectura | Documentación de servicios y pruebas API. |
-| RNF-06 | Tiempo de respuesta del catálogo **inferior a 3 segundos** en red local de demostración. | Rendimiento | Medición en CP-08. |
-| RNF-07 | Persistencia en base de datos relacional con soporte **UTF-8** (tildes y ñ): **SQLite** en desarrollo y demostración, **MySQL 8** proyectado para producción. | Datos | Esquema creado por migraciones de Django; archivo `Backend/db.sqlite3` incluido con datos de demostración. |
+| RNF-04 | Operaciones sensibles exigen **autenticación** (`authGuard`, `IsAuthenticated`), aislamiento por usuario (`IsSelfOrAdmin`), gestión solo para **administradores** (`adminGuard`, `IsAdminUser`) y limitación de tasa (*throttling* en login y chatbot). | Seguridad | CP-33, pruebas automatizadas (`manage.py test usuarios`) y pruebas de acceso sin permiso. |
+| RNF-05 | Integración mediante **API REST** con intercambio **JSON** sobre HTTPS en producción. | Arquitectura | Documentación de servicios y pruebas API (`/api/health/` y `/api/usuarios/`). |
+| RNF-06 | Tiempo de respuesta del catálogo **inferior a 3 segundos** en operación activa (en plan gratuito de Render el primer arranque tras inactividad presenta *cold start*). | Rendimiento | Medición en CP-08. |
+| RNF-07 | Persistencia en base de datos relacional con soporte **UTF-8** (`utf8mb4_unicode_ci`) e integridad referencial (FK reales): **TiDB Cloud / MySQL 8** en producción y MySQL 8 (o SQLite opcional) en local. | Datos | Esquema gestionado por migraciones Django `0001`–`0018`. |
 | RNF-08 | Diseño **adaptable** a computador y dispositivo móvil. | Usabilidad | CP-08 en distintos tamaños de pantalla. |
 | RNF-09 | **Tema claro y oscuro** disponible. | Usabilidad | Alternancia desde el menú principal. |
 | RNF-10 | Ventanas emergentes cerrables de forma **predecible** (incluida tecla Escape). | Usabilidad | Prueba en detalle de producto y menú móvil. |
@@ -186,7 +186,7 @@ Los autores implementaron los requerimientos RF-01 a RF-26 en la versión entreg
 | RN-02 | No se venden más unidades que el **stock** disponible al confirmar la compra. |
 | RN-03 | Los productos **caducados** no se ofrecen para venta. |
 | RN-04 | Solo **administradores** gestionan catálogo, usuarios y pedidos desde el panel de administración. |
-| RN-05 | El método de pago ofrecido al cliente es **contra entrega**; no hay pasarela de tarjeta en esta versión. |
+| RN-05 | Los métodos de pago se gestionan por catálogo (`cat_metodo_pago`); la modalidad operativa sin pasarela es **contra entrega** (sin integración de pasarela bancaria en esta versión). |
 | RN-06 | Para crear un pedido el cliente debe estar **autenticado** y registrar **dirección y teléfono** de entrega. |
 | RN-07 | En el registro y perfil, la **edad** debe estar en el rango validado por el sistema (18 a 120 años). |
 | RN-08 | Cada reseña asocia **un usuario y un producto**; el cliente edita su propia reseña según las reglas del sistema. |
@@ -199,8 +199,8 @@ Los autores implementaron los requerimientos RF-01 a RF-26 en la versión entreg
 
 | ID | Restricción |
 |----|-------------|
-| RS-01 | **Tecnologías:** cliente Angular, servidor Django REST, base de datos SQLite en desarrollo, pruebas y demostración; MySQL 8 proyectado para producción. |
-| RS-02 | **Demostración académica:** servicios en entorno local (puertos definidos en documentación de instalación). |
+| RS-01 | **Tecnologías:** cliente Angular 20 (Cloudflare Workers), servidor Django 5.0 + DRF (Render), base de datos TiDB Cloud / MySQL 8 con TLS en producción (y MySQL/SQLite en desarrollo local). |
+| RS-02 | **Entorno de demostración y producción gratuita:** desplegado en capas gratuitas (Cloudflare Workers, Render Free con suspensión tras inactividad y disco `/media` efímero, TiDB Cloud Starter con cuota mensual) más ejecución local reproducible. |
 | RS-03 | **Inteligencia artificial externa** sujeta a conectividad, cuotas y configuración institucional. |
 | RS-04 | **Sin pago en línea** integrado en la versión actual. |
 | RS-05 | **Enfoque Colombia:** ciudades de registro, moneda COP, entrega conceptual contra entrega. |
@@ -218,15 +218,15 @@ Cadena **Necesidad → Requerimientos → Proceso (BPMN) → Arquitectura (C4) �
 
 | Necesidad del usuario | Requerimientos | Tarea del BPMN | Componente C4 (nivel 3) | Tablas | Código principal |
 |------------------------|----------------|----------------|-------------------------|--------|------------------|
-| Comprar con calma sin saber de tecnología | RF-01, RF-02, RF-03, RNF-01, RNF-02 | Iniciar sesión o registrarse | Autenticación y perfil | Users | `views.py` (`RegistroView`, `LoginView`, `ActualizarPerfilView`), `serializers.py`, `backends.py`; `register/`, `login/`, `profile/` |
-| Encontrar el producto adecuado | RF-04 a RF-08 | Buscar productos y agregarlos al carrito | Catálogo de productos | Categories, Products, Product_Ratings | `CategoriaListView`, `ProductoListView`, `ProductoSerializer`; `shop/` |
-| No sabe qué producto elegir | RF-17 a RF-21 | Buscar productos (apoyo de MiauBot) | MiauBot; Conocimiento, memoria y aprendizaje; Cliente de IA | MiauBot_Config, MiauBot_Conocimiento, MiauBot_Frases, MiauBot_Aprendizaje, MiauBot_Memoria | `ai_views.py`, `services/miaubot_*.py`; `chatbot/` |
-| Elegir qué comprar y cuánto | RF-09, RF-10 | Seleccionar productos e ir a pagar; Ajustar cantidades del carrito | Aplicación web (carrito en el navegador) | — | `cart/`, `auth.service.ts` (carrito) |
-| Confirmar la compra con pago contra entrega | RF-11, RF-12, RF-13, RN-01, RN-02, RN-05, RN-06 | Ingresar dirección y teléfono; Validar productos y stock; Registrar pedido y descontar stock; Enviar confirmación | Gestión de pedidos | PaymentOrders, Orders_Details, Products | `CrearPedidoView`, `CrearPedidoSerializer`, `services/pedidos_service.py`; `checkout/` |
-| Saber en qué va su compra | RF-14, RF-22, RF-25 | Notificar a administradores; Marcar como Enviado / Entregado / Devuelto; Guardar estado y notificar al cliente | Gestión de pedidos; Notificaciones | PaymentOrders, Notificaciones | `ActualizarPedidoView`, `MisPedidosView`, `NotificacionesView`; `my-orders/`, `notifications-bell/` |
-| Confiar en opiniones de otros | RF-15, RF-16, RN-08 | — (posterior a la compra) | Reseñas y calificaciones | Product_Reviews, Product_Ratings | `ProductReviewsView`, `UserReviewView`, `services/ratings_service.py`; `shop/` (detalle) |
-| No comprar productos vencidos | RF-07, RN-03 | Validar productos y stock disponible | Catálogo; Notificaciones | Products, Categories (`Perecedero`), Notificaciones | `ProductoListView`, `VerificarProductosCaducadosView`, comando `verificar_productos_caducados` |
-| Operar el negocio | RF-23, RF-24, RF-26, RN-04 | Revisar pedido y preparar despacho | Catálogo; Gestión de usuarios | Products, Categories, Users | `ProductoListView`/`ProductoDetailView` (admin), `Gestion*View`, `Bulk*View`; `admin/`, `dashboard/` |
+| Comprar con calma sin saber de tecnología | RF-01, RF-02, RF-03, RNF-01, RNF-02 | Iniciar sesión o registrarse | Autenticación, perfil y mascotas | `Users`, `Mascotas_Usuario` | `views.py` (`RegistroView`, `LoginView`, `ActualizarPerfilView`, `MascotasView`), `permissions.py`; `register/`, `login/`, `profile/` |
+| Encontrar el producto adecuado | RF-04 a RF-08 | Buscar productos y agregarlos al carrito | Catálogo y lista de deseos | `cat_categoria`, `Products`, `Lista_Deseos`, `Product_Ratings` | `CatalogosView`, `CategoriaListView`, `ProductoListView`, `WishlistView`; `shop/`, `product-detail/`, `wishlist/` |
+| No sabe qué producto elegir | RF-17 a RF-21 | Buscar productos (apoyo de MiauBot) | MiauBot; Conocimiento, memoria y aprendizaje; Cliente de IA | `MiauBot_Config`, `MiauBot_Conocimiento`, `MiauBot_Frases`, `MiauBot_Aprendizaje`, `MiauBot_Memoria` | `ai_views.py`, `services/miaubot_*.py`; `chatbot/` |
+| Elegir qué comprar y cuánto | RF-09, RF-10 | Seleccionar productos e ir a pagar; Ajustar cantidades del carrito | Aplicación web (carrito en el navegador) | — | `cart/`, `auth.service.ts` (carrito con validación de stock) |
+| Confirmar la compra con pago contra entrega | RF-11, RF-12, RF-13, RN-01, RN-02, RN-05, RN-06 | Ingresar dirección y teléfono; Validar productos y stock; Registrar pedido y descontar stock; Enviar confirmación | Gestión de pedidos | `PaymentOrders`, `Orders_Details`, `Products`, `cat_metodo_pago`, `cat_estado_pedido` | `CrearPedidoView`, `CrearPedidoSerializer`, `services/pedidos_service.py`; `checkout/` |
+| Saber en qué va su compra | RF-14, RF-22, RF-25 | Notificar a administradores; Marcar como Enviado / Entregado / Devuelto / Cancelado; Guardar estado y notificar al cliente | Gestión de pedidos; Notificaciones | `PaymentOrders`, `cat_estado_pedido`, `Notificaciones` | `ActualizarPedidoView`, `CancelarPedidoView`, `MisPedidosView`, `NotificacionesView`; `my-orders/`, `notifications-bell/` |
+| Confiar en opiniones de otros | RF-15, RF-16, RN-08 | — (posterior a la compra) | Reseñas y calificaciones | `Product_Reviews`, `Product_Ratings` | `ProductReviewsView`, `UserReviewView`, `services/ratings_service.py`; `product-detail/` |
+| No comprar productos vencidos | RF-07, RN-03 | Validar productos y stock disponible | Catálogo; Notificaciones | `Products`, `cat_categoria` (`perecedero`), `Notificaciones` | `ProductoListView`, `VerificarProductosCaducadosView`, comando `verificar_productos_caducados` |
+| Operar el negocio | RF-23, RF-24, RF-26, RN-04 | Revisar pedido y preparar despacho | Catálogo; Gestión de usuarios | `Products`, `cat_categoria`, `Users` | `ProductoListView`/`ProductoDetailView` (admin), `Gestion*View`, `Bulk*View`; `admin/`, `dashboard/` |
 
 Documentos relacionados: [BPMN.png](BPMN.png), [arquitectura.md](arquitectura.md), [modelo_c4.md](modelo_c4.md), [modelo_entidad_relacion.md](modelo_entidad_relacion.md), [stack_tecnologico.md](stack_tecnologico.md).
 

@@ -8,7 +8,7 @@ Patron alineado con **ROADEX / bia-system**: SQL versionado, credenciales en `.e
 
 | Capa | Tecnologia |
 |------|------------|
-| Motor | MySQL 8+ / MariaDB 10.4+ |
+| Motor | TiDB Cloud Starter (MySQL-compatible, TLS) en produccion; MySQL 8+ / MariaDB 10.4+ (o SQLite opcional) en local |
 | ORM | Django (Users, Products, Notificaciones, Pedidos, Resenas) |
 | Servicios | pedidos_service, ratings_service |
 | Charset | utf8mb4 / utf8mb4_unicode_ci |
@@ -181,7 +181,10 @@ Doble clic en `iniciar_miau_market.bat` en la raiz del proyecto. El script:
 | 0012 | Tablas MiauBot_Config / Conocimiento / Frases + seed |
 | 0013 | MiauBot_Aprendizaje |
 | 0014 | MiauBot_Memoria |
-| 0015 | Catalogos (categoria/pago/estado) + FKs + Lista_Deseos + Mascotas_Usuario |
+| 0015 | Catalogos (`cat_categoria`, `cat_metodo_pago`, `cat_estado_pedido`) + FKs + `Lista_Deseos` + `Mascotas_Usuario` |
+| 0016 | FKs reales en `MiauBot_Aprendizaje` y `MiauBot_Memoria` hacia `Users` |
+| 0017 | FKs reales en `Notificaciones` hacia `Users` y `PaymentOrders` |
+| 0018 | Metadatos de `cat_categoria` (`icono`, `animal`, `tema`, `perecedero`, `orden`) |
 
 ---
 
