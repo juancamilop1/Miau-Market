@@ -1,4 +1,4 @@
-import { Component, signal, inject, effect } from '@angular/core';
+import { Component, OnDestroy, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,13 +26,13 @@ interface ChatMessage {
   styleUrls: ['./chatbot.css'],
   imports: [CommonModule, FormsModule]
 })
-export class Chatbot {
+export class Chatbot implements OnDestroy {
   private envService = inject(EnvironmentService);
   auth = inject(AuthService);
   private router = inject(Router);
   private overlays = inject(UiOverlayService);
 
-  open = false;
+  open = signal(false);
   currentMessage = '';
   isLoading = signal(false);
   messages = signal<ChatMessage[]>([]);
@@ -57,6 +57,10 @@ export class Chatbot {
     });
   }
 
+  ngOnDestroy() {
+    this.overlays.unregister('chatbot');
+  }
+
   /** Mensajes visibles: oculta avisos de login si ya hay sesion */
   visibleMessages = () => {
     if (this.auth.isLogged()) {
@@ -66,11 +70,11 @@ export class Chatbot {
   };
 
   toggle() {
-    if (this.open) {
+    if (this.open()) {
       this.closePanel();
       return;
     }
-    this.open = true;
+    this.open.set(true);
     this.overlays.register('chatbot', () => this.closePanel());
     if (!this.hasShownGreeting) {
       this.hasShownGreeting = true;
@@ -83,7 +87,7 @@ export class Chatbot {
   }
 
   private closePanel() {
-    this.open = false;
+    this.open.set(false);
     this.overlays.unregister('chatbot');
   }
 
@@ -108,7 +112,7 @@ export class Chatbot {
     const hadAuthPrompt = this.messages().some(m => m.type === 'auth');
     this.messages.update(msgs => msgs.filter(m => m.type !== 'auth'));
 
-    if (hadAuthPrompt || this.open) {
+    if (hadAuthPrompt || this.open()) {
       this.hasShownGreeting = true;
       this.addWelcomeMessage(true);
     }
@@ -193,7 +197,7 @@ export class Chatbot {
   }
 
   navigateAction(route: string) {
-    this.open = false;
+    this.closePanel();
     this.router.navigate([route]);
   }
 

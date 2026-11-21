@@ -1,10 +1,12 @@
-import { Injectable, Inject, PLATFORM_ID, signal, computed } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, signal, computed, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { NavigationStart, Router } from '@angular/router';
 
 type OverlayEntry = { id: string; close: () => void };
 
 @Injectable({ providedIn: 'root' })
 export class UiOverlayService {
+  private router = inject(Router);
   private stack = signal<OverlayEntry[]>([]);
   readonly count = computed(() => this.stack().length);
   readonly isOpen = computed(() => this.stack().length > 0);
@@ -14,6 +16,13 @@ export class UiOverlayService {
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           this.closeTop();
+        }
+      });
+      this.router.events.subscribe((ev) => {
+        if (ev instanceof NavigationStart && this.stack().length > 0) {
+          this.closeAll();
+          this.stack.set([]);
+          this.syncBodyScroll();
         }
       });
     }

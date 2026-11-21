@@ -24,7 +24,7 @@ def _format_price(precio) -> str:
         return str(precio)
 
 
-def _catalogo_texto(limite: int = 25) -> str:
+def _catalogo_texto(limite: int = 35) -> str:
     ratings = obtener_ratings_dict()
     lineas = []
     for p in Producto.objects.filter(Stock__gt=0).select_related('categoria').order_by('-Stock')[:limite]:
@@ -145,7 +145,9 @@ def generar_respuesta_ia(
         import google.generativeai as genai
 
         genai.configure(api_key=api_key)
-        model_name = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash')
+        model_name = (getattr(settings, 'GEMINI_MODEL', '') or 'gemini-2.5-flash').strip()
+        if model_name in ('gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'):
+            model_name = 'gemini-2.5-flash'
 
         model = genai.GenerativeModel(
             model_name=model_name,
@@ -154,7 +156,7 @@ def generar_respuesta_ia(
 
         generation_config = {
             'temperature': 0.75,
-            'max_output_tokens': 800,
+            'max_output_tokens': 1500,
             'top_p': 0.9,
         }
 
@@ -163,9 +165,12 @@ def generar_respuesta_ia(
         response = chat.send_message(message, generation_config=generation_config)
 
         texto = ''
-        if hasattr(response, 'text') and response.text:
-            texto = response.text.strip()
-        elif response.candidates:
+        try:
+            if response.text:
+                texto = response.text.strip()
+        except ValueError:
+            texto = ''
+        if not texto and getattr(response, 'candidates', None):
             parts = response.candidates[0].content.parts
             texto = ''.join(getattr(p, 'text', '') for p in parts).strip()
 

@@ -1,10 +1,10 @@
-<div class="chat-wrapper" [class.open]="open" [class.chat-wrapper--active]="open">
+<div class="chat-wrapper" [class.open]="open()" [class.chat-wrapper--active]="open()">
 	<button class="chat-button" (click)="toggle()" aria-label="Abrir chat MiauBot">
 		<img src="/miauMarket.png" alt="MiauBot" />
 		<span class="chat-pulse"></span>
 	</button>
 
-	<div class="chat-panel" *ngIf="open">
+	<div class="chat-panel" *ngIf="open()">
 		<header class="chat-header">
 			<div class="chat-header-info">
 				<span class="chat-avatar">🐱</span>
