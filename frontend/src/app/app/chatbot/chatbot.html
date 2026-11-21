@@ -25,6 +25,27 @@
 						<div class="message-text">{{ msg.text }}</div>
 						<span *ngIf="msg.type === 'user'" class="user-avatar">👤</span>
 					</div>
+					<div *ngIf="msg.products?.length" class="chat-products" aria-label="Productos recomendados">
+						<button
+							type="button"
+							class="chat-product-card"
+							*ngFor="let prod of msg.products"
+							(click)="openProduct(prod.id)">
+							<div class="chat-product-thumb">
+								<img [src]="getProductImage(prod.imagen)" [alt]="prod.titulo" loading="lazy" />
+							</div>
+							<div class="chat-product-info">
+								<span class="chat-product-cat">{{ prod.categoria }}</span>
+								<strong class="chat-product-title">{{ prod.titulo }}</strong>
+								<div class="chat-product-meta">
+									<span class="chat-product-price">COP {{ prod.precio | number:'1.0-0' }}</span>
+									<span class="chat-product-rating" *ngIf="prod.rating">★ {{ prod.rating }}</span>
+									<span class="chat-product-stock" *ngIf="!prod.rating">{{ prod.stock }} disp.</span>
+								</div>
+							</div>
+							<span class="chat-product-arrow" aria-hidden="true">›</span>
+						</button>
+					</div>
 					<div *ngIf="msg.actions?.length" class="message-actions">
 						<button *ngFor="let action of msg.actions"
 								class="action-btn"

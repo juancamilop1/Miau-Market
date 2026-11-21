@@ -3,9 +3,11 @@ MiauBot — respuestas con IA en la nube (Google Gemini).
 El prompt, conocimiento y catalogo vienen de la BD; la inteligencia es del LLM.
 """
 
+from datetime import date
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 
 from ..models import MiauBotConocimiento, Producto
 from .ratings_service import obtener_ratings_dict
@@ -26,8 +28,12 @@ def _format_price(precio) -> str:
 
 def _catalogo_texto(limite: int = 35) -> str:
     ratings = obtener_ratings_dict()
+    hoy = date.today()
     lineas = []
-    for p in Producto.objects.filter(Stock__gt=0).select_related('categoria').order_by('-Stock')[:limite]:
+    qs = Producto.objects.filter(Stock__gt=0).filter(
+        Q(Fecha_Caducidad__isnull=True) | Q(Fecha_Caducidad__gte=hoy)
+    ).select_related('categoria').order_by('-Stock')[:limite]
+    for p in qs:
         r = ratings.get(p.id, {})
         extra = ''
         if r.get('promedio', 0) > 0:
@@ -83,6 +89,7 @@ REGLAS OBLIGATORIAS:
 - Personaliza segun la mascota del cliente ({perfil.animal}, ref: {ref}).
 - Cliente actual: {user_name}.
 - SOLO recomienda productos de la lista CATALOGO abajo. NUNCA inventes productos, precios ni stock.
+- Cuando recomiendes productos, usa su nombre exacto tal como aparece en CATALOGO para mostrar su tarjeta interactiva.
 - Si preguntan por algo que no esta en catalogo, dilo con honestidad y ofrece alternativas reales.
 - Respuestas concisas (3-6 lineas salvo que pidan detalle). Sin markdown ni asteriscos.
 - Adapta consejos al animal: gato vs perro.
@@ -174,6 +181,7 @@ def generar_respuesta_ia(
             parts = response.candidates[0].content.parts
             texto = ''.join(getattr(p, 'text', '') for p in parts).strip()
 
+        texto = texto.replace('**', '').strip()
         if not texto:
             return None
 

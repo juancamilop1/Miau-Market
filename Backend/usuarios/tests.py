@@ -174,3 +174,25 @@ class SeguridadYPedidosTests(TestCase):
         self.assertEqual(items['Bano y peluqueria mascotas']['Imagen'], '/productos/bano_peluqueria.svg')
         self.assertTrue(Usuario.objects.filter(Email='admin@miau.market', is_staff=True).exists())
         self.assertTrue(Usuario.objects.filter(Email='cliente@miau.market', is_staff=False).exists())
+
+    def test_chatbot_devuelve_productos_con_imagen(self):
+        from django.core.management import call_command
+        from django.test import override_settings
+
+        call_command('seed_demo')
+        with override_settings(GEMINI_API_KEY=''):
+            res = self.client.post(
+                '/api/usuarios/chatbot/',
+                {'message': 'Recomiendame comida para gato', 'conversation_history': []},
+                format='json',
+            )
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data.get('success'))
+        prods = res.data.get('products') or []
+        self.assertGreater(len(prods), 0)
+        for prod in prods:
+            self.assertIn('id', prod)
+            self.assertIn('titulo', prod)
+            self.assertIn('precio', prod)
+            self.assertTrue((prod.get('imagen') or '').startswith('/productos/'))
+            self.assertNotEqual(prod['titulo'], 'galletas chunky')

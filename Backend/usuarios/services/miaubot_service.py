@@ -3,9 +3,13 @@ MiauBot — motor hibrido: IA en la nube (Gemini) + fallback local.
 Prompt y conocimiento en base de datos.
 """
 
+from datetime import date
 import re
 import random
+import unicodedata
 from dataclasses import dataclass, field
+
+from django.db.models import Q
 
 from ..models import CatCategoria, Producto
 from .ratings_service import obtener_ratings_dict
@@ -30,15 +34,35 @@ class PerfilMascota:
 _productos_cache: tuple[list, dict] | None = None
 
 
+def _resolver_imagen(raw_img: str | None) -> str | None:
+    if not raw_img:
+        return None
+    raw = str(raw_img).strip()
+    if not raw:
+        return None
+    if raw.startswith(('/productos/', '/media/', 'http://', 'https://')):
+        return raw
+    return f'/media/{raw.lstrip("/")}'
+
+
+def _normalizar_texto(texto: str) -> str:
+    sin_tildes = unicodedata.normalize('NFKD', (texto or '').lower())
+    return ''.join(c for c in sin_tildes if not unicodedata.combining(c))
+
+
 def _cargar_productos():
     global _productos_cache
     if _productos_cache is not None:
         return _productos_cache
 
     ratings = obtener_ratings_dict()
+    hoy = date.today()
     productos = []
-    for p in Producto.objects.filter(Stock__gt=0).values(
-        'id', 'Titulo', 'Descripcion', 'categoria__nombre', 'Precio', 'Stock'
+    qs = Producto.objects.filter(Stock__gt=0).filter(
+        Q(Fecha_Caducidad__isnull=True) | Q(Fecha_Caducidad__gte=hoy)
+    )
+    for p in qs.values(
+        'id', 'Titulo', 'Descripcion', 'categoria__nombre', 'Precio', 'Stock', 'Imagen'
     ):
         productos.append({
             'id': p['id'],
@@ -47,9 +71,50 @@ def _cargar_productos():
             'categoria': p['categoria__nombre'] or 'General',
             'precio': p['Precio'],
             'stock': p['Stock'],
+            'imagen': _resolver_imagen(p.get('Imagen')),
         })
     _productos_cache = (productos, ratings)
     return _productos_cache
+
+
+def _productos_mencionados_en_texto(texto: str, limite: int = 4) -> list[dict]:
+    """Detecta productos reales del catalogo mencionados en la respuesta del bot."""
+    if not texto:
+        return []
+    productos, _ = _cargar_productos()
+    norm_texto = _normalizar_texto(texto)
+    encontrados: list[tuple[int, dict]] = []
+    for p in productos:
+        norm_nombre = _normalizar_texto(p['nombre']).strip()
+        if len(norm_nombre) < 3:
+            continue
+        pos = norm_texto.find(norm_nombre)
+        if pos != -1:
+            encontrados.append((pos, p))
+    encontrados.sort(key=lambda item: item[0])
+    return [p for _, p in encontrados[:limite]]
+
+
+def _serializar_productos_card(productos: list[dict], ratings: dict) -> list[dict]:
+    cards = []
+    vistos = set()
+    for p in productos:
+        if p['id'] in vistos:
+            continue
+        vistos.add(p['id'])
+        r = ratings.get(p['id'], {})
+        prom = float(r.get('promedio', 0) or 0)
+        cards.append({
+            'id': p['id'],
+            'titulo': p['nombre'],
+            'categoria': p['categoria'],
+            'precio': int(p['precio']),
+            'stock': int(p['stock']),
+            'imagen': p.get('imagen'),
+            'rating': round(prom, 1) if prom > 0 else None,
+            'total_reviews': int(r.get('total', 0) or 0),
+        })
+    return cards
 
 
 def _reset_productos_cache():
@@ -453,8 +518,16 @@ def procesar_mensaje(
     # Prioridad: IA en la nube (Gemini) con prompt + catalogo desde BD
     from .miaubot_llm import generar_respuesta_ia
 
+    intencion = _detectar_intencion(message)
     ia = generar_respuesta_ia(message, history, context, perfil)
     if ia:
+        _, ratings = _cargar_productos()
+        cards_src = _productos_mencionados_en_texto(ia.get('response', ''), limite=4)
+        if not cards_src and (intencion == 'producto' or _parece_pedido_producto(message)):
+            cards_src, ratings = _buscar_productos(
+                message, perfil, limite=3, temas_extra=context.get('temas_memoria')
+            )
+        ia['products'] = _serializar_productos_card(cards_src, ratings)
         actualizar_memoria(memoria, perfil, message, textos_user)
         _guardar_aprendizaje(message, ia['response'], perfil, context)
         ia['perfil'] = {
@@ -466,8 +539,6 @@ def procesar_mensaje(
         return ia
 
     # Fallback solo si no hay GEMINI_API_KEY o la API fallo
-    intencion = _detectar_intencion(message)
-
     handlers = {
         'saludo': lambda: _respuesta_saludo(context, perfil),
         'despedida': lambda: _personalizar(
@@ -500,9 +571,16 @@ def procesar_mensaje(
                 perfil,
             )
 
+    _, ratings = _cargar_productos()
+    cards_src = (
+        []
+        if intencion in ('saludo', 'despedida', 'compra')
+        else _productos_mencionados_en_texto(respuesta, limite=4)
+    )
     result = {
         'success': True,
         'response': respuesta,
+        'products': _serializar_productos_card(cards_src, ratings),
         'status': f'local_{intencion}',
         'perfil': {
             'animal': perfil.animal,

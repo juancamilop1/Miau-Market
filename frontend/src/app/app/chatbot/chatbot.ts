@@ -12,11 +12,23 @@ interface ChatAction {
   style: 'primary' | 'secondary';
 }
 
+interface ChatProduct {
+  id: number;
+  titulo: string;
+  categoria: string;
+  precio: number;
+  stock: number;
+  imagen?: string | null;
+  rating?: number | null;
+  total_reviews?: number;
+}
+
 interface ChatMessage {
   type: 'user' | 'bot' | 'auth';
   text: string;
   timestamp: Date;
   actions?: ChatAction[];
+  products?: ChatProduct[];
 }
 
 @Component({
@@ -185,7 +197,8 @@ export class Chatbot implements OnDestroy {
 
       if (data.success) {
         const text = data.response || data.recommendations || 'No pude generar una respuesta.';
-        this.addBotMessage(text);
+        const products: ChatProduct[] = Array.isArray(data.products) ? data.products : [];
+        this.addBotMessage(text, products);
       } else {
         this.addBotMessage(`Error: ${data.error || 'No se pudo procesar tu mensaje'}`);
       }
@@ -201,13 +214,25 @@ export class Chatbot implements OnDestroy {
     this.router.navigate([route]);
   }
 
+  openProduct(productId: number) {
+    this.closePanel();
+    this.router.navigate(['/product', productId]);
+  }
+
+  getProductImage(imagen?: string | null): string {
+    return this.envService.getImageUrl(imagen);
+  }
+
   private addUserMessage(text: string) {
     this.messages.update(msgs => [...msgs, { type: 'user', text, timestamp: new Date() }]);
     this.scrollToBottom();
   }
 
-  private addBotMessage(text: string) {
-    this.messages.update(msgs => [...msgs, { type: 'bot', text, timestamp: new Date() }]);
+  private addBotMessage(text: string, products?: ChatProduct[]) {
+    this.messages.update(msgs => [
+      ...msgs,
+      { type: 'bot', text, timestamp: new Date(), products: products?.length ? products : undefined },
+    ]);
     this.scrollToBottom();
   }
 
