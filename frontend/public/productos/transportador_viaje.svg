@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#f1f5f9"/>
+  <path d="M165 118 C165 98 235 98 235 118" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <rect x="85" y="122" width="230" height="165" rx="28" fill="#0f766e"/>
+  <rect x="85" y="205" width="230" height="82" rx="22" fill="#115e59"/>
+  <rect x="112" y="142" width="110" height="122" rx="14" fill="#e2e8f0" stroke="#334155" stroke-width="6"/>
+  <line x1="140" y1="145" x2="140" y2="262" stroke="#475569" stroke-width="4"/>
+  <line x1="167" y1="145" x2="167" y2="262" stroke="#475569" stroke-width="4"/>
+  <line x1="194" y1="145" x2="194" y2="262" stroke="#475569" stroke-width="4"/>
+  <line x1="114" y1="184" x2="220" y2="184" stroke="#475569" stroke-width="4"/>
+  <line x1="114" y1="224" x2="220" y2="224" stroke="#475569" stroke-width="4"/>
+  <rect x="240" y="152" width="52" height="14" rx="7" fill="#99f6e4"/>
+  <rect x="240" y="178" width="52" height="14" rx="7" fill="#99f6e4"/>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#134e4a">Guacal Viaje 8 kg</text>
+</svg>

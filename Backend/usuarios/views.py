@@ -1074,6 +1074,12 @@ class WishlistView(APIView):
         data = []
         for item in items:
             p = item.producto
+            raw_img = p.Imagen.name if p.Imagen else ''
+            img_val = (
+                raw_img
+                if raw_img.startswith(('/productos/', 'http://', 'https://'))
+                else (p.Imagen.url if p.Imagen else None)
+            )
             data.append({
                 'id': item.id,
                 'Id_Products': p.id,
@@ -1081,7 +1087,7 @@ class WishlistView(APIView):
                 'Precio': p.Precio,
                 'Stock': p.Stock,
                 'Categoria': p.Categoria,
-                'Imagen': p.Imagen.url if p.Imagen else None,
+                'Imagen': img_val,
             })
         return Response({'items': data})
 

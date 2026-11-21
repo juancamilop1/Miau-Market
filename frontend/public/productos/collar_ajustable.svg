@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#fff7ed"/>
+  <ellipse cx="200" cy="195" rx="110" ry="72" fill="none" stroke="#ea580c" stroke-width="26"/>
+  <ellipse cx="200" cy="195" rx="110" ry="72" fill="none" stroke="#fdba74" stroke-width="6" stroke-dasharray="18 14"/>
+  <rect x="178" y="114" width="44" height="30" rx="6" fill="#475569"/>
+  <rect x="188" y="121" width="24" height="16" rx="3" fill="#e2e8f0"/>
+  <circle cx="200" cy="280" r="22" fill="#f59e0b" stroke="#b45309" stroke-width="4"/>
+  <circle cx="200" cy="280" r="7" fill="#fef3c7"/>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#9a3412">Collar Reflectivo</text>
+</svg>

@@ -147,6 +147,9 @@ class ProductoSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['Id_Products'] = data.pop('id')
+        raw_img = instance.Imagen.name if instance.Imagen else ''
+        if raw_img.startswith(('/productos/', 'http://', 'https://')):
+            data['Imagen'] = raw_img
         data['categoria_codigo'] = instance.categoria.codigo if instance.categoria_id else None
         data['Categoria_Codigo'] = data['categoria_codigo']
         data['Perecedero'] = instance.categoria.perecedero if instance.categoria_id else False

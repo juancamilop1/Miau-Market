@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#eef2ff"/>
+  <path d="M135 125 V195 C135 235 205 235 205 195 V125" fill="none" stroke="#4f46e5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M170 226 V268 C170 294 252 294 252 256 V220" fill="none" stroke="#4f46e5" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="252" cy="204" r="22" fill="#818cf8" stroke="#3730a3" stroke-width="6"/>
+  <circle cx="135" cy="122" r="10" fill="#312e81"/>
+  <circle cx="205" cy="122" r="10" fill="#312e81"/>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#3730a3">Chequeo Preventivo</text>
+</svg>

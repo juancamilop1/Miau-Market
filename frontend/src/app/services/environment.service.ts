@@ -57,12 +57,17 @@ export class EnvironmentService {
   getImageUrl(imagen: string | null | undefined): string {
     if (!imagen) return '/logo_placeholder.svg';
     if (imagen.startsWith('http')) return imagen;
-    
-    // Si la imagen ya tiene /media/, solo agregar el backend
+
+    // Si la imagen ya tiene /media/, agregar el backend
     if (imagen.startsWith('/media/')) {
       return `${this.backendUrl}${imagen}`;
     }
-    
+
+    // Asset estatico servido por el frontend (ej. /productos/...)
+    if (imagen.startsWith('/')) {
+      return imagen;
+    }
+
     // Si no, agregar /media/ también
     return `${this.backendUrl}/media/${imagen}`;
   }

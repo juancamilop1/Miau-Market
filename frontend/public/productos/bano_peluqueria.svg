@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#fdf2f8"/>
+  <rect x="108" y="195" width="184" height="86" rx="34" fill="#ec4899"/>
+  <rect x="100" y="180" width="200" height="26" rx="13" fill="#f472b6"/>
+  <circle cx="155" cy="155" r="24" fill="#ffffff" stroke="#f9a8d4" stroke-width="5"/>
+  <circle cx="205" cy="142" r="30" fill="#ffffff" stroke="#f9a8d4" stroke-width="5"/>
+  <circle cx="250" cy="158" r="20" fill="#ffffff" stroke="#f9a8d4" stroke-width="5"/>
+  <circle cx="180" cy="112" r="12" fill="#fbcfe8"/>
+  <circle cx="235" cy="108" r="10" fill="#fbcfe8"/>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#9d174d">Spa &amp; Peluquería</text>
+</svg>

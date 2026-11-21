@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#eff6ff"/>
+  <rect x="110" y="128" width="180" height="162" rx="20" fill="#2563eb"/>
+  <rect x="128" y="146" width="144" height="126" rx="12" fill="#ffffff"/>
+  <rect x="188" y="166" width="24" height="68" rx="6" fill="#dc2626"/>
+  <rect x="166" y="188" width="68" height="24" rx="6" fill="#dc2626"/>
+  <text x="200" y="258" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#1e40af">PROTECCIÓN 30 DÍAS</text>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#1e3a8a">Pipeta Antipulgas</text>
+</svg>

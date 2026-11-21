@@ -153,7 +153,24 @@ class SeguridadYPedidosTests(TestCase):
 
         call_command('seed_demo')
         total_primera = Producto.objects.count()
+        self.assertGreaterEqual(total_primera, 25)
+
+        # Simula producto existente sin imagen (como en BD previa) y valida backfill
+        p = Producto.objects.filter(Titulo='Croquetas premium gato').first()
+        self.assertIsNotNone(p)
+        p.Imagen = ''
+        p.save(update_fields=['Imagen'])
+
         call_command('seed_demo')
         self.assertEqual(Producto.objects.count(), total_primera)
+        p.refresh_from_db()
+        self.assertEqual(p.Imagen.name, '/productos/adulto.jpg')
+
+        # Serializacion publica de productos debe devolver rutas /productos/... sin romper ImageField
+        res = self.client.get('/api/usuarios/productos/')
+        self.assertEqual(res.status_code, 200)
+        items = {item['Titulo']: item for item in res.data}
+        self.assertEqual(items['Croquetas premium gato']['Imagen'], '/productos/adulto.jpg')
+        self.assertEqual(items['Bano y peluqueria mascotas']['Imagen'], '/productos/bano_peluqueria.svg')
         self.assertTrue(Usuario.objects.filter(Email='admin@miau.market', is_staff=True).exists())
         self.assertTrue(Usuario.objects.filter(Email='cliente@miau.market', is_staff=False).exists())

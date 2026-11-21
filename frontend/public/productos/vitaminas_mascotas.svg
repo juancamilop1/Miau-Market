@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="150" fill="#fefce8"/>
+  <rect x="155" y="102" width="90" height="32" rx="10" fill="#d97706"/>
+  <rect x="132" y="132" width="136" height="168" rx="24" fill="#f59e0b"/>
+  <rect x="148" y="166" width="104" height="100" rx="12" fill="#ffffff"/>
+  <circle cx="200" cy="204" r="24" fill="#fef08a" stroke="#ca8a04" stroke-width="4"/>
+  <text x="200" y="212" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="800" fill="#a16207">B+</text>
+  <text x="200" y="252" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#92400e">MULTIVITAMÍNICO</text>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#92400e">Vitaminas Mascotas</text>
+</svg>
