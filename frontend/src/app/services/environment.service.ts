@@ -55,7 +55,7 @@ export class EnvironmentService {
    * Obtiene la URL completa para una imagen del backend
    */
   getImageUrl(imagen: string | null | undefined): string {
-    if (!imagen) return 'assets/placeholder-product.png';
+    if (!imagen) return '/logo_placeholder.svg';
     if (imagen.startsWith('http')) return imagen;
     
     // Si la imagen ya tiene /media/, solo agregar el backend

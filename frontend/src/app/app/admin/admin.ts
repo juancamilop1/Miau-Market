@@ -339,7 +339,7 @@ export class Admin implements OnInit {
       return this.imagePreviewUrl()!;
     }
     if (!imagen || imagen instanceof File) {
-      return 'assets/placeholder-product.png';
+      return '/logo_placeholder.svg';
     }
     return this.env.getImageUrl(imagen);
   }

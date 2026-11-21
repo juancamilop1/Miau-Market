@@ -14,9 +14,11 @@ Usuario = get_user_model()
 
 class SeguridadYPedidosTests(TestCase):
     def setUp(self):
-        CatCategoria.objects.get_or_create(
-            codigo='juguetes', defaults={'nombre': 'Juguetes', 'activo': True, 'orden': 1}
-        )
+        cat = CatCategoria.objects.filter(codigo__iexact='JUGUETES').first()
+        if not cat:
+            cat = CatCategoria.objects.create(
+                codigo='JUGUETES', nombre='Juguetes', activo=True, orden=1
+            )
         CatMetodoPago.objects.get_or_create(
             codigo='contra_entrega',
             defaults={'nombre': 'Contra Entrega', 'activo': True, 'orden': 1},
@@ -66,7 +68,6 @@ class SeguridadYPedidosTests(TestCase):
             City='Bogota',
             BirthDate=date(1992, 1, 1),
         )
-        cat = CatCategoria.objects.get(codigo='juguetes')
         self.producto = Producto.objects.create(
             Titulo='Raton de juguete',
             Descripcion='Para gatos',
@@ -146,3 +147,13 @@ class SeguridadYPedidosTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn('categorias', res.data)
         self.assertIn('metodos_pago', res.data)
+
+    def test_seed_demo_idempotente(self):
+        from django.core.management import call_command
+
+        call_command('seed_demo')
+        total_primera = Producto.objects.count()
+        call_command('seed_demo')
+        self.assertEqual(Producto.objects.count(), total_primera)
+        self.assertTrue(Usuario.objects.filter(Email='admin@miau.market', is_staff=True).exists())
+        self.assertTrue(Usuario.objects.filter(Email='cliente@miau.market', is_staff=False).exists())
