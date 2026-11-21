@@ -236,6 +236,9 @@ class Command(BaseCommand):
                     Subtotal=Decimal(pelota.Precio),
                 )
 
+        from usuarios.services.miaubot_tools import invalidar_cache_catalogo
+        invalidar_cache_catalogo()
+
         self.stdout.write(self.style.SUCCESS(
             f'Demo OK: admin={admin.Username} ({admin.Email}), '
             f'cliente={cliente.Username} ({cliente.Email}), '

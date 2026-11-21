@@ -1,119 +1,58 @@
 """
-MiauBot — respuestas con IA en la nube (Google Gemini).
-El prompt, conocimiento y catalogo vienen de la BD; la inteligencia es del LLM.
+MiauBot — cliente LLM (Google Gemini con Function Calling).
+Sin acceso directo a BD ni prompts largos quemados: lee prompt_sistema desde
+MiauBotConfig (cacheado) y delega consultas a las tools de miaubot_tools.
 """
 
-from datetime import date
+from __future__ import annotations
+
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 
-from ..models import MiauBotConocimiento, Producto
-from .ratings_service import obtener_ratings_dict
 from .miaubot_knowledge import obtener_config
-from .miaubot_aprendizaje import aprendizaje_para_prompt
-from .miaubot_memoria import texto_memoria_prompt
-from .miaubot_service import PerfilMascota, _extraer_perfil, _ref_mascota
+from .miaubot_service import PerfilMascota, _extraer_perfil
+from .miaubot_tools import (
+    construir_herramientas_bot,
+    obtener_catalogo_cacheado,
+    productos_mencionados_en_texto,
+    serializar_productos_card,
+)
 
 logger = logging.getLogger(__name__)
 
-
-def _format_price(precio) -> str:
-    try:
-        return f'${int(precio):,}'.replace(',', '.')
-    except (TypeError, ValueError):
-        return str(precio)
+_MAX_TOOL_ROUNDS = 3
+_MODELOS_RETIRADOS = {'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'}
 
 
-def _catalogo_texto(limite: int = 35) -> str:
-    ratings = obtener_ratings_dict()
-    hoy = date.today()
-    lineas = []
-    qs = Producto.objects.filter(Stock__gt=0).filter(
-        Q(Fecha_Caducidad__isnull=True) | Q(Fecha_Caducidad__gte=hoy)
-    ).select_related('categoria').order_by('-Stock')[:limite]
-    for p in qs:
-        r = ratings.get(p.id, {})
-        extra = ''
-        if r.get('promedio', 0) > 0:
-            extra = f" | Rating {r['promedio']:.1f}/5 ({r['total']} resenas)"
-        desc = (p.Descripcion or '')[:120]
-        lineas.append(
-            f"- ID {p.id} | {p.Titulo} | {p.categoria.nombre} | "
-            f"{_format_price(p.Precio)} | Stock {p.Stock}{extra}"
-            + (f" | {desc}" if desc else '')
-        )
-    return '\n'.join(lineas) if lineas else '(Sin productos con stock)'
-
-
-def _conocimiento_texto(animal: str = 'gato', limite: int = 12) -> str:
-    items = MiauBotConocimiento.objects.filter(
-        activo=True, animal__in=[animal, 'general']
-    ).order_by('-prioridad')[:limite]
-    return '\n\n'.join(f"[{i.animal}/{i.tema}] {i.respuesta}" for i in items)
-
-
-def _construir_system_instruction(context: dict, perfil: PerfilMascota, mensaje: str = '') -> str:
+def _construir_system_instruction(context: dict, perfil: PerfilMascota) -> str:
+    """Usa prompt_sistema de MiauBotConfig (BD cacheada) + contexto minimo de sesion."""
     config = obtener_config()
     base = (
-        config.prompt_sistema if config else
-        'Eres MiauBot, asistente experto y amable de MiauMarket (tienda de mascotas).'
+        config.prompt_sistema.strip()
+        if config and config.prompt_sistema
+        else 'Eres MiauBot, asistente de MiauMarket.'
     )
 
-    user_name = context.get('user_name') or 'invitado'
-    ref = _ref_mascota(perfil)
-    aprendido = aprendizaje_para_prompt(mensaje, perfil.animal) if mensaje else ''
-    memoria_txt = texto_memoria_prompt(context.get('memoria'))
+    datos_sesion = []
+    if context.get('user_name'):
+        datos_sesion.append(f"Cliente: {context['user_name']}")
+    if perfil.nombre:
+        datos_sesion.append(f"Mascota: {perfil.nombre} ({perfil.animal})")
+    elif perfil.animal:
+        datos_sesion.append(f"Animal: {perfil.animal}")
+    if perfil.edad:
+        datos_sesion.append(f"Edad: {perfil.edad}")
+    if getattr(perfil, 'raza', None):
+        datos_sesion.append(f"Raza: {perfil.raza}")
 
-    bloque_aprendido = ''
-    if aprendido:
-        bloque_aprendido = f"""
-PREGUNTAS ANTERIORES DE CLIENTES (aprendizaje aprobado — usa como referencia):
-{aprendido}
-"""
-
-    bloque_memoria = ''
-    if memoria_txt:
-        bloque_memoria = f"""
-{memoria_txt}
-- NO repitas preguntas sobre datos que ya conoces (raza, edad, tipo de producto).
-- Si el cliente ya dijo comida/juguetes/higiene, recomienda directamente de CATALOGO.
-- Si pregunto por salud antes, pregunta como sigue la mascota.
-"""
-
-    return f"""{base}
-
-REGLAS OBLIGATORIAS:
-- Responde SIEMPRE en espanol, tono calido y natural (como un asesor humano experto).
-- Personaliza segun la mascota del cliente ({perfil.animal}, ref: {ref}).
-- Cliente actual: {user_name}.
-- SOLO recomienda productos de la lista CATALOGO abajo. NUNCA inventes productos, precios ni stock.
-- Cuando recomiendes productos, usa su nombre exacto tal como aparece en CATALOGO para mostrar su tarjeta interactiva.
-- Si preguntan por algo que no esta en catalogo, dilo con honestidad y ofrece alternativas reales.
-- Respuestas concisas (3-6 lineas salvo que pidan detalle). Sin markdown ni asteriscos.
-- Adapta consejos al animal: gato vs perro.
-- Recuerda el historial de la conversacion.
-
-PERFIL MASCOTA DETECTADO:
-- Animal: {perfil.animal}
-- Nombre: {perfil.nombre or 'no indicado'}
-- Raza: {getattr(perfil, 'raza', None) or 'no indicada'}
-- Edad: {perfil.edad or 'no indicada'}
-- Tamano: {perfil.tamano or 'no indicado'}
-- Temas ya mencionados: {', '.join(perfil.temas) if perfil.temas else 'ninguno'}
-
-CONOCIMIENTO INTERNO (usa como base, no copies textual):
-{_conocimiento_texto(perfil.animal)}
-{bloque_memoria}{bloque_aprendido}
-CATALOGO REAL MIAUMARKET (unica fuente de productos):
-{_catalogo_texto()}
-"""
+    linea_sesion = f"\nContexto: {' | '.join(datos_sesion)}." if datos_sesion else ''
+    return f"{base}{linea_sesion}"
 
 
 def _historial_gemini(conversation_history: list) -> list[dict]:
     historial = []
-    for msg in conversation_history[-12:]:
+    for msg in conversation_history[-10:]:
         role = msg.get('role')
         content = (msg.get('content') or '').strip()
         if not content:
@@ -125,6 +64,30 @@ def _historial_gemini(conversation_history: list) -> list[dict]:
     return historial
 
 
+def _extraer_texto(response) -> str:
+    texto = ''
+    try:
+        if response.text:
+            texto = response.text.strip()
+    except ValueError:
+        texto = ''
+    if not texto and getattr(response, 'candidates', None):
+        parts = response.candidates[0].content.parts
+        texto = ''.join(getattr(p, 'text', '') for p in parts if getattr(p, 'text', '')).strip()
+    return texto.replace('**', '').strip()
+
+
+def _extraer_function_calls(response) -> list:
+    if not getattr(response, 'candidates', None):
+        return []
+    parts = getattr(response.candidates[0].content, 'parts', None) or []
+    return [
+        p.function_call
+        for p in parts
+        if getattr(p, 'function_call', None) and getattr(p.function_call, 'name', '')
+    ]
+
+
 def generar_respuesta_ia(
     message: str,
     conversation_history: list | None = None,
@@ -132,7 +95,8 @@ def generar_respuesta_ia(
     perfil: PerfilMascota | None = None,
 ) -> dict | None:
     """
-    Llama a Gemini. Retorna None si no hay API key o falla (usa fallback local).
+    Ejecuta Gemini con Function Calling (max 3 rondas de herramientas).
+    Retorna None si no hay API key o falla para activar el fallback local.
     """
     api_key = getattr(settings, 'GEMINI_API_KEY', '') or ''
     if not api_key.strip():
@@ -143,52 +107,83 @@ def generar_respuesta_ia(
 
     if perfil is None:
         textos = [message] + [m.get('content', '') for m in history if m.get('role') == 'user']
-        for m in history:
-            if m.get('role') == 'assistant':
-                textos.append(m.get('content', ''))
         perfil = _extraer_perfil(textos)
 
     try:
         import google.generativeai as genai
+        from google.generativeai import protos
 
         genai.configure(api_key=api_key)
         model_name = (getattr(settings, 'GEMINI_MODEL', '') or 'gemini-2.5-flash').strip()
-        if model_name in ('gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'):
+        if model_name in _MODELOS_RETIRADOS:
             model_name = 'gemini-2.5-flash'
+
+        tools, dispatcher, productos_recuperados, tools_usadas = construir_herramientas_bot(
+            usuario_id=context.get('user_id'),
+            memoria=context.get('memoria'),
+        )
 
         model = genai.GenerativeModel(
             model_name=model_name,
-            system_instruction=_construir_system_instruction(context, perfil, message),
+            system_instruction=_construir_system_instruction(context, perfil),
+            tools=tools,
         )
 
         generation_config = {
-            'temperature': 0.75,
-            'max_output_tokens': 1500,
+            'temperature': 0.7,
+            'max_output_tokens': 1000,
             'top_p': 0.9,
         }
 
-        chat_history = _historial_gemini(history)
-        chat = model.start_chat(history=chat_history)
+        chat = model.start_chat(history=_historial_gemini(history))
         response = chat.send_message(message, generation_config=generation_config)
 
-        texto = ''
-        try:
-            if response.text:
-                texto = response.text.strip()
-        except ValueError:
-            texto = ''
-        if not texto and getattr(response, 'candidates', None):
-            parts = response.candidates[0].content.parts
-            texto = ''.join(getattr(p, 'text', '') for p in parts).strip()
+        for _ in range(_MAX_TOOL_ROUNDS):
+            calls = _extraer_function_calls(response)
+            if not calls:
+                break
+            tool_parts = []
+            for call in calls:
+                fn = dispatcher.get(call.name)
+                if not fn:
+                    result_payload = {'error': f'Herramienta desconocida: {call.name}'}
+                else:
+                    try:
+                        args = dict(call.args) if call.args else {}
+                        result_payload = fn(**args)
+                    except Exception as tool_exc:
+                        logger.warning('Error en tool %s: %s', call.name, tool_exc)
+                        result_payload = {'error': 'No se pudo completar la consulta'}
+                tool_parts.append(
+                    protos.Part(
+                        function_response=protos.FunctionResponse(
+                            name=call.name,
+                            response=result_payload,
+                        )
+                    )
+                )
+            response = chat.send_message(tool_parts, generation_config=generation_config)
 
-        texto = texto.replace('**', '').strip()
+        texto = _extraer_texto(response)
         if not texto:
             return None
+
+        cards = []
+        if productos_recuperados:
+            _, ratings = obtener_catalogo_cacheado()
+            seleccionados = productos_mencionados_en_texto(
+                texto, candidatos=productos_recuperados, limite=4
+            )
+            if not seleccionados:
+                seleccionados = productos_recuperados[:4]
+            cards = serializar_productos_card(seleccionados, ratings)
 
         return {
             'success': True,
             'response': texto,
+            'products': cards,
             'status': 'ia',
+            'tools_used': list(dict.fromkeys(tools_usadas)),
             'perfil': {
                 'animal': perfil.animal,
                 'nombre': perfil.nombre,

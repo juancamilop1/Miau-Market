@@ -119,6 +119,8 @@ def _restaurar_stock(pedido: Pedido) -> None:
         producto = Producto.objects.select_for_update().get(pk=detalle.producto_id)
         producto.Stock += detalle.Cantidad
         producto.save(update_fields=['Stock'])
+    from .miaubot_tools import invalidar_cache_catalogo
+    transaction.on_commit(invalidar_cache_catalogo)
 
 
 @transaction.atomic
@@ -172,6 +174,8 @@ def crear_pedido(usuario: Usuario, data: dict) -> Pedido:
         producto.save(update_fields=['Stock'])
 
     _notificar_admins(pedido)
+    from .miaubot_tools import invalidar_cache_catalogo
+    transaction.on_commit(invalidar_cache_catalogo)
     return pedido
 
 

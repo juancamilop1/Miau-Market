@@ -542,6 +542,8 @@ class ProductoListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+        from .services.miaubot_tools import invalidar_cache_catalogo
+        invalidar_cache_catalogo()
 
 
 class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -560,6 +562,13 @@ class ProductoDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         serializer.save(created_by=self.request.user)
+        from .services.miaubot_tools import invalidar_cache_catalogo
+        invalidar_cache_catalogo()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        from .services.miaubot_tools import invalidar_cache_catalogo
+        invalidar_cache_catalogo()
 
 
 # Vista para crear pedidos

@@ -14,6 +14,8 @@ Usuario = get_user_model()
 
 class SeguridadYPedidosTests(TestCase):
     def setUp(self):
+        from .services.miaubot_tools import invalidar_cache_catalogo
+        invalidar_cache_catalogo()
         cat = CatCategoria.objects.filter(codigo__iexact='JUGUETES').first()
         if not cat:
             cat = CatCategoria.objects.create(
@@ -196,3 +198,33 @@ class SeguridadYPedidosTests(TestCase):
             self.assertIn('precio', prod)
             self.assertTrue((prod.get('imagen') or '').startswith('/productos/'))
             self.assertNotEqual(prod['titulo'], 'galletas chunky')
+
+    def test_miaubot_tools_y_llm_desacoplado(self):
+        import inspect
+        from django.core.management import call_command
+        from .services import miaubot_llm, miaubot_tools
+        from .services.miaubot_service import PerfilMascota
+
+        # El modulo LLM no debe importar modelos ORM directamente ni volcar catalogo en el prompt
+        src = inspect.getsource(miaubot_llm)
+        self.assertNotIn('Producto.objects', src)
+        self.assertNotIn('MiauBotConocimiento.objects', src)
+
+        call_command('seed_demo')
+        prompt = miaubot_llm._construir_system_instruction({'user_name': 'Maria'}, PerfilMascota(animal='gato'))
+        self.assertLess(len(prompt), 600)
+        self.assertNotIn('CATALOGO REAL', prompt)
+
+        tools, dispatcher, recuperados, usadas = miaubot_tools.construir_herramientas_bot(usuario_id=self.user.id)
+        self.assertEqual(len(tools), 5)
+
+        res_busq = dispatcher['buscar_productos'](consulta='comida', animal='gato', limite=3)
+        self.assertGreater(res_busq['total'], 0)
+        self.assertGreater(len(recuperados), 0)
+        self.assertIn('buscar_productos', usadas)
+
+        res_cats = dispatcher['listar_categorias']()
+        self.assertGreaterEqual(len(res_cats['categorias']), 5)
+
+        res_know = dispatcher['consultar_conocimiento'](tema='comida', animal='gato')
+        self.assertTrue(res_know.get('guia'))
