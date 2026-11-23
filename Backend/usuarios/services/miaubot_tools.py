@@ -1,7 +1,7 @@
 """
 Herramientas (tools) y cache TTL de MiauBot.
 Desacopla el LLM de la base de datos: Gemini invoca estas funciones solo cuando
-necesita consultar catalogo, categorias, conocimiento o mascotas del usuario.
+necesita consultar catalogo, categorias, politicas internas o mascotas del usuario.
 """
 
 from __future__ import annotations
@@ -23,8 +23,27 @@ _catalogo_cache: dict = {'ts': 0.0, 'productos': [], 'ratings': {}}
 
 _STOPWORDS_BUSQUEDA = {
     'para', 'como', 'que', 'con', 'por', 'los', 'las', 'del', 'una', 'uno',
-    'unos', 'unas', 'algo', 'quiero', 'busco', 'necesito', 'tienen', 'dame',
-    'recomienda', 'recomiendame', 'producto', 'productos', 'mascota', 'mascotas',
+    'unos', 'unas', 'algo', 'quiero', 'busco', 'necesito', 'tienen', 'tiene',
+    'venden', 'hay', 'dame', 'favor', 'hola', 'buenas', 'puedes', 'puede',
+    'recomienda', 'recomiendame', 'recomendacion', 'mostrar', 'muestrame',
+    'producto', 'productos', 'mascota', 'mascotas', 'marca', 'sobre', 'esta',
+    'este', 'estos', 'estas', 'tengo', 'vende', 'ver', 'comprar',
+}
+
+# Terminos amplios de categoria/especie (no identifican una marca o producto puntual)
+_GENERICAS_CATEGORIA = {
+    'comida', 'alimento', 'alimentos', 'croqueta', 'croquetas', 'concentrado',
+    'concentrados', 'snack', 'snacks', 'humedo', 'humeda',
+    'juguete', 'juguetes', 'jugar',
+    'higiene', 'aseo', 'limpieza',
+    'accesorio', 'accesorios',
+    'farmacia', 'medicina', 'salud',
+    'servicio', 'servicios',
+    'gato', 'gatos', 'gatito', 'gatitos', 'felino', 'felinos', 'michi',
+    'perro', 'perros', 'perrito', 'perritos', 'canino', 'caninos',
+    'cachorro', 'cachorros', 'adulto', 'adultos',
+    'barato', 'baratos', 'economico', 'economicos', 'mejor', 'mejores',
+    'popular', 'populares', 'recomendado', 'recomendados',
 }
 
 _SINONIMOS_BUSQUEDA = {
@@ -40,6 +59,14 @@ _SINONIMOS_BUSQUEDA = {
 def normalizar_texto(texto: str) -> str:
     sin_tildes = unicodedata.normalize('NFKD', (texto or '').lower())
     return ''.join(c for c in sin_tildes if not unicodedata.combining(c))
+
+
+def _token_en_texto(token: str, texto_norm: str) -> bool:
+    """Coincidencia por inicio de palabra (evita falsos positivos como 'cat' en 'categoria')."""
+    if not token:
+        return False
+    stem = token[:-1] if len(token) > 4 and token.endswith('s') else token
+    return bool(re.search(rf'\b{re.escape(stem)}', texto_norm))
 
 
 def resolver_imagen(raw_img: str | None) -> str | None:
@@ -156,7 +183,7 @@ def _coincide_animal(producto: dict, animal: str) -> bool:
     if cat_animal == otro:
         return False
     blob = normalizar_texto(f"{producto['nombre']} {producto['descripcion']} {producto['categoria']}")
-    if otro in blob and animal not in blob:
+    if _token_en_texto(otro, blob) and not _token_en_texto(animal, blob):
         return False
     return True
 
@@ -168,7 +195,13 @@ def buscar_productos_catalogo(
     precio_max: int = 0,
     limite: int = 4,
 ) -> tuple[list[dict], dict]:
-    """Busqueda eficiente en memoria sobre el catalogo cacheado."""
+    """
+    Busqueda precisa sobre el catalogo cacheado.
+    - Frase exacta en titulo (ej. 'cat chow') -> devuelve solo las coincidencias exactas.
+    - Terminos especificos (ej. 'alce', 'whiskas', 'rascador') -> exige coincidencia real;
+      si no existe ninguno, devuelve [] en lugar de rellenar con productos ajenos.
+    - Consultas genericas (ej. 'comida para gato', 'juguetes') -> busca por categoria/sinonimos.
+    """
     productos, ratings = obtener_catalogo_cacheado()
     if not productos:
         return [], ratings
@@ -184,33 +217,94 @@ def buscar_productos_catalogo(
     pool = [p for p in productos if _coincide_animal(p, animal_norm)] if animal_norm else list(productos)
 
     if cat_norm:
-        por_cat = [
+        pool = [
             p for p in pool
             if cat_norm in normalizar_texto(p['categoria'])
             or cat_norm in normalizar_texto(p['categoria_codigo'])
         ]
-        if por_cat:
-            pool = por_cat
+        if not pool:
+            return [], ratings
 
     if max_p > 0:
-        en_presupuesto = [p for p in pool if p['precio'] <= max_p]
-        if en_presupuesto:
-            pool = en_presupuesto
+        pool = [p for p in pool if p['precio'] <= max_p]
+        if not pool:
+            return [], ratings
 
     q_norm = normalizar_texto(consulta)
     tokens = [
         w for w in re.findall(r'[a-z0-9]+', q_norm)
         if len(w) > 2 and w not in _STOPWORDS_BUSQUEDA
     ]
-    expandidos = list(tokens)
-    for keys in _SINONIMOS_BUSQUEDA.values():
-        if any(k in q_norm for k in keys):
-            expandidos.extend(keys)
-    terminos = list(dict.fromkeys(expandidos))
+    especificos = [t for t in tokens if t not in _GENERICAS_CATEGORIA]
+    genericos = [t for t in tokens if t in _GENERICAS_CATEGORIA]
 
+    # 1. Coincidencia exacta de frase especifica en el titulo (ej: "cat chow", "royal canin")
+    if especificos:
+        frase_esp = ' '.join(especificos)
+        if len(frase_esp) >= 4:
+            exactos_titulo = [
+                p for p in pool
+                if re.search(rf'\b{re.escape(frase_esp)}', normalizar_texto(p['nombre']))
+            ]
+            if exactos_titulo:
+                exactos_titulo.sort(key=lambda p: (-ratings.get(p['id'], {}).get('promedio', 0), -p['stock']))
+                return exactos_titulo[:lim], ratings
+
+        # 2. Exigir coincidencia con terminos especificos (nunca rellenar si el producto no existe)
+        coinciden_todos = []
+        coinciden_algunos = []
+        for p in pool:
+            tit_l = normalizar_texto(p['nombre'])
+            cat_l = normalizar_texto(p['categoria'])
+            desc_l = normalizar_texto(p['descripcion'])
+            hits_esp = 0
+            score = 0
+            for t in especificos:
+                if _token_en_texto(t, tit_l):
+                    hits_esp += 1
+                    score += 5
+                elif _token_en_texto(t, cat_l):
+                    hits_esp += 1
+                    score += 3
+                elif _token_en_texto(t, desc_l):
+                    hits_esp += 1
+                    score += 2
+            if hits_esp == 0:
+                continue
+            for g in genericos:
+                if _token_en_texto(g, tit_l) or _token_en_texto(g, cat_l):
+                    score += 1
+            entrada = (hits_esp, score, ratings.get(p['id'], {}).get('promedio', 0), p['stock'], p)
+            if hits_esp == len(especificos):
+                coinciden_todos.append(entrada)
+            else:
+                coinciden_algunos.append(entrada)
+
+        if coinciden_todos:
+            coinciden_todos.sort(key=lambda x: (-x[0], -x[1], -x[2], -x[3]))
+            return [x[4] for x in coinciden_todos[:lim]], ratings
+        if coinciden_algunos and len(especificos) == 1:
+            coinciden_algunos.sort(key=lambda x: (-x[0], -x[1], -x[2], -x[3]))
+            return [x[4] for x in coinciden_algunos[:lim]], ratings
+        # Si hay varios terminos especificos (ej. "cat chow") y solo coincide 1 parcialmente,
+        # solo aceptar si coincide en el titulo con fuerza (evita "alce" o marcas inexistentes)
+        if coinciden_algunos:
+            fuertes = [x for x in coinciden_algunos if x[1] >= 5]
+            if fuertes:
+                fuertes.sort(key=lambda x: (-x[0], -x[1], -x[2], -x[3]))
+                return [x[4] for x in fuertes[:lim]], ratings
+        return [], ratings
+
+    # 3. Consulta generica o navegacion por categoria / precio
     if 'barato' in q_norm or 'econom' in q_norm:
         pool.sort(key=lambda p: p['precio'])
         return pool[:lim], ratings
+
+    expandidos = list(genericos)
+    for keys in _SINONIMOS_BUSQUEDA.values():
+        if any(_token_en_texto(k, q_norm) for k in keys):
+            expandidos.extend(keys)
+    terminos = list(dict.fromkeys(expandidos))
 
     if terminos:
         scored = []
@@ -220,17 +314,18 @@ def buscar_productos_catalogo(
             desc_l = normalizar_texto(p['descripcion'])
             score = 0
             for t in terminos:
-                if t in tit_l:
+                if _token_en_texto(t, tit_l):
                     score += 3
-                elif t in cat_l:
+                elif _token_en_texto(t, cat_l):
                     score += 2
-                elif t in desc_l:
+                elif _token_en_texto(t, desc_l):
                     score += 1
             if score > 0:
-                scored.append((score, ratings.get(p['id'], {}).get('promedio', 0), p))
+                scored.append((score, ratings.get(p['id'], {}).get('promedio', 0), p['stock'], p))
         if scored:
-            scored.sort(key=lambda x: (-x[0], -x[1], -x[2]['stock']))
-            return [p for _, _, p in scored[:lim]], ratings
+            scored.sort(key=lambda x: (-x[0], -x[1], -x[2]))
+            return [x[3] for x in scored[:lim]], ratings
+        return [], ratings
 
     pool.sort(key=lambda p: (-ratings.get(p['id'], {}).get('promedio', 0), -p['stock']))
     return pool[:lim], ratings
@@ -268,7 +363,7 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         precio_max: int = 0,
         limite: int = 4,
     ) -> dict:
-        """Busca productos disponibles en MiauMarket por texto, animal (gato/perro), categoria o precio maximo en COP."""
+        """Busca productos reales en MiauMarket (tienda de perros y gatos) por nombre, marca, animal, categoria o precio_max en COP. Si total es 0, informa con honestidad que no existe en catalogo y no inventes productos."""
         tools_usadas.append('buscar_productos')
         encontrados, ratings = buscar_productos_catalogo(
             consulta=consulta,
@@ -278,13 +373,19 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
             limite=int(limite or 4),
         )
         productos_recuperados.extend(encontrados)
+        if not encontrados:
+            return {
+                'total': 0,
+                'productos': [],
+                'nota': f'No hay coincidencias en catalogo para "{consulta}". Dilo con honestidad; MiauMarket maneja productos para perros y gatos.',
+            }
         return {
             'total': len(encontrados),
             'productos': [_compacto_para_llm(p, ratings) for p in encontrados],
         }
 
     def obtener_detalle_producto(producto_id: int) -> dict:
-        """Obtiene la ficha completa de un producto especifico por su ID."""
+        """Obtiene la ficha completa de un producto especifico de MiauMarket por su ID."""
         tools_usadas.append('obtener_detalle_producto')
         pid = int(producto_id or 0)
         productos, ratings = obtener_catalogo_cacheado()
@@ -295,7 +396,7 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         return {'error': 'Producto no disponible o sin stock'}
 
     def listar_categorias() -> dict:
-        """Lista las categorias activas de la tienda con cantidad de productos y rango de precios."""
+        """Lista las categorias activas de MiauMarket con cantidad de productos y rango de precios."""
         tools_usadas.append('listar_categorias')
         productos, _ = obtener_catalogo_cacheado()
         resumen: dict[str, dict] = {}
@@ -308,7 +409,7 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         return {'categorias': list(resumen.values())}
 
     def consultar_conocimiento(tema: str, animal: str = 'general') -> dict:
-        """Consulta guias de cuidado de mascotas, proceso de compra y respuestas aprobadas de MiauMarket."""
+        """Consulta solo politicas internas de la tienda (como comprar, envios, pagos) o respuestas aprobadas por admins. Para preguntas generales sobre mascotas o conversacion libre, responde directamente con tu conocimiento sin usar esta herramienta."""
         tools_usadas.append('consultar_conocimiento')
         animal_ok = animal if animal in ('gato', 'perro', 'general') else 'general'
         guia = buscar_conocimiento(tema, animal_ok)

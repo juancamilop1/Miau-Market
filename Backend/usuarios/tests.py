@@ -228,3 +228,48 @@ class SeguridadYPedidosTests(TestCase):
 
         res_know = dispatcher['consultar_conocimiento'](tema='comida', animal='gato')
         self.assertTrue(res_know.get('guia'))
+
+    def test_chatbot_busqueda_precisa_y_sin_alucinaciones(self):
+        from django.core.management import call_command
+        from django.test import override_settings
+
+        call_command('seed_demo')
+        with override_settings(GEMINI_API_KEY=''):
+            # 1. Marca puntual: debe traer solo Cat Chow, no toda la comida de gato
+            r_cat = self.client.post(
+                '/api/usuarios/chatbot/',
+                {'message': 'quiero comida cat chow', 'conversation_history': []},
+                format='json',
+            )
+            self.assertEqual(r_cat.status_code, 200)
+            titulos_cat = [p['titulo'] for p in r_cat.data.get('products', [])]
+            self.assertEqual(titulos_cat, ['Cat Chow Adultos 1.5 kg'])
+
+            # 2. Animal no soportado: 0 productos y no asumir gato
+            r_alce = self.client.post(
+                '/api/usuarios/chatbot/',
+                {'message': 'tienen comida de alce?', 'conversation_history': []},
+                format='json',
+            )
+            self.assertEqual(r_alce.status_code, 200)
+            self.assertEqual(r_alce.data.get('products', []), [])
+            self.assertIn('alce', r_alce.data.get('response', '').lower())
+
+            # 3. Marca inexistente: 0 productos (no rellenar con otras marcas)
+            r_whiskas = self.client.post(
+                '/api/usuarios/chatbot/',
+                {'message': 'tienen whiskas?', 'conversation_history': []},
+                format='json',
+            )
+            self.assertEqual(r_whiskas.status_code, 200)
+            self.assertEqual(r_whiskas.data.get('products', []), [])
+
+            # 4. Saludo con signos de exclamacion: 0 productos
+            r_hola = self.client.post(
+                '/api/usuarios/chatbot/',
+                {'message': 'Hola!', 'conversation_history': []},
+                format='json',
+            )
+            self.assertEqual(r_hola.status_code, 200)
+            self.assertEqual(r_hola.data.get('products', []), [])
+            self.assertEqual(r_hola.data.get('status'), 'local_saludo')

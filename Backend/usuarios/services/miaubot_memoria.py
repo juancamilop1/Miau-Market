@@ -113,7 +113,10 @@ def actualizar_memoria(memoria: dict | None, perfil, message: str, textos_histor
 
     mascotas = list(memoria.get('mascotas') or [])
     nueva = _mascota_desde_perfil(perfil)
-    tiene_datos = any([perfil.animal, perfil.edad, perfil.nombre, getattr(perfil, 'raza', None)])
+    tiene_datos = (
+        not getattr(perfil, 'otro_animal', None)
+        and perfil.animal in ('gato', 'perro')
+    )
 
     idx_activa = memoria.get('mascota_activa_idx', 0)
     mascota_actualizada = False
@@ -180,7 +183,7 @@ def actualizar_memoria(memoria: dict | None, perfil, message: str, textos_histor
 
 
 def aplicar_memoria_a_perfil(perfil, memoria: dict | None):
-    if not memoria or not memoria.get('mascotas'):
+    if not memoria or not memoria.get('mascotas') or getattr(perfil, 'otro_animal', None):
         return perfil
 
     idx = memoria.get('mascota_activa_idx', 0)
@@ -189,16 +192,17 @@ def aplicar_memoria_a_perfil(perfil, memoria: dict | None):
         idx = 0
     m = mascotas[idx]
 
-    if not perfil.edad and m.get('edad'):
-        perfil.edad = m['edad']
-    if not perfil.nombre and m.get('nombre'):
-        perfil.nombre = m['nombre']
-    if not perfil.tamano and m.get('tamano'):
-        perfil.tamano = m['tamano']
-    if m.get('animal'):
+    if not perfil.animal and m.get('animal') in ('gato', 'perro'):
         perfil.animal = m['animal']
-    if not getattr(perfil, 'raza', None) and m.get('raza'):
-        perfil.raza = m['raza']
+    if perfil.animal == m.get('animal'):
+        if not perfil.edad and m.get('edad'):
+            perfil.edad = m['edad']
+        if not perfil.nombre and m.get('nombre'):
+            perfil.nombre = m['nombre']
+        if not perfil.tamano and m.get('tamano'):
+            perfil.tamano = m['tamano']
+        if not getattr(perfil, 'raza', None) and m.get('raza'):
+            perfil.raza = m['raza']
 
     seg = memoria.get('seguimiento') or {}
     for tema in seg:

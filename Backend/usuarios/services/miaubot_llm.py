@@ -37,14 +37,20 @@ def _construir_system_instruction(context: dict, perfil: PerfilMascota) -> str:
     datos_sesion = []
     if context.get('user_name'):
         datos_sesion.append(f"Cliente: {context['user_name']}")
-    if perfil.nombre:
-        datos_sesion.append(f"Mascota: {perfil.nombre} ({perfil.animal})")
-    elif perfil.animal:
-        datos_sesion.append(f"Animal: {perfil.animal}")
-    if perfil.edad:
-        datos_sesion.append(f"Edad: {perfil.edad}")
-    if getattr(perfil, 'raza', None):
-        datos_sesion.append(f"Raza: {perfil.raza}")
+    if getattr(perfil, 'otro_animal', None):
+        datos_sesion.append(
+            f"Consulta sobre: {perfil.otro_animal} (MiauMarket solo vende productos para perros y gatos)"
+        )
+    else:
+        if perfil.nombre:
+            especie = f" ({perfil.animal})" if perfil.animal else ''
+            datos_sesion.append(f"Mascota: {perfil.nombre}{especie}")
+        elif perfil.animal:
+            datos_sesion.append(f"Animal: {perfil.animal}")
+        if perfil.edad:
+            datos_sesion.append(f"Edad: {perfil.edad}")
+        if getattr(perfil, 'raza', None):
+            datos_sesion.append(f"Raza: {perfil.raza}")
 
     linea_sesion = f"\nContexto: {' | '.join(datos_sesion)}." if datos_sesion else ''
     return f"{base}{linea_sesion}"
