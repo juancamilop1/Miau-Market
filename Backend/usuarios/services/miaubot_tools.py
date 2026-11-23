@@ -348,10 +348,100 @@ def _compacto_para_llm(p: dict, ratings: dict, incluir_desc_completa: bool = Fal
     return item
 
 
+TOOL_DECLARATIONS = [
+    {
+        'name': 'buscar_productos',
+        'description': (
+            'Busca productos reales en MiauMarket (tienda de perros y gatos) por nombre, '
+            'marca, animal, categoria o precio_max en COP. Si total es 0, informa con '
+            'honestidad que no existe en catalogo y no inventes productos.'
+        ),
+        'parameters': {
+            'type': 'OBJECT',
+            'properties': {
+                'consulta': {
+                    'type': 'STRING',
+                    'description': 'Nombre, marca o tipo de producto buscado (ej: cat chow, arena, collar).',
+                },
+                'animal': {
+                    'type': 'STRING',
+                    'description': 'Opcional: gato o perro.',
+                },
+                'categoria': {
+                    'type': 'STRING',
+                    'description': 'Opcional: nombre o codigo de categoria.',
+                },
+                'precio_max': {
+                    'type': 'INTEGER',
+                    'description': 'Opcional: presupuesto maximo en pesos colombianos (COP).',
+                },
+                'limite': {
+                    'type': 'INTEGER',
+                    'description': 'Cantidad maxima de resultados (1 a 6, por defecto 4).',
+                },
+            },
+        },
+    },
+    {
+        'name': 'obtener_detalle_producto',
+        'description': 'Obtiene la ficha completa de un producto especifico de MiauMarket por su ID.',
+        'parameters': {
+            'type': 'OBJECT',
+            'properties': {
+                'producto_id': {
+                    'type': 'INTEGER',
+                    'description': 'ID numerico del producto en MiauMarket.',
+                },
+            },
+            'required': ['producto_id'],
+        },
+    },
+    {
+        'name': 'listar_categorias',
+        'description': 'Lista las categorias activas de MiauMarket con cantidad de productos y rango de precios.',
+        'parameters': {
+            'type': 'OBJECT',
+            'properties': {},
+        },
+    },
+    {
+        'name': 'consultar_conocimiento',
+        'description': (
+            'Consulta solo politicas internas de la tienda (como comprar, envios, pagos) '
+            'o respuestas aprobadas por admins. Para preguntas generales sobre mascotas '
+            'o conversacion libre, responde directamente con tu conocimiento sin usar esta herramienta.'
+        ),
+        'parameters': {
+            'type': 'OBJECT',
+            'properties': {
+                'tema': {
+                    'type': 'STRING',
+                    'description': 'Tema o pregunta sobre politicas de la tienda.',
+                },
+                'animal': {
+                    'type': 'STRING',
+                    'description': 'Opcional: gato, perro o general.',
+                },
+            },
+            'required': ['tema'],
+        },
+    },
+    {
+        'name': 'obtener_mascotas_cliente',
+        'description': 'Obtiene las mascotas registradas y preferencias recordadas del cliente autenticado.',
+        'parameters': {
+            'type': 'OBJECT',
+            'properties': {},
+        },
+    },
+]
+
+
 def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | None = None):
     """
-    Crea el conjunto de tools invocables por Gemini para un turno de conversacion.
-    Captura los productos reales consultados para construir tarjetas sin re-consultar BD.
+    Crea las declaraciones JSON y el dispatcher de tools invocables por Gemini
+    para un turno de conversacion. Captura los productos reales consultados para
+    construir tarjetas sin re-consultar BD.
     """
     productos_recuperados: list[dict] = []
     tools_usadas: list[str] = []
@@ -363,7 +453,6 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         precio_max: int = 0,
         limite: int = 4,
     ) -> dict:
-        """Busca productos reales en MiauMarket (tienda de perros y gatos) por nombre, marca, animal, categoria o precio_max en COP. Si total es 0, informa con honestidad que no existe en catalogo y no inventes productos."""
         tools_usadas.append('buscar_productos')
         encontrados, ratings = buscar_productos_catalogo(
             consulta=consulta,
@@ -385,7 +474,6 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         }
 
     def obtener_detalle_producto(producto_id: int) -> dict:
-        """Obtiene la ficha completa de un producto especifico de MiauMarket por su ID."""
         tools_usadas.append('obtener_detalle_producto')
         pid = int(producto_id or 0)
         productos, ratings = obtener_catalogo_cacheado()
@@ -396,7 +484,6 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         return {'error': 'Producto no disponible o sin stock'}
 
     def listar_categorias() -> dict:
-        """Lista las categorias activas de MiauMarket con cantidad de productos y rango de precios."""
         tools_usadas.append('listar_categorias')
         productos, _ = obtener_catalogo_cacheado()
         resumen: dict[str, dict] = {}
@@ -409,7 +496,6 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         return {'categorias': list(resumen.values())}
 
     def consultar_conocimiento(tema: str, animal: str = 'general') -> dict:
-        """Consulta solo politicas internas de la tienda (como comprar, envios, pagos) o respuestas aprobadas por admins. Para preguntas generales sobre mascotas o conversacion libre, responde directamente con tu conocimiento sin usar esta herramienta."""
         tools_usadas.append('consultar_conocimiento')
         animal_ok = animal if animal in ('gato', 'perro', 'general') else 'general'
         guia = buscar_conocimiento(tema, animal_ok)
@@ -420,7 +506,6 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
         }
 
     def obtener_mascotas_cliente() -> dict:
-        """Obtiene las mascotas registradas y preferencias recordadas del cliente autenticado."""
         tools_usadas.append('obtener_mascotas_cliente')
         mascotas_perfil = []
         if usuario_id:
@@ -436,12 +521,11 @@ def construir_herramientas_bot(usuario_id: int | None = None, memoria: dict | No
             'memoria': (memoria or {}).get('mascotas', [])[:4],
         }
 
-    tools = [
-        buscar_productos,
-        obtener_detalle_producto,
-        listar_categorias,
-        consultar_conocimiento,
-        obtener_mascotas_cliente,
-    ]
-    dispatcher = {fn.__name__: fn for fn in tools}
-    return tools, dispatcher, productos_recuperados, tools_usadas
+    dispatcher = {
+        'buscar_productos': buscar_productos,
+        'obtener_detalle_producto': obtener_detalle_producto,
+        'listar_categorias': listar_categorias,
+        'consultar_conocimiento': consultar_conocimiento,
+        'obtener_mascotas_cliente': obtener_mascotas_cliente,
+    }
+    return TOOL_DECLARATIONS, dispatcher, productos_recuperados, tools_usadas

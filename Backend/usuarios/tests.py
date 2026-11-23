@@ -273,3 +273,68 @@ class SeguridadYPedidosTests(TestCase):
             self.assertEqual(r_hola.status_code, 200)
             self.assertEqual(r_hola.data.get('products', []), [])
             self.assertEqual(r_hola.data.get('status'), 'local_saludo')
+
+    def test_miaubot_rest_function_calling_multironda(self):
+        from unittest.mock import patch
+        from django.core.management import call_command
+        from django.test import override_settings
+        from .services import miaubot_llm
+
+        call_command('seed_demo')
+        respuestas_mock = [
+            {
+                'candidates': [{
+                    'content': {
+                        'role': 'model',
+                        'parts': [{
+                            'functionCall': {
+                                'name': 'buscar_productos',
+                                'args': {'consulta': 'comida cat chow', 'animal': 'gato'},
+                            }
+                        }],
+                    }
+                }]
+            },
+            {
+                'candidates': [{
+                    'content': {
+                        'role': 'model',
+                        'parts': [{
+                            'text': 'Tenemos Cat Chow Adultos 1.5 kg disponible a $34.000 COP.'
+                        }],
+                    }
+                }]
+            },
+        ]
+
+        with override_settings(GEMINI_API_KEY='test-key', GEMINI_MODEL='gemini-2.5-flash'):
+            miaubot_llm._modelo_en_pausa.clear()
+            with patch.object(miaubot_llm, '_llamar_gemini_rest', side_effect=respuestas_mock) as mock_call:
+                res = miaubot_llm.generar_respuesta_ia('quiero comida cat chow', [])
+
+        self.assertIsNotNone(res)
+        self.assertEqual(res['status'], 'ia')
+        self.assertEqual(res['tools_used'], ['buscar_productos'])
+        self.assertEqual([p['titulo'] for p in res['products']], ['Cat Chow Adultos 1.5 kg'])
+        self.assertEqual(mock_call.call_count, 2)
+
+        # Rotacion automatica ante HTTP 429 en el modelo primario
+        def side_effect_429(api_key, model_name, payload):
+            if model_name == 'gemini-2.5-flash':
+                raise miaubot_llm._GeminiHTTPError(429, 'quota exceeded')
+            return {
+                'candidates': [{
+                    'content': {'role': 'model', 'parts': [{'text': 'Respuesta desde modelo alterno.'}]}
+                }]
+            }
+
+        with override_settings(GEMINI_API_KEY='test-key', GEMINI_MODEL='gemini-2.5-flash'):
+            miaubot_llm._modelo_en_pausa.clear()
+            with patch.object(miaubot_llm, '_llamar_gemini_rest', side_effect=side_effect_429):
+                res_alt = miaubot_llm.generar_respuesta_ia('por que ronronean los gatos?', [])
+
+        self.assertIsNotNone(res_alt)
+        self.assertEqual(res_alt['status'], 'ia')
+        self.assertEqual(res_alt['model'], 'gemini-3.5-flash-lite')
+        miaubot_llm._modelo_en_pausa.clear()
+
